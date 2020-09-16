@@ -131,7 +131,7 @@ def generate_comention_network(occurrence_data, factor_count,
                                factor_column=None,
                                n_most_frequent=None,
                                limit=None,
-                               parallelize=False, dump_edges=False,
+                               parallelize=False,
                                dump_path=None,
                                keep=None):
     """Generate a term co-occurrence network."""
@@ -222,9 +222,8 @@ def generate_comention_network(occurrence_data, factor_count,
     print("\tnumber of nodes: ", len(nodes))
     print("\tnumber of edges: ", edge_list.shape[0])
     print("Saving the edges...")
-    if dump_edges:
-        with open(os.path.join(
-                dump_path, "{}_{}_edge_list.pkl".format(factor_column, N)), "wb") as f:
+    if dump_path:
+        with open(dump_path, "wb") as f:
             pickle.dump(edge_list, f)
 
     print("Creating a graph object...")
