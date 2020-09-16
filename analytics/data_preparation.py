@@ -63,7 +63,7 @@ def mentions_to_occurrence(raw_data,
         raw_data[term_column] = raw_data[term_column].apply(term_cleanup)
 
     if term_filter is not None:
-        raw_data = raw_data[term_filter(raw_data)]
+        raw_data = raw_data[term_filter(raw_data[term_column])]
 
     if mention_filter is not None:
         raw_data = raw_data[mention_filter(raw_data)]
@@ -78,13 +78,14 @@ def mentions_to_occurrence(raw_data,
 
     if dump_prefix is not None:
         print("Saving the occurrence data....")
-        with open("{}_occurrence_data.pkl".format(dump_prefix), "wb") as f:
+        with open("{}occurrence_data.pkl".format(dump_prefix), "wb") as f:
             pickle.dump(occurence_data, f)
 
-        with open("{}_counts.pkl".format(dump_prefix), "wb") as f:
+        with open("{}counts.pkl".format(dump_prefix), "wb") as f:
             pickle.dump(factor_counts, f)
 
     return occurence_data, factor_counts
 
 
 def merge_with_ontology_linking(occurence_data, linking_data):
+    pass
