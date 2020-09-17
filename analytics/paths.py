@@ -70,8 +70,9 @@ def get_all_paths(graph, input_source, input_target,
     return path_ranking
 
 
-def top_n_paths(graph, a, b, n, weight, path_condition=None,
-                pretty_print=False, pretty_repr=False, strategy="naive"):
+def top_n_paths(graph, a, b, n, weight=None, distance=None,
+                path_condition=None, pretty_print=False,
+                pretty_repr=False, strategy="naive"):
     """Get top n shortest paths."""
     if strategy == "naive":
         path_ranks = get_all_paths(
@@ -80,15 +81,19 @@ def top_n_paths(graph, a, b, n, weight, path_condition=None,
             tuple([a] + [el for el in p] + [b]): r
             for p, r in path_ranks.items()
         }
+        if len(path_ranks) == 0:
+            raise ValueError("No undirect paths from '{}' to '{}' found".format(
+                a, b))
         paths = top_n(path_ranks, n)
     elif strategy == "yen":
         generator = nx.shortest_simple_paths(
-            graph, a, b, weight="distance_{}".format(weight))
+            graph, a, b, weight=distance)
         i = 0
         paths = []
         for path in generator:
-            paths.append(path)
-            i += 1
+            if path_condition is None or path_condition(path):
+                paths.append(path)
+                i += 1
             if i == n:
                 break
 
@@ -106,8 +111,10 @@ def single_shortest_path(graph, a, b, pretty_print=False):
     return path
 
 
-def top_n_tripaths(graph, a, b, c, n, intersecting=True, pretty_print=False, 
-                   pretty_repr=False, weight=None, strategy="naive"):
+def top_n_tripaths(graph, a, b, c, n,
+                   weight=None, distance=None, strategy="naive",
+                   intersecting=True,
+                   pretty_print=False, pretty_repr=False):
     """Get top n shortest 'tripaths'."""
     def non_intersecting(path, reference_paths):
         core = set(path[1:-1])
@@ -117,18 +124,20 @@ def top_n_tripaths(graph, a, b, c, n, intersecting=True, pretty_print=False,
         return True
 
     a_b_paths = top_n_paths(
-        graph, a, b, n, weight=weight,
+        graph, a, b, n, weight=weight, distance=distance,
         strategy=strategy)
     if not intersecting:
         b_c_paths = top_n_paths(
             graph, b, c, n,
             path_condition=lambda x: non_intersecting(x, a_b_paths),
             weight=weight,
+            distance=distance,
             strategy=strategy)
     else:
         b_c_paths = top_n_paths(
             graph, b, c, n,
             weight=weight,
+            distance=distance,
             strategy=strategy)
     path_ranking = {}
 
@@ -154,8 +163,10 @@ def top_n_tripaths(graph, a, b, c, n, intersecting=True, pretty_print=False,
             " " * max_right,
             c_repr))
         for i in range(n):
-            if i == len(a_repr):
+            if i >= len(a_b_paths) and i >= len(b_c_paths):
                 break
+            left = a_b_paths_repr[i] if i < len(a_b_paths) else (" " * max_left)
+            right = b_c_paths_repr[i] if i < len(b_c_paths) else (" " * max_right)
             print(
                 " " * len(a_repr), a_b_paths_repr[i],
                 " " * (max_left - len(a_b_paths_repr[i]) + len(b_repr)),
