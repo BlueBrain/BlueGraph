@@ -75,8 +75,6 @@ def schedule_scanning(task_queue, indices, n_workers):
         task_queue.put(SENTINEL)
     task_queue.close()
     task_queue.join_thread()
-    print(
-        "[Tasker] Finished adding tasks to the queue")
 
 
 def filter_unfrequent(data, factor, n, keep=None):
