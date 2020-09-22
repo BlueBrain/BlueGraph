@@ -1,82 +1,82 @@
 """Utils for generation of co-mention networks."""
-import functools
 import math
-import os
 
 import pickle
 
 import pandas as pd
 import multiprocessing as mp
 import networkx as nx
+import queue
+
+SENTINEL = "END"
 
 
-# class ComentionScanner(object):
-#     """Scanner of co-mentions."""
+def scan_targets(occurrence_data, factor_column, factor_count,
+                 indices_to_nodes, source_index, generated_edges,
+                 limit=None):
+    """Scan terms for co-occurrence."""
+    edge_list = []
+    for target_index in range(source_index + 1, len(indices_to_nodes)):
+        s = indices_to_nodes[source_index]
+        t = indices_to_nodes[target_index]
+        frequency = cofrequence(
+            occurrence_data, factor_column, s, t)
 
-#     def __init__(self, data, factor_column, factor_count, finish_event):
-#         self.name = mp.current_process().name
-#         self.data = data
-#         self.factor_column = self.factor_column
-#         self.factor_count = self.factor_count
-#         self.finish_event = finish_event
+        if frequency > 0:
+            ppmi = mutual_information(
+                occurrence_data, factor_column,
+                factor_count, s, t)
+            npmi = mutual_information(
+                occurrence_data, factor_column,
+                factor_count, s, t, mitype="normalized")
+            edge_list.append({
+                "source": s,
+                "target": t,
+                "frequency": frequency,
+                "ppmi": ppmi if ppmi > 0 else 0,
+                "npmi": npmi if npmi > 0 else 0,
+            })
 
-#         self.scanning_loop()
+        if limit and len(generated_edges) == limit:
+            print("Reached the edge limit ({})".format(limit))
+            return edge_list
 
-#     def scanning_loop(self):
-#         """Main scanning loop of the scanner."""
-#         print(f"[{self.name}] Doing the scanning")
-
-#         while not self.finish_event.is_set():
-#             print(f"[{self.name}] Still scanning")
-
-#             # TODO: do some actual work
-
-#         print(f"[{self.name}] Finished work")
+    return edge_list
 
 
-# def parallel_network_generation(occurrence_data,
-#                                 factor_column=None,
-#                                 factor_count=None,
-#                                 n_most_frequent=None,
-#                                 limit=None,
-#                                 parallelize=False, dump_edges=False,
-#                                 dump_path=None,
-#                                 keep=None):
-#     # Configuration
-#     n_workers = 4
-#     processes = []
-#     name = mp.current_process().name
+def scanning_loop(data, factor_column, factor_count,
+                  indices_to_nodes, task_queue, generated_edges,
+                  limit=None):
+    """Main scanning loop of the edge scanner."""
+    first_scan = True
 
-#     task_queue = mp.Queue()
+    while True:
+        try:
+            source_index = task_queue.get(timeout=0.1)
+            if source_index == SENTINEL:
+                break
+        except queue.Empty:
+            pass
+        else:
+            if first_scan:
+                first_scan = False
+            edge_list = scan_targets(
+                data, factor_column, factor_count,
+                indices_to_nodes, source_index, generated_edges,
+                limit=limit)
+            generated_edges += edge_list
 
-#     finish_event = mp.Event()
 
-#     print(f"[{name}] Creating the worker processes")
-#     for i in range(n_workers):
-#         process = mp.Process(
-#             name=f"Worker-{i}",
-#             target=ComentionScanner,
-#             args=(
-#                 occurrence_data,
-#                 factor_column,
-#                 factor_count,
-#                 finish_event,),
-#         )
-#         process.start()
-#         processes.append(process)
-
-#     # TODO: feed the text mining tasks to worker processes
-#     print(f"[{name}] Feeding the tasks to the workers")
-
-#     for process in processes:
-#         assert process.is_alive()
-
-#     # Wait for the processes to finish
-#     print(f"[{name}] Waiting for the workers to finish")
-#     for process in processes:
-#         process.join()
-
-#     print(f"[{name}] Finished mining")
+def schedule_scanning(task_queue, indices, n_workers):
+    """Schedule scanning work."""
+    for i in indices:
+        task_queue.put(i)
+    for _ in range(n_workers):
+        task_queue.put(SENTINEL)
+    task_queue.close()
+    task_queue.join_thread()
+    print(
+        "[Tasker] Finished adding tasks to the queue")
 
 
 def filter_unfrequent(data, factor, n, keep=None):
@@ -127,11 +127,13 @@ def mutual_information(occurrence_data, factor, total_instances,
     return mi
 
 
-def generate_comention_network(occurrence_data, factor_count,
-                               factor_column=None,
+def generate_comention_network(occurrence_data,
+                               factor_column,
+                               factor_count,
                                n_most_frequent=None,
                                limit=None,
                                parallelize=False,
+                               cores=None,
                                dump_path=None,
                                keep=None):
     """Generate a term co-occurrence network."""
@@ -152,63 +154,50 @@ def generate_comention_network(occurrence_data, factor_count,
     print("Examining {} pairs of terms for co-occurrence...".format(
         int(total_pairs)))
 
-    def scan_targets(source_index, generated_edges,
-                     print_progress=False, processed_pairs=0):
-
-        edge_list = []
-        for target_index in range(source_index + 1, len(indices_to_nodes)):
-            s = indices_to_nodes[source_index]
-            t = indices_to_nodes[target_index]
-            frequency = cofrequence(
-                occurrence_data, factor_column, s, t)
-
-            if frequency > 0:
-                ppmi = mutual_information(
-                    occurrence_data, factor_column,
-                    factor_count, s, t)
-                npmi = mutual_information(
-                    occurrence_data, factor_column,
-                    factor_count, s, t, mitype="normalized")
-                edge_list.append({
-                    "source": s,
-                    "target": t,
-                    "frequency": frequency,
-                    "ppmi": ppmi if ppmi > 0 else 0,
-                    "npmi": npmi if npmi > 0 else 0,
-                })
-                generated_edges += 1
-            if limit and generated_edges == limit:
-                print("Reached the edge limit ({})".format(limit))
-                return edge_list, generated_edges, processed_pairs
-            processed_pairs += 1
-            if print_progress:
-                percent = int((processed_pairs / total_pairs) * 100)
-                print(
-                    f"Processed {processed_pairs} ({percent}%) pairs     \x1b[1K\r",
-                    end="")
-
-        return edge_list, generated_edges, processed_pairs
-
     if parallelize:
-        # pool = Pool()  # Create a multiprocessing Pool
-        # edges = pool.map(
-        #     functools.partial(
-        #         scan_targets,
-        #         indices_to_nodes,
-        #         factor_column, limit),
-        #     range(len(nodes)))
+        # Create worker processes
+        if cores is None:
+            cores = 4
+        processes = []
 
-        # all_edges = sum(edges, [])
-        raise NotImplementedError()
+        task_queue = mp.Queue()
+
+        # Shared edge list
+        manager = mp.Manager()
+        generated_edges = manager.list()
+
+        for i in range(cores):
+            process = mp.Process(
+                target=scanning_loop,
+                args=(
+                    occurrence_data,
+                    factor_column,
+                    factor_count,
+                    indices_to_nodes,
+                    task_queue,
+                    generated_edges),
+            )
+            process.start()
+            processes.append(process)
+
+        tasker_process = mp.Process(
+            target=schedule_scanning,
+            args=(task_queue, range(len(nodes)), cores))
+        tasker_process.start()
+
+        tasker_process.join()
+
+        for worker_process in processes:
+            worker_process.join()
+        all_edges = list(generated_edges)
     else:
-        processed_pairs = 0
-        generated_edges = 0
-        for index in range(len(nodes)):
-            edges, generated_edges, processed_pairs = scan_targets(
-                index, generated_edges, print_progress=True,
-                processed_pairs=processed_pairs)
+        for source_index in range(len(nodes)):
+            edges = scan_targets(
+                occurrence_data, factor_column, factor_count,
+                indices_to_nodes, source_index, all_edges,
+                limit=limit)
             all_edges += edges
-            if generated_edges == limit:
+            if len(all_edges) == limit:
                 break
 
     print("Generated {} edges                    ".format(
