@@ -37,9 +37,10 @@ def scan_targets(occurrence_data, factor_column, factor_count,
                 "npmi": npmi if npmi > 0 else 0,
             })
 
-        if limit and len(generated_edges) == limit:
-            print("Reached the edge limit ({})".format(limit))
-            return edge_list
+        if limit:
+            if len(generated_edges) + len(edge_list) == limit:
+                print("Reached the edge limit ({})".format(limit))
+                return edge_list
 
     return edge_list
 
