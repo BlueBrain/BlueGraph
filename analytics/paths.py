@@ -68,7 +68,6 @@ def get_all_paths(graph, input_source, input_target,
             if path_condition is None or path_condition(p):
                 path_ranking[tuple(p[1:-1])] = get_cumulative_distance(
                     graph, p, weight=weight)
-        return(path_ranking)
 
     except Exception as e:
         print(e)
