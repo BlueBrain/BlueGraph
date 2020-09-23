@@ -103,9 +103,10 @@ def top_n_paths(graph, a, b, n, weight=None, distance=None,
     return paths
 
 
-def single_shortest_path(graph, a, b, pretty_print=False):
+def single_shortest_path(graph, a, b, weight=None,
+                         pretty_print=False):
     """Get the single shortest path."""
-    path = list(nx.shortest_path(graph, a, b))
+    path = list(nx.shortest_path(graph, a, b, weight=weight))
     if pretty_print:
         print(" -> ".join(path))
     return path
@@ -172,3 +173,17 @@ def top_n_tripaths(graph, a, b, c, n,
                 " " * (max_left - len(a_b_paths_repr[i]) + len(b_repr)),
                 b_c_paths_repr[i])
     return (a_b_paths, b_c_paths)
+
+
+def paths_to_graph(paths):
+    """Convert paths to a graph."""
+    nodes = set()
+    edges = set()
+    for p in paths:
+        for i in range(1, len(p)):
+            nodes.add(p[i - 1])
+            edges.add((p[i - 1], p[i]))
+    graph = nx.Graph()
+    graph.add_nodes_from(nodes)
+    graph.add_edges_from(edges)
+    return graph
