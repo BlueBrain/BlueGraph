@@ -40,6 +40,16 @@ def get_cumulative_weight(graph, path, weight):
     return result
 
 
+def get_cumulative_distance(graph, path, weight="ppmi"):
+    """Get cumulative distance along the path."""
+    result = 0
+    for i in range(1, len(path)):
+        source = path[i - 1]
+        target = path[i]
+        result += 1 / graph.edges[source, target][weight]
+    return result
+
+
 def get_all_paths(graph, input_source, input_target,
                   weight, path_condition=None):
     """Get all shortest paths."""
@@ -56,7 +66,7 @@ def get_all_paths(graph, input_source, input_target,
         path_ranking = {}
         for p in shortest_paths:
             if path_condition is None or path_condition(p):
-                path_ranking[tuple(p[1:-1])] = get_cumulative_weight(
+                path_ranking[tuple(p[1:-1])] = get_cumulative_distance(
                     graph, p, weight=weight)
         return(path_ranking)
 
@@ -84,7 +94,7 @@ def top_n_paths(graph, a, b, n, weight=None, distance=None,
         if len(path_ranks) == 0:
             raise ValueError("No undirect paths from '{}' to '{}' found".format(
                 a, b))
-        paths = top_n(path_ranks, n)
+        paths = top_n(path_ranks, n, smallest=True)
     elif strategy == "yen":
         generator = nx.shortest_simple_paths(
             graph, a, b, weight=distance)
