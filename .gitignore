@@ -1,8 +1,8 @@
 *.egg-info/
 build/
 dist/
-analytics/examples/data/gephi*
-analytics/examples/data/paper*
-analytics/examples/data/example*
+kganalytics/examples/data/gephi*
+kganalytics/examples/data/paper*
+kganalytics/examples/data/example*
 *.ipynb_checkpoints/
 *.DS_Store
