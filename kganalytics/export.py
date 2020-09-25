@@ -87,3 +87,9 @@ def load_network(edge_path, node_path, edge_attr=None):
     network = nx.from_pandas_edgelist(
         edge_list,
         edge_attr=edge_attr)
+
+    with open(node_path, "rb") as f:
+       node_list = pickle.load(f)
+    nx.set_node_attributes(graph, node_list.to_dict("index"))
+
+    return network
