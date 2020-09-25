@@ -85,7 +85,3 @@ def mentions_to_occurrence(raw_data,
             pickle.dump(factor_counts, f)
 
     return occurence_data, factor_counts
-
-
-def merge_with_ontology_linking(occurence_data, linking_data):
-    pass
