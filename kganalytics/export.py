@@ -90,6 +90,6 @@ def load_network(edge_path, node_path, edge_attr=None):
 
     with open(node_path, "rb") as f:
        node_list = pickle.load(f)
-    nx.set_node_attributes(graph, node_list.to_dict("index"))
+    nx.set_node_attributes(network, node_list.to_dict("index"))
 
     return network
