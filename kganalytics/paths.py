@@ -3,7 +3,7 @@ import pickle
 import pandas as pd
 import networkx as nx
 
-from analytics.utils import top_n
+from kganalytics.utils import top_n
 
 
 def minimum_spanning_tree(graph, weight):
