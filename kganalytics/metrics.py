@@ -3,7 +3,7 @@ import networkx as nx
 
 import community as community_louvain
 
-from analytics.utils import top_n
+from kganalytics.utils import top_n
 
 
 def keys_by_value(d, val):
