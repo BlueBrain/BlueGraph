@@ -40,24 +40,24 @@ def get_cumulative_weight(graph, path, weight):
     return result
 
 
-def get_cumulative_distance(graph, path, weight="ppmi"):
+def get_cumulative_distance(graph, path, distance="distance_npmi"):
     """Get cumulative distance along the path."""
     result = 0
     for i in range(1, len(path)):
         source = path[i - 1]
         target = path[i]
-        result += 1 / graph.edges[source, target][weight]
+        result += graph.edges[source, target][distance]
     return result
 
 
 def get_all_paths(graph, input_source, input_target,
-                  weight, path_condition=None):
+                  distance, path_condition=None):
     """Get all shortest paths."""
     backup_edge = None
     path_ranking = {}
 
     if (input_source, input_target) in graph.edges():
-        backup_edge  = {**graph.edges[input_source, input_target]}
+        backup_edge = {**graph.edges[input_source, input_target]}
         graph.remove_edge(input_source, input_target)
     try:
         shortest_paths = list(
@@ -67,7 +67,7 @@ def get_all_paths(graph, input_source, input_target,
         for p in shortest_paths:
             if path_condition is None or path_condition(p):
                 path_ranking[tuple(p[1:-1])] = get_cumulative_distance(
-                    graph, p, weight=weight)
+                    graph, p, distance=distance)
 
     except Exception as e:
         print(e)
@@ -79,13 +79,13 @@ def get_all_paths(graph, input_source, input_target,
     return path_ranking
 
 
-def top_n_paths(graph, a, b, n, weight=None, distance=None,
+def top_n_paths(graph, a, b, n, distance=None,
                 path_condition=None, pretty_print=False,
                 pretty_repr=False, strategy="naive"):
     """Get top n shortest paths."""
     if strategy == "naive":
         path_ranks = get_all_paths(
-            graph, a, b, path_condition=path_condition, weight=weight)
+            graph, a, b, path_condition=path_condition, distance=distance)
         path_ranks = {
             tuple([a] + [el for el in p] + [b]): r
             for p, r in path_ranks.items()
@@ -134,21 +134,19 @@ def top_n_tripaths(graph, a, b, c, n,
         return True
 
     a_b_paths = top_n_paths(
-        graph, a, b, n, weight=weight, distance=distance,
-        strategy=strategy)
+        graph, a, b, n, distance=distance, strategy=strategy)
     if not intersecting:
         b_c_paths = top_n_paths(
             graph, b, c, n,
             path_condition=lambda x: non_intersecting(x, a_b_paths),
-            weight=weight,
             distance=distance,
             strategy=strategy)
     else:
         b_c_paths = top_n_paths(
             graph, b, c, n,
-            weight=weight,
             distance=distance,
             strategy=strategy)
+
     path_ranking = {}
 
     if pretty_print:
