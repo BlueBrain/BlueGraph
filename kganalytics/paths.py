@@ -134,21 +134,19 @@ def top_n_tripaths(graph, a, b, c, n,
         return True
 
     a_b_paths = top_n_paths(
-        graph, a, b, n, weight=weight, distance=distance,
-        strategy=strategy)
+        graph, a, b, n, distance=distance, strategy=strategy)
     if not intersecting:
         b_c_paths = top_n_paths(
             graph, b, c, n,
             path_condition=lambda x: non_intersecting(x, a_b_paths),
-            weight=weight,
             distance=distance,
             strategy=strategy)
     else:
         b_c_paths = top_n_paths(
             graph, b, c, n,
-            weight=weight,
             distance=distance,
             strategy=strategy)
+
     path_ranking = {}
 
     if pretty_print:
