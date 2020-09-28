@@ -178,9 +178,9 @@ def top_n_tripaths(graph, a, b, c, n,
             left = a_b_paths_repr[i] if i < len(a_b_paths) else (" " * max_left)
             right = b_c_paths_repr[i] if i < len(b_c_paths) else (" " * max_right)
             print(
-                " " * len(a_repr), a_b_paths_repr[i],
-                " " * (max_left - len(a_b_paths_repr[i]) + len(b_repr)),
-                b_c_paths_repr[i])
+                " " * len(a_repr), left,
+                " " * (max_left - len(left) + len(b_repr)),
+                right)
     return (a_b_paths, b_c_paths)
 
 

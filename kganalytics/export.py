@@ -75,3 +75,21 @@ def save_to_gephi(graph, prefix, node_attr_mapping,
 
     with open("{}_nodes.csv".format(prefix), "w+") as f:
         f.write(node_header + node_repr)
+
+
+def load_network(edge_path, node_path, edge_attr=None):
+    if edge_attr is None:
+        edge_attr = [
+            "frequency", "ppmi", "npmi", "distance_ppmi", "distance_npmi"
+        ]
+    with open(edge_path, "rb") as f:
+        edge_list = pickle.load(f)
+    network = nx.from_pandas_edgelist(
+        edge_list,
+        edge_attr=edge_attr)
+
+    with open(node_path, "rb") as f:
+       node_list = pickle.load(f)
+    nx.set_node_attributes(network, node_list.to_dict("index"))
+
+    return network

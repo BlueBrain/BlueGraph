@@ -4,6 +4,7 @@ from setuptools import setup
 setup(
     name="bbg_analytics",
     author="Blue Brain Project, EPFL",
+    version="0.0.1",
     packages=[
         "kganalytics",
     ],
