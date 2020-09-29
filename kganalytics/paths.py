@@ -105,10 +105,14 @@ def top_n_paths(graph, a, b, n, distance=None,
                 i += 1
             if i == n:
                 break
+    else:
+        raise ValueError("Unknown path search strategy '{}'".format(
+            strategy))
 
     if pretty_print or pretty_repr:
         r = pretty_print_paths(paths, as_repr=pretty_repr)
         return paths, r
+
     return paths
 
 
