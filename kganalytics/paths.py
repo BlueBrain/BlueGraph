@@ -83,6 +83,8 @@ def top_n_paths(graph, a, b, n, distance=None,
                 path_condition=None, pretty_print=False,
                 pretty_repr=False, strategy="naive"):
     """Get top n shortest paths."""
+    if n == 1:
+        return [tuple(single_shortest_path(graph, a, b))]
     if strategy == "naive":
         path_ranks = get_all_paths(
             graph, a, b, path_condition=path_condition, distance=distance)
@@ -116,10 +118,10 @@ def top_n_paths(graph, a, b, n, distance=None,
     return paths
 
 
-def single_shortest_path(graph, a, b, weight=None,
+def single_shortest_path(graph, a, b, distance=None,
                          pretty_print=False):
     """Get the single shortest path."""
-    path = list(nx.shortest_path(graph, a, b, weight=weight))
+    path = list(nx.shortest_path(graph, a, b, weight=distance))
     if pretty_print:
         print(" -> ".join(path))
     return path
