@@ -188,8 +188,8 @@ def top_n_tripaths(graph, a, b, c, n,
     return (a_b_paths, b_c_paths)
 
 
-def paths_to_graph(paths):
-    """Convert paths to a graph."""
+def graph_from_paths(paths, source_graph=None):
+    """Create a graph from paths."""
     nodes = set()
     edges = set()
     for p in paths:
@@ -199,4 +199,41 @@ def paths_to_graph(paths):
     graph = nx.Graph()
     graph.add_nodes_from(nodes)
     graph.add_edges_from(edges)
+    if source_graph is not None:
+        # Graph are asumed to be hemogeneous
+        attrs = source_graph.nodes[list(nodes)[0]].keys()
+        for k in attrs:
+            nx.set_node_attributes(
+                graph, {n: source_graph.nodes[n][k] for n in nodes}, k)
+        edge_attrs = source_graph.edges[list(edges)[0]].keys()
+        for k in edge_attrs:
+            nx.set_edge_attributes(
+                graph, {e: source_graph.edges[e][k] for e in edges}, k)
     return graph
+
+
+def top_n_nested_paths(graph, source, target, n, nested_n=None, strategy="naive", distance=None, depth=1):
+    """Find top n nested paths.
+    
+    Nested paths are found iteratively for each level of depth. For example,
+    if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth,
+    then the function searches for paths between each consecutive pair of
+    nodes (e1 and e2, e2 and e3, etc.).
+    """
+    if nested_n is None:
+        nested_n = n
+    current_paths = [[source, target]]
+    visited = set()
+    for level in range(depth):
+        new_paths = []
+        for path in current_paths:
+            for i in range(1, len(path)):
+                s = path[i - 1]
+                t = path[i]
+                if (s, t) not in visited and (t, s) not in visited:
+                    visited.add((s, t))
+                    new_paths += top_n_paths(
+                        graph, s, t, n if level == 0 else nested_n,
+                        strategy=strategy, distance=distance)
+        current_paths = new_paths
+    return current_paths
