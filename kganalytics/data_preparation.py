@@ -54,6 +54,7 @@ def mentions_to_occurrence(raw_data,
                            term_filter=None,
                            mention_filter=None,
                            filter_methods=False,
+                           aggregation_function=None,
                            dump_prefix=None):
     """Convert a raw mentions data into occurrence data."""
     print("Cleaning up the entities...")
@@ -73,8 +74,11 @@ def mentions_to_occurrence(raw_data,
         factor_counts[factor_column] = len(raw_data[factor_column].unique())
 
     print("Aggregating occurrences of entities....")
+    if aggregation_function is None:
+        aggregation_function = set
+
     occurence_data = raw_data.groupby(term_column).aggregate(
-        lambda x: set(x))
+        lambda x: aggregation_function(x))
 
     if dump_prefix is not None:
         print("Saving the occurrence data....")
