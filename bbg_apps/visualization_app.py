@@ -121,7 +121,6 @@ def create_node(id, node_type=None,label=None, label_size=10, label_color="black
             }
         }
 
-
 node_shape_option_list = [
     'ellipse',
     'triangle',
@@ -298,7 +297,6 @@ class VisualizationApp(object):
             className="mb-1"
         )
 
-
         node_range_group = dbc.FormGroup(
             [
                 dbc.Label("Display Range", html_for="nodefreqslider"),
@@ -327,7 +325,7 @@ class VisualizationApp(object):
                 dcc.RangeSlider(id="edgefreqslider", min=0, max=10, value=[0, 100000])
             ]
         )
-    
+
         
         frequencies_form = dbc.FormGroup(
             [
@@ -535,6 +533,7 @@ class VisualizationApp(object):
         self._max_node_weight = None
         self._min_edge_weight = None
         self._max_edge_weight = None
+        self._removed_nodes = set()
 
         # Store removed nodes and edges
         self._removed_nodes = set()
@@ -834,8 +833,9 @@ def reset_layout(resetbt, removebt, val,
                     if path_step in elements_dict:
                         path_element = elements_dict[path_step]
                     else:
+
                         print("!!!", path_step, " not in ", elements_dict.keys())
-                    
+
                     path_element_id = path_element['data']['id']
                     elements.append(path_element)
 

@@ -199,5 +199,5 @@ CISE_CONFIG = {
     # Gravity force (constant)
     "gravity": 0.25,
     # Gravity range (constant)
-    "gravityRange": 3.8,
+    "gravityRange": 3.8
 }
