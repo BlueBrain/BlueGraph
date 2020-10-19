@@ -325,7 +325,6 @@ class VisualizationApp(object):
                 dcc.RangeSlider(id="edgefreqslider", min=0, max=10, value=[0, 100000])
             ]
         )
-
         
         frequencies_form = dbc.FormGroup(
             [
@@ -833,7 +832,6 @@ def reset_layout(resetbt, removebt, val,
                     if path_step in elements_dict:
                         path_element = elements_dict[path_step]
                     else:
-
                         print("!!!", path_step, " not in ", elements_dict.keys())
 
                     path_element_id = path_element['data']['id']
