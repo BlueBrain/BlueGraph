@@ -23,7 +23,11 @@ from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
                                 MIN_FONT_SIZE,
                                 MAX_FONT_SIZE,
                                 MIN_EDGE_WIDTH,
-                                MAX_EDGE_WIDTH)
+                                MAX_EDGE_WIDTH,
+                                COSE_BILKENT_CONFIG,
+                                COSE_CONFIG,
+                                COLA_CONFIG,
+                                CISE_CONFIG)
 from dash.exceptions import PreventUpdate
 
     
@@ -59,6 +63,18 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
                     cyto_repr[i]["data"]["{}_font_size".format(weight)] = font_sizes[j]
                 j += 1
 
+                
+def generate_cluster_info(elements, cluster_type):
+    cluster_dict = {}
+    for el in elements:
+        if cluster_type in el["data"]:
+            cluster_id = el["data"][cluster_type]
+            if cluster_id in cluster_dict:
+                cluster_dict[cluster_id].append(el["data"]["id"])
+            else:
+                cluster_dict[cluster_id] = [el["data"]["id"]]
+    return list(cluster_dict.values())
+
 
 node_shape_option_list = [
     'ellipse',
@@ -80,14 +96,15 @@ dropdown_download_option_list = [
 ]
 
 graph_layout_option_list = [
-    'preset',
+    'cose-bilkent',
+    'circle',
+    'cise',
     'random',
     'grid',
-    'circle',
+    'preset',
     'concentric',
     'breadthfirst',
     'cose',
-    'cose-bilkent',
     'dagre',
     'cola',
     'klay',
@@ -105,13 +122,6 @@ edge_frequency_type = [
     ("Mutual Information", "npmi"),
     ("Raw Frequency", "frequency"),
 ]
-
-# graph_type_option_list = [
-#     'Knowledge Graph',
-#     'Co-mention Graph Spanning Tree',
-#     'Co-mention Graph Cluster',
-#     '3000-cluster','3000-spanning'
-# ]
 
 
 class VisualizationApp(object):
@@ -227,7 +237,9 @@ class VisualizationApp(object):
             dbc.DropdownMenuItem("Degree Frequency",   id="dropdown-menu-freq-degree_frequency"),
             dbc.DropdownMenuItem("PageRank Frequency", id="dropdown-menu-freq-pagerank_frequency")
         ]
-
+        
+        
+        
         freq_input_group = dbc.InputGroup(
             [
                 dbc.Label("Node Weight", html_for="node_freq_type"),
@@ -251,30 +263,7 @@ class VisualizationApp(object):
             freq_input_group,
             node_range_group
         ])
-        
-#         node_slider = dbc.InputGroup(
-#             [
-#                 freq_input_group,
-# #                 dcc.Dropdown(
-# #                     id='node-freq-filter',
-# #                     value="ge",
-# #                     clearable=False,
-# #                     options=DROPDOWN_FILTER_LIST,
-# #                     className="mr-1"
-# #                 ),
-#     #             daq.NumericInput(
-#     #                 id="nodefreqslider",
-#     #                 min=1,  
-#     #                 max=10000,
-#     #                 value=1,
-#     #                className="mr-1"
-#     #             )],
-#                 dcc.RangeSlider(id="nodefreqslider", min=0, max=10, value=[3, 7])
-#             ],
-#             className="mb-3"
-#         )
 
-        
         edge_input_group = dbc.InputGroup(
             [
                  dbc.Label("Edge Weight", html_for="edge_freq_type"),
@@ -301,24 +290,6 @@ class VisualizationApp(object):
             edge_input_group,
             edge_range_group
         ])
-#         edge_slider = dbc.InputGroup([
-#             edge_input_group,
-#             dcc.Dropdown(
-#                 id='edge-freq-filter',
-#                 value="ge",
-#                 clearable=False,
-#                 options=DROPDOWN_FILTER_LIST,
-#                 className="mr-1"
-#             ),
-#             daq.NumericInput(
-#                 id="edgefreqslider",
-#                 min=1,  
-#                 max=10000,
-#                 value=1,
-#                className="mr-1"
-#             )],
-#             className="mb-3"
-#         )
         
         frequencies_form = dbc.FormGroup(
             [
@@ -452,9 +423,9 @@ class VisualizationApp(object):
             stylesheet=CYTOSCAPE_STYLE_STYLESHEET,
             style={"width": "100%", "height": "100%"})
 
+        
         self._app.layout  = html.Div([
             dcc.Store(id='memory', data={"removed":[]}),
-
             dbc.Row([]),
             dbc.Row([
                 dbc.Col(dcc.Loading(
@@ -491,6 +462,7 @@ class VisualizationApp(object):
         self._max_node_weight = None
         self._min_edge_weight = None
         self._max_edge_weight = None
+        self._removed_nodes = set()
 
     
     def set_graph(self, graph_id, cyto_repr, dict_repr, style=None):
@@ -535,6 +507,8 @@ class VisualizationApp(object):
 
         
 visualization_app = VisualizationApp()
+
+
 
     
 # ############################## CALLBACKS ####################################
@@ -655,7 +629,7 @@ def adapt_weight_ranges(resetbt, removebt, val, node_freq_type, edge_freq_type,
         min_edge_value, max_edge_value, edge_marks, edge_value, edge_step
     ]    
 
- 
+
 @visualization_app._app.callback(
     [
         Output('cytoscape', 'zoom'),
@@ -691,7 +665,6 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
                  searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap):
     elements = visualization_app._graphs[val]["cytoscape"]
     elements_dict = visualization_app._graphs[val]["dict"]
-
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -709,15 +682,18 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
             search_node = elements_dict[searchvalue]
             search_node["selected"] = True
 
-    if button_id == 'remove-button':
-        print("Here, remove button clicked")
+    if resetbt is not None:
+        visualization_app._removed_nodes = set()
+            
+    if removebt is not None:
+        ids_to_remove = {}
         if elements and data:
             ids_to_remove = {ele_data['id'] for ele_data in data}
         if elements and edge:
             ids_to_remove = {ele_data['id'] for ele_data in edge}
-        
-        print(ids_to_remove)
-        elements = [ele for ele in elements if ele['data']['id'] not in ids_to_remove]
+        if len(ids_to_remove) > 0:
+            visualization_app._removed_nodes.update(set(ids_to_remove))
+            elements = [ele for ele in elements if ele['data']['id'] not in ids_to_remove]
 
     if button_id == 'bt-path':
         if searchpathfrom and searchpathto:
@@ -756,14 +732,14 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
                         path_element = elements_dict[path_step]
                     else:
                         try:
-
                             result_df = linked_mention_df.loc[str(path_step).lower()]
+
                             if len(result_df) > 0:
                                 node = result_df.uid
                                 path_element = create_node(id=node, label=result_df.concept, definition=result_df.definition)
 
                         except Exception as e:
-                            
+                            print(e)
                             continue
                     
                     path_element_id = path_element['data']['id']
@@ -860,6 +836,10 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
                 if el["data"]["id"] not in nodes_to_remove and el["data"]["id"] not in edges_to_remove
             ]
   
+    elements = [
+        el for el in elements if el["data"]["id"] not in visualization_app._removed_nodes
+    ]
+
     return [zoom, elements]
 
 
@@ -877,6 +857,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         definition = ""
         if 'definition' in str(datanode['data']):
             definition = str(datanode['data']['definition'])
+        
         entity = str(datanode['style']['label'])
         if entity in visualization_app._entity_definitions:
             definition = visualization_app._entity_definitions[entity]
@@ -979,74 +960,24 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
 def update_cytoscape_layout(layout,showgraph):
     if "style" in visualization_app._graphs[showgraph]:
         return {'name': 'preset'}
-
     if layout == "cose":
-        return {
-            'name': layout,
-            'showlegend':True,
-            'idealEdgeLength': 100,
-            'nodeOverlap': 0,
-            'refresh': 20,
-            'fit': True,
-            'padding': 30,
-            'randomize': False,
-            'componentSpacing': 100,
-            'nodeRepulsion': 400000,
-            'edgeElasticity': 100,
-            'nestingFactor': 5,
-            'gravity': 80,
-            'numIter': 1000,
-            'initialTemp': 200,
-            'coolingFactor': 0.95,
-            'minTemp': 1.0
-        }
+        layout_config = COSE_CONFIG
     elif layout =="cola":
-        return {
-            'name': layout,
-            'animate': True,
-            'refresh': 1,
-#             'infinite': True,
-            'maxSimulationTime': 8000,
-            'ungrabifyWhileSimulating': False,
-            'fit': True, 
-            'padding': 30,
-#             'nodeDimensionsIncludeLabels': False,
-            'randomize': True,
-            'avoidOverlap': True,
-            'handleDisconnected': True,
-            'convergenceThreshold': 0.001,
-            'nodeSpacing': 10,
-            'edgeLength': 100
-        }
+        layout_config = COLA_CONFIG
     elif layout == "cose-bilkent":
-        return {
-            'name': layout,
-            "quality": 'default',
-            "refresh": 30,
-            "fit": True,
-            "padding": 20,
-            "randomize": True,
-            "nodeSeparation": 75,
-            "nodeRepulsion": 40500,
-            "idealEdgeLength": 70,
-            "edgeElasticity": 0.45,
-            "nestingFactor": 0.1,
-            "gravity": 50.25,
-            "numIter": 2500,
-            "tile": True,
-            "tilingPaddingVertical": 50,
-            "tilingPaddingHorizontal": 50,
-            "gravityRangeCompound": 1.5,
-            "gravityCompound": 2.0,
-            "gravityRange": 23.8,
-            "initialEnergyOnIncremental": 50.5
-        }
-    
+        layout_config = COSE_BILKENT_CONFIG
+    elif layout == "cise":
+        layout_config = CISE_CONFIG
+        # add clusters info
+        layout_config["clusters"] = generate_cluster_info(
+            visualization_app._graphs[showgraph]["cytoscape"],
+            "community_npmi")
     else:    
-        return {
-            'name': layout,
-            'showlegend':True
-        }
+        layout_config = {'showlegend':True}
+
+    layout_config["name"] = layout
+
+    return layout_config
 
 
 @visualization_app._app.callback(
