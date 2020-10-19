@@ -1,4 +1,3 @@
-
 MIN_NODE_SIZE = 20
 MAX_NODE_SIZE = 65
 
@@ -74,6 +73,7 @@ CYTOSCAPE_STYLE_STYLESHEET = [
         "style": {
             'curve-style': 'bezier',
             'line-color': '#D5DAE6',
+        }
     }, {
         "selector": 'node[entity_type = "CHEMICAL"]',
         "style": {"background-color": COLORS["CHEMICAL"]},
