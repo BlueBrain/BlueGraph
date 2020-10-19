@@ -58,10 +58,6 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
                 if min_font_size and max_font_size:
                     cyto_repr[i]["data"]["{}_font_size".format(weight)] = font_sizes[j]
                 j += 1
-<<<<<<< HEAD
-
-=======
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
 
 
 node_shape_option_list = [
@@ -231,12 +227,7 @@ class VisualizationApp(object):
             dbc.DropdownMenuItem("Degree Frequency",   id="dropdown-menu-freq-degree_frequency"),
             dbc.DropdownMenuItem("PageRank Frequency", id="dropdown-menu-freq-pagerank_frequency")
         ]
-<<<<<<< HEAD
-        
-        
-        
-=======
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
+
         freq_input_group = dbc.InputGroup(
             [
                 dbc.Label("Node Weight", html_for="node_freq_type"),
@@ -248,11 +239,7 @@ class VisualizationApp(object):
             ],
             className="mb-1"
         )
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
         node_range_group = dbc.FormGroup(
             [
                 dbc.Label("Display Range", html_for="nodefreqslider"),
@@ -301,7 +288,6 @@ class VisualizationApp(object):
                 )
             ],
             className="mb-1"
-<<<<<<< HEAD
         )
         
         edge_range_group = dbc.FormGroup(
@@ -310,16 +296,6 @@ class VisualizationApp(object):
                 dcc.RangeSlider(id="edgefreqslider", min=0, max=10, value=[0, 10]),
             ]
         )
-=======
-        )
-        
-        edge_range_group = dbc.FormGroup(
-            [
-                dbc.Label("Display Range", html_for="edgefreqslider"),
-                dcc.RangeSlider(id="edgefreqslider", min=0, max=10, value=[0, 10]),
-            ]
-        )
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
     
         edge_weight_form = dbc.FormGroup([
             edge_input_group,
@@ -475,16 +451,10 @@ class VisualizationApp(object):
             elements=self._graphs[self._current_graph]["cytoscape"] if self._current_graph is not None else None,
             stylesheet=CYTOSCAPE_STYLE_STYLESHEET,
             style={"width": "100%", "height": "100%"})
-<<<<<<< HEAD
 
-        
         self._app.layout  = html.Div([
             dcc.Store(id='memory', data={"removed":[]}),
-=======
-        
-        self._app.layout  = html.Div([
-            dcc.Store(id='memory',data={"removed":[]}),
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
+
             dbc.Row([]),
             dbc.Row([
                 dbc.Col(dcc.Loading(
@@ -547,10 +517,6 @@ class VisualizationApp(object):
         self.radio_items.options = [
             {'label': val.capitalize(), 'value': val} for val in list(self._graphs.keys())
         ]
-<<<<<<< HEAD
-=======
-
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
         return
     
     def set_current_graph(self, graph_id):
@@ -569,8 +535,6 @@ class VisualizationApp(object):
 
         
 visualization_app = VisualizationApp()
-
-
 
     
 # ############################## CALLBACKS ####################################
@@ -595,10 +559,7 @@ def search(search_value,value, showgraph, diffs=[]):
                     res.append({"label":ele_data['data']['name'],"value":ele_data['data']['id']})
     return res
 
-<<<<<<< HEAD
 
-=======
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
 def recompute_node_range(elements, freq_type):
     all_weights = [
         el["data"][freq_type]
@@ -693,10 +654,6 @@ def adapt_weight_ranges(resetbt, removebt, val, node_freq_type, edge_freq_type,
         min_node_value, max_node_value, node_marks, node_value, node_step,
         min_edge_value, max_edge_value, edge_marks, edge_value, edge_step
     ]    
-<<<<<<< HEAD
-
-=======
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
 
  
 @visualization_app._app.callback(
@@ -732,15 +689,9 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
                  node_freq_type, edge_freq_type, cytoelements, data, edge,
                  tappednode, zoom, searchpathfrom,
                  searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap):
-<<<<<<< HEAD
     elements = visualization_app._graphs[val]["cytoscape"]
     elements_dict = visualization_app._graphs[val]["dict"]
-=======
-    global removed 
-    global elements_dict
-    elements = visualization_app._graphs[val]["cytoscape"]
 
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -805,10 +756,6 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchv
                         path_element = elements_dict[path_step]
                     else:
                         try:
-<<<<<<< HEAD
-                            result_df = linked_mention_df.loc[str(path_step).lower()]
-=======
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
 
                             result_df = linked_mention_df.loc[str(path_step).lower()]
                             if len(result_df) > 0:
@@ -930,11 +877,6 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         definition = ""
         if 'definition' in str(datanode['data']):
             definition = str(datanode['data']['definition'])
-<<<<<<< HEAD
-        
-=======
-
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
         entity = str(datanode['style']['label'])
         if entity in visualization_app._entity_definitions:
             definition = visualization_app._entity_definitions[entity]
@@ -951,10 +893,6 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
                 className="card-text"
             )
         ])
-<<<<<<< HEAD
-=======
-
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
         label = "'"+label+"' mentioned in " + frequency + " papers"
         modal_button = dbc.Button(label, id="open-body-scroll",color="primary")
         
@@ -977,10 +915,6 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         modal_button= dbc.Button(label, id="open-body-scroll",color="primary")
 
     if len(papers) > 0:
-<<<<<<< HEAD
-=======
-
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
         papers_in_kg = visualization_app._list_papers_callback(papers)
 
         rows = []
@@ -1090,10 +1024,6 @@ def update_cytoscape_layout(layout,showgraph):
             "quality": 'default',
             "refresh": 30,
             "fit": True,
-<<<<<<< HEAD
-=======
-
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
             "padding": 20,
             "randomize": True,
             "nodeSeparation": 75,
@@ -1366,8 +1296,3 @@ def download_image(jpg_menu,svg_menu,png_menu):
         'type': ftype,
         'action': "download"
     }]
-<<<<<<< HEAD
-=======
-
-removed = set()
->>>>>>> b8df3964948c29a3f1c82edd5f2bee8ead889616
