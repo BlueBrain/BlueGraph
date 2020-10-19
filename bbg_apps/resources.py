@@ -1,3 +1,14 @@
+
+MIN_NODE_SIZE = 20
+MAX_NODE_SIZE = 65
+
+MIN_FONT_SIZE = 10
+MAX_FONT_SIZE = 32
+
+MIN_EDGE_WIDTH = 4
+MAX_EDGE_WIDTH = 12
+
+
 VISUALIZATION_CONTENT_STYLE = {
     "width": "100%",
     "top": "0px",
@@ -24,6 +35,22 @@ COLORS = {
 
 CYTOSCAPE_STYLE_STYLESHEET = [
     {
+        "selector": 'edge',
+        'style': {
+            "width": 5
+        }
+    }, {
+        "selector": 'node',
+        'style': {
+            "font-size": 70,
+            "text-valign": "center",
+            "text-halign": "center",
+            "label":"data(name)",
+            "overlay-padding": "6px",
+            "z-index": "10",
+#             'color': 'data(color)',
+        }
+    }, {
         "selector" : "node[community_npmi = 0.0]",
         "css" : {"background-color" : "rgb(137,208,245)"}
     }, {
@@ -43,22 +70,10 @@ CYTOSCAPE_STYLE_STYLESHEET = [
             "height": "100%"
         }
     }, {
-        "selector": 'node',
-        'style': {
-            "font-size": 70,
-            "text-valign": "center",
-            "text-halign": "center",
-            "label":"data(name)",
-            "color": "black",
-            "overlay-padding": "6px",
-            "z-index": "10"
-        }
-    }, {
         "selector": 'edge',
         "style": {
             'curve-style': 'bezier',
-            'line-color': '#D5DAE6'
-        }
+            'line-color': '#D5DAE6',
     }, {
         "selector": 'node[entity_type = "CHEMICAL"]',
         "style": {"background-color": COLORS["CHEMICAL"]},

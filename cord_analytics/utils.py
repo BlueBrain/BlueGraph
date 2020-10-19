@@ -544,8 +544,8 @@ def build_cytoscape_data(graph):
         if 'paper' in element["data"]:
             papers = element["data"].pop("paper")
             element["data"]["papers"] = list(papers)
-#         else:
-#             no_papers.append(element)
+            element["data"]["paper_frequency"] = len(papers)
+
         element["data"]["papers"] = list(papers)
     elements_dict = {element["data"]["id"]: element for element in elements}
     return elements, elements_dict

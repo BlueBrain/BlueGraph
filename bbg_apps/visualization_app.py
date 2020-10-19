@@ -1,3 +1,8 @@
+import math
+import numpy as np
+
+from operator import ge, gt, lt, le, eq, ne
+
 from jupyter_dash import JupyterDash
 
 import dash
@@ -12,11 +17,47 @@ import dash_cytoscape as cyto
 
 from bbg_apps.curation_app import DROPDOWN_FILTER_LIST
 from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
-                                               CYTOSCAPE_STYLE_STYLESHEET)
+                                CYTOSCAPE_STYLE_STYLESHEET,
+                                MIN_NODE_SIZE,
+                                MAX_NODE_SIZE,
+                                MIN_FONT_SIZE,
+                                MAX_FONT_SIZE,
+                                MIN_EDGE_WIDTH,
+                                MAX_EDGE_WIDTH)
 from dash.exceptions import PreventUpdate
 
-from sqlalchemy.sql import select
-from sqlalchemy.sql import and_, or_, not_
+    
+def generate_sizes(start, end, weights, func="linear"):
+    sorted_indices = np.argsort(weights)
+    if func == "linear":
+        sizes = np.linspace(start, end, len(weights))
+    elif func == "log":
+        sizes = np.logspace(start, end, len(weights))
+    return [
+        int(round(sizes[el]))
+        for el in sorted_indices
+    ]
+
+
+def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
+                           min_font_size=None, max_font_size=None):
+    for weight in weights:
+        all_values = [
+            el["data"][weight]
+            for el in cyto_repr
+            if weight in el["data"]
+        ]
+        sizes = generate_sizes(min_size, max_size, all_values)
+        if min_font_size and max_font_size:
+            font_sizes = generate_sizes(min_font_size, max_font_size, all_values)
+        j = 0
+        for i in range(len(cyto_repr)):
+            el = cyto_repr[i]
+            if weight in el["data"]:    
+                cyto_repr[i]["data"]["{}_size".format(weight)] = sizes[j]
+                if min_font_size and max_font_size:
+                    cyto_repr[i]["data"]["{}_font_size".format(weight)] = font_sizes[j]
+                j += 1
 
 
 node_shape_option_list = [
@@ -55,9 +96,14 @@ graph_layout_option_list = [
 ]
 
 node_frequency_type = [
-    "Frequency",
-    "Degree Frequency",
-    "PageRank Frequency"
+    ("Frequency", "paper_frequency"),
+    ("Degree", "degree_frequency"),
+    ("PageRank", "pagerank_frequency")
+]
+
+edge_frequency_type = [
+    ("Mutual Information", "npmi"),
+    ("Raw Frequency", "frequency"),
 ]
 
 # graph_type_option_list = [
@@ -181,43 +227,104 @@ class VisualizationApp(object):
             dbc.DropdownMenuItem("Degree Frequency",   id="dropdown-menu-freq-degree_frequency"),
             dbc.DropdownMenuItem("PageRank Frequency", id="dropdown-menu-freq-pagerank_frequency")
         ]
-
         freq_input_group = dbc.InputGroup(
             [
-                dbc.InputGroupAddon(
-                    "Node Frequency",
-                    addon_type="prepend",
-                ),
-                 dcc.Dropdown(
+                dbc.Label("Node Weight", html_for="node_freq_type"),
+                dcc.Dropdown(
                     id="node_freq_type",
-                     value="degree_frequency",
-                     options=[{'label': val, 'value': val.lower().replace(" ","_")} for val in node_frequency_type],
-                     style={
-                         "width":"80%"
-                     }
+                    value="degree_frequency",
+                    options=[{'label': val[0], 'value': val[1]} for val in node_frequency_type],
+                    style={"width":"100%"})
+            ],
+            className="mb-1"
+        )
+        
+        node_range_group = dbc.FormGroup(
+            [
+                dbc.Label("Display Range", html_for="nodefreqslider"),
+                dcc.RangeSlider(id="nodefreqslider", min=0, max=0, value=[0, 0]),
+            ]
+        )
+        
+        node_weight_form = dbc.FormGroup([
+            freq_input_group,
+            node_range_group
+        ])
+        
+#         node_slider = dbc.InputGroup(
+#             [
+#                 freq_input_group,
+# #                 dcc.Dropdown(
+# #                     id='node-freq-filter',
+# #                     value="ge",
+# #                     clearable=False,
+# #                     options=DROPDOWN_FILTER_LIST,
+# #                     className="mr-1"
+# #                 ),
+#     #             daq.NumericInput(
+#     #                 id="nodefreqslider",
+#     #                 min=1,  
+#     #                 max=10000,
+#     #                 value=1,
+#     #                className="mr-1"
+#     #             )],
+#                 dcc.RangeSlider(id="nodefreqslider", min=0, max=10, value=[3, 7])
+#             ],
+#             className="mb-3"
+#         )
+
+        
+        edge_input_group = dbc.InputGroup(
+            [
+                 dbc.Label("Edge Weight", html_for="edge_freq_type"),
+                 dcc.Dropdown(
+                    id="edge_freq_type",
+                    value="npmi",
+                    options=[{'label': val[0], 'value': val[1]} for val in edge_frequency_type],
+                    style={
+                        "width":"100%"
+                    }
                 )
             ],
             className="mb-1"
         )
-
-        node_slider = dbc.InputGroup([
-            freq_input_group,
-            dcc.Dropdown(
-                id='node-freq-filter',
-                value="ge",
-                clearable=False,
-                options=DROPDOWN_FILTER_LIST,
-                className="mr-1"
-            ),
-            daq.NumericInput(
-                id="nodefreqslider",
-                min=1,  
-                max=10000,
-                value=1,
-               className="mr-1"
-            )],
-            className="mb-3"
+        
+        edge_range_group = dbc.FormGroup(
+            [
+                dbc.Label("Display Range", html_for="edgefreqslider"),
+                dcc.RangeSlider(id="edgefreqslider", min=0, max=10, value=[0, 10]),
+            ]
         )
+    
+        edge_weight_form = dbc.FormGroup([
+            edge_input_group,
+            edge_range_group
+        ])
+#         edge_slider = dbc.InputGroup([
+#             edge_input_group,
+#             dcc.Dropdown(
+#                 id='edge-freq-filter',
+#                 value="ge",
+#                 clearable=False,
+#                 options=DROPDOWN_FILTER_LIST,
+#                 className="mr-1"
+#             ),
+#             daq.NumericInput(
+#                 id="edgefreqslider",
+#                 min=1,  
+#                 max=10000,
+#                 value=1,
+#                className="mr-1"
+#             )],
+#             className="mb-3"
+#         )
+        
+        frequencies_form = dbc.FormGroup(
+            [
+                dbc.Col(node_weight_form, width=6),
+                dbc.Col(edge_weight_form, width=6)
+            ],
+            row=True)
 
         item_details = dbc.FormGroup([html.Div(id="modal")])
 
@@ -230,7 +337,14 @@ class VisualizationApp(object):
                 id = "item-card-body")
         )
 
-        form = dbc.Form([button_group, graph_type_radio, search, node_slider, item_details_card])
+        form = dbc.Form([
+            button_group,
+            html.Hr(),
+            graph_type_radio,
+            search, 
+            html.Hr(),
+            frequencies_form,
+            item_details_card])
 
         path_from = dbc.FormGroup([
             dbc.Label("From", html_for="searchpathfrom", width=3),
@@ -295,7 +409,7 @@ class VisualizationApp(object):
                 dbc.Col(dcc.Dropdown(
                     id ='dropdown-layout',
                     options = [{'label': val.capitalize(), 'value': val} for val in graph_layout_option_list],
-                    value='cola',
+                    value='cose-bilkent',
                     clearable=False
                 ), width=9)
             ],
@@ -334,16 +448,18 @@ class VisualizationApp(object):
             id='cytoscape',
             elements=self._graphs[self._current_graph]["cytoscape"] if self._current_graph is not None else None,
             stylesheet=CYTOSCAPE_STYLE_STYLESHEET,
-            style= {"width": "100%", "height": "100%"})
-
+            style={"width": "100%", "height": "100%"})
+        
         self._app.layout  = html.Div([
             dcc.Store(id='memory',data={"removed":[]}),
+            dbc.Row([]),
             dbc.Row([
                 dbc.Col(dcc.Loading(
-                    id="loading-graph",
-                    children=[html.Div(
-                        style=VISUALIZATION_CONTENT_STYLE, children=[self.cyto])],
-                    type="circle"),
+                        id="loading-graph",
+                        children=[html.Div(
+                            style=VISUALIZATION_CONTENT_STYLE, children=[self.cyto])],
+                        type="circle",
+                        style={"margin-top": "75pt"}),
                     width=8),
                 dbc.Col(html.Div(children=[
                     dbc.Button(
@@ -368,8 +484,25 @@ class VisualizationApp(object):
 
         self._app.config['suppress_callback_exceptions'] = True
         self._app.height = "800px"
+        self._min_node_weight = None
+        self._max_node_weight = None
+        self._min_edge_weight = None
+        self._max_edge_weight = None
+
     
     def set_graph(self, graph_id, cyto_repr, dict_repr, style=None):
+        
+        # add some extra attrs to nodes
+        weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
+        set_sizes_from_weights(
+            cyto_repr, weights, MIN_NODE_SIZE, MAX_NODE_SIZE,
+            MIN_FONT_SIZE, MAX_FONT_SIZE)
+        
+        # add some extra attrs to nodes
+        weights = ["npmi", "ppmi", "frequency"]
+        set_sizes_from_weights(
+            cyto_repr, weights, MIN_EDGE_WIDTH, MAX_EDGE_WIDTH)
+        
         if self._graphs is None:
             self._graphs = {}
         self._graphs[graph_id] = {
@@ -381,7 +514,7 @@ class VisualizationApp(object):
         self.radio_items.options = [
             {'label': val.capitalize(), 'value': val} for val in list(self._graphs.keys())
         ]
-        
+
         return
     
     def set_current_graph(self, graph_id):
@@ -392,56 +525,19 @@ class VisualizationApp(object):
     def run(self, port):
         self._app.run_server(mode="jupyterlab", width="100%", port=port)
 
+    def set_list_papers_callback(self, func):
+        self._list_papers_callback = func
 
+    def set_entity_definitons(self, definition_dict):
+        self._entity_definitions = definition_dict
+
+        
 visualization_app = VisualizationApp()
-    
+
+
 
     
 # ############################## CALLBACKS ####################################
-
-@visualization_app._app.callback(
-    Output("collapse", "is_open"),
-    [Input("collapse-button", "n_clicks")],
-    [State("collapse", "is_open")])
-def toggle_collapse(n, is_open):
-    if n:
-        return not is_open
-    return is_open
-
-
-@visualization_app._app.callback(
-    Output("modal-body-scroll", "is_open"),
-    [
-        Input("open-body-scroll", "n_clicks"),
-        Input("close-body-scroll", "n_clicks"),
-    ],
-    [State("modal-body-scroll", "is_open")],
-)
-def toggle_modal(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
-
-
-@visualization_app._app.callback(
-    Output("searchdropdown", "options"),
-    [Input("searchdropdown", "search_value")],
-    [State("searchdropdown", "value"),
-    State('cytoscape', 'elements')],
-)
-def update_multi_options(search_value, value,elements):
-    
-    if not search_value:
-        raise PreventUpdate
-    res = []
-    for ele_data in elements:
-        if 'name' in ele_data['data']:
-            label =ele_data['data']['name']
-            if (search_value in label) or (label in search_value) or ele_data['data']['id'] in (value or []) :
-                res.append({"label":ele_data['data']['name'],"value":ele_data['data']['id']})
-    return res
-
-
 def get_cytoscape_data(factor,graph):
     elements = cytoscape_data(graph[factor])
     elements=elements["elements"]['nodes']+elements["elements"]['edges']
@@ -463,125 +559,124 @@ def search(search_value,value, showgraph, diffs=[]):
                     res.append({"label":ele_data['data']['name'],"value":ele_data['data']['id']})
     return res
 
-
-@visualization_app._app.callback(
-    Output("searchpathto", "options"),
-    [Input("searchpathto", "search_value")],
-    [State("searchpathto", "value"),
-     State('searchpathfrom', 'value'),
-     State('showgraph', 'value')],
-)
-def searchpathto(search_value, value,_from, showgraph):
-    if not search_value:
-        raise PreventUpdate
-    return search(search_value, value, showgraph,[_from])
-
-
-@visualization_app._app.callback(
-    Output("searchnodetotraverse", "options"),
-    [Input("searchnodetotraverse", "search_value")],
-    [State("searchnodetotraverse", "value"),
-     State('searchpathfrom', 'value'),
-     State('searchpathto', 'value'),
-     State('showgraph', 'value')],
-)
-def searchpathtraverse(search_value, value,_from,to, showgraph):
-    if not search_value:
-        raise PreventUpdate
-    return search(search_value, value, showgraph, [_from,to])
-
-
-@visualization_app._app.callback(
-    Output("searchpathfrom", "options"),
-    [Input("searchpathfrom", "search_value")],
-    [State("searchpathfrom", "value"),
-     State('showgraph', 'value')],
-)
-def searchpathfrom(search_value, value, showgraph ):
-    if not search_value:
-        raise PreventUpdate
-    return search(search_value, value,showgraph)
-
-
-@visualization_app._app.callback(Output('nodefreqslider', 'value'),
-              [Input('bt-reset', 'n_clicks')],[State('nodefreqslider', 'value')])
-def display_freq_node(resetbt, nodefreqslider):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        button_id = 'No clicks yet'
+def recompute_node_range(elements, freq_type):
+    all_weights = [
+        el["data"][freq_type]
+        for el in elements
+        if freq_type in el["data"]
+    ]
+    if len(all_weights) > 0:
+        min_value = min(all_weights)
+        min_value = (
+            min_value
+            if isinstance(min_value, int)
+            else math.floor(min_value)
+        )
+        max_value = max(all_weights)
+        max_value = (
+            max_value
+            if isinstance(max_value, int)
+            else math.ceil(max_value)
+        )
     else:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    if button_id == 'bt-reset':
-        return 1
+        min_value = 0
+        max_value = 0
+
+    marks = {
+        min_value: (
+            "{}".format(min_value)
+            if isinstance(min_value, int) else
+            "{:.2f}".format(min_value)
+        ),
+        max_value: (
+            "{}".format(max_value)
+            if isinstance(max_value, int) else
+            "{:.2f}".format(max_value)
+        ),
+    }
+    
+    step = (max_value - min_value) / 100
+
+    return min_value, max_value, marks, step
 
 
 @visualization_app._app.callback(
     [
-        Output('cytoscape', 'generateImage')
+        Output('nodefreqslider', 'min'),
+        Output('nodefreqslider', 'max'),
+        Output('nodefreqslider', 'marks'),
+        Output('nodefreqslider', 'value'),
+        Output('nodefreqslider', 'step'),
+        Output('edgefreqslider', 'min'),
+        Output('edgefreqslider', 'max'),
+        Output('edgefreqslider', 'marks'),
+        Output('edgefreqslider', 'value'),
+        Output('edgefreqslider', 'step')
     ],
     [
-        Input('jpg-menu', 'n_clicks'),
-        Input('svg-menu', 'n_clicks'),
-        Input('png-menu', 'n_clicks')
-    ]
-)
-def download_image(jpg_menu,svg_menu,png_menu):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        button_id = 'No clicks yet'
-    else:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    ftype  = None
-    if button_id == "png-menu":
-        ftype = "png"
-    if button_id == "jpg-menu":
-        ftype = "jpg"
-    if button_id == "svg-menu":
-        ftype = "svg"
-    return [{
-        'type': ftype,
-        'action': "download"
-    }]
+        Input('bt-reset', 'n_clicks'),
+        Input('remove-button', 'n_clicks'),
+        Input('showgraph', 'value'),
+        Input('node_freq_type', 'value'),
+        Input('edge_freq_type', 'value'),
+        Input("searchdropdown", "value"),
+        Input('bt-path', 'n_clicks')
+    ],
+    [
+        State('cytoscape', 'elements')
+    ])
+def adapt_weight_ranges(resetbt, removebt, val, node_freq_type, edge_freq_type,
+                        searchvalues, pathbt, cytoelements):
+    elements = cytoelements
+    if elements:
+        # here set min and max if not set yet
+        if node_freq_type or (
+                visualization_app._min_node_weight is None and\
+                visualization_app._max_node_weight):
+            min_node_value, max_node_value, node_marks, node_step = recompute_node_range(
+                elements, node_freq_type)
+            visualization_app._min_node_weight = min_node_value
+            visualization_app._max_node_weight = max_node_value
+            node_value = [min_node_value, max_node_value]
+            
+        if edge_freq_type or (
+                visualization_app._min_edge_weight is None and\
+                visualization_app._max_edge_weight):
+            min_edge_value, max_edge_value, edge_marks, edge_step = recompute_node_range(
+                elements, edge_freq_type)
+            
+            visualization_app._min_edge_weight = min_edge_value
+            visualization_app._max_edge_weight = max_edge_value
+            edge_value = [min_edge_value, max_edge_value]
+    
+    return  [
+        min_node_value, max_node_value, node_marks, node_value, node_step,
+        min_edge_value, max_edge_value, edge_marks, edge_value, edge_step
+    ]    
 
-removed = set()
-
-
-def list_papers(papers):
-    META_DATA = sqlalchemy.MetaData(bind=bbs_mysql_engine, reflect=True)
-    articles = META_DATA.tables["articles"]
-    clauses = or_( *[articles.c.article_id==x for x in papers] )
-    s = select([articles.c.title,articles.c.authors,articles.c.abstract,articles.c.doi,articles.c.url,articles.c.journal,articles.c.pmcid,articles.c.pubmed_id,articles.c.publish_time]).where(
-       clauses
-       )
-    result = bbs_mysql_engine.execute(s)
-    results = []
-    for row in result:
-        results.append(row)
-    return results
-
-
-
+ 
 @visualization_app._app.callback(
     [
         Output('cytoscape', 'zoom'),
-        Output('cytoscape', 'elements')
+        Output('cytoscape', 'elements'),
     ],
     [
         Input('bt-reset', 'n_clicks'),
         Input('remove-button', 'n_clicks'),
         Input('showgraph', 'value'),
         Input('nodefreqslider', 'value'),
-        Input('node-freq-filter', 'value'),
+        Input('edgefreqslider', 'value'),
         Input("searchdropdown", "value"),
         Input('bt-path', 'n_clicks')
     ],
     [
+        State('node_freq_type', 'value'),
+        State('edge_freq_type', 'value'),
         State('cytoscape', 'elements'),
         State('cytoscape', 'selectedNodeData'),
         State('cytoscape', 'selectedEdgeData'),
         State('cytoscape', 'tapNodeData'),
         State('cytoscape', 'zoom'),
-        State('nodefreqslider', 'value'),
         State('searchpathfrom', 'value'),
         State('searchpathto', 'value'),
         State('searchnodetotraverse', 'value'),
@@ -589,14 +684,14 @@ def list_papers(papers):
         State('searchpathoverlap', 'value')     
     ]
 )
-def reset_layout(resetbt, removebt, val, nodefreqslider, node_freq_operator, searchvalues, pathbt, cytoelements,
-                 data, edge, tappednode, zoom, nodefreqsliderstate, 
-                 searchpathfrom, searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap):
+def reset_layout(resetbt, removebt, val, nodefreqslider, edgefreqslider, searchvalues, pathbt, 
+                 node_freq_type, edge_freq_type, cytoelements, data, edge,
+                 tappednode, zoom, searchpathfrom,
+                 searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap):
     global removed 
     global elements_dict
-    global graphs
-    global trees
-    elements = cytoelements
+    elements = visualization_app._graphs[val]["cytoscape"]
+
     ctx = dash.callback_context
 
     if not ctx.triggered:
@@ -605,6 +700,7 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, node_freq_operator, sea
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     if button_id == 'showgraph':
+        visualization_app.set_current_graph(val)
         elements = visualization_app._graphs[val]["cytoscape"]
         elements_dict = visualization_app._graphs[val]["dict"]
 
@@ -612,14 +708,6 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, node_freq_operator, sea
         for searchvalue in searchvalues:
             search_node = elements_dict[searchvalue]
             search_node["selected"] = True
-    
-    if nodefreqslider == 1:
-        elements = visualization_app._graphs[val]["cytoscape"]
-        elements_dict = visualization_app._graphs[val]["dict"]
-
-        zoom = 1
-        global removed
-        removed = set()
 
     if button_id == 'remove-button':
         if elements and data:
@@ -668,8 +756,8 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, node_freq_operator, sea
                         path_element = elements_dict[path_step]
                     else:
                         try:
-                            result_df = linked_mention_df_unique.loc[str(path_step).lower()]
 
+                            result_df = linked_mention_df.loc[str(path_step).lower()]
                             if len(result_df) > 0:
                                 node = result_df.uid
                                 path_element = create_node(id=node, label=result_df.concept, definition=result_df.definition)
@@ -686,25 +774,98 @@ def reset_layout(resetbt, removebt, val, nodefreqslider, node_freq_operator, sea
                     elements.append(edge_from)
                     
                     searchpathfrom = path_element_id
-                   
-           
 
-    if elements and (nodefreqslider is not None and button_id == 'nodefreqslider') :
-        elements = visualization_app._graphs[val]["cytoscape"]
-        elements_dict = visualization_app._graphs[val]["dict"]
-       
-        ids_to_remove = [
-            ele_data['data']['id']
-            for ele_data in elements
-            if 'source' not in ele_data["data"] and ele_data["data"]["id"] not in removed and 'frequency' in ele_data['data'] and ele_data['data']['frequency'] is not None and not eval(node_freq_operator)(int(ele_data['data']['frequency']), int(nodefreqslider))]
-       
-        elements = [ele for ele in elements if ele['data']['id'] not in ids_to_remove]
+    def node_range_condition(el, start, end):
+        if node_freq_type in el["data"]:
+            if el["data"][node_freq_type] >= start and\
+               el["data"][node_freq_type] <= end:
+                return True
+        return False
+    
+    def edge_range_condition(el, start, end, nodes_to_remove=None):
+        if edge_freq_type in el["data"]:
+            inrange = False
+            if el["data"][edge_freq_type] >= start and\
+               el["data"][edge_freq_type] <= end:
+                inrange = True
+            notdangling = False
+            if nodes_to_remove is None or (
+                    el["data"]["source"] not in nodes_to_remove and\
+                    el["data"]["target"] not in nodes_to_remove):
+                notdangling = True
+            return inrange and notdangling
+            
+        return False
+
+    if nodefreqslider and button_id == "nodefreqslider":
+        if visualization_app._min_node_weight is None or\
+           visualization_app._max_node_weight is None:
+            visualization_app._min_node_weight = nodefreqslider[0]
+            visualization_app._min_edge_weight = nodefreqslider[1]
+        elif nodefreqslider[0] != visualization_app._min_node_weight or\
+             nodefreqslider[1] != visualization_app._max_node_weight:
+
+            visualization_app._min_node_weight = nodefreqslider[0]
+            visualization_app._max_node_weight = nodefreqslider[1]
+        
+            nodes_to_remove = [
+                el["data"]["id"]
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if "source" not in el["data"] and not node_range_condition(
+                    el, nodefreqslider[0], nodefreqslider[1])
+            ]
+
+            edges_to_remove = [
+                el["data"]["id"]
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if "source" in el["data"] and (
+                    not edge_range_condition(
+                        el, visualization_app._min_edge_weight,
+                        visualization_app._max_edge_weight, nodes_to_remove))
+            ]
+
+            elements = [
+                el
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if el["data"]["id"] not in nodes_to_remove and el["data"]["id"] not in edges_to_remove
+            ]
+
+    elif edgefreqslider and button_id == "edgefreqslider":
+        if visualization_app._min_edge_weight is None or\
+           visualization_app._max_edge_weight is None:
+            visualization_app._min_edge_weight = edgefreqslider[0]
+            visualization_app._min_edge_weight = edgefreqslider[1]
+        elif edgefreqslider[0] != visualization_app._min_edge_weight or\
+             edgefreqslider[1] != visualization_app._max_edge_weight:
+            
+            visualization_app._min_edge_weight = edgefreqslider[0]
+            visualization_app._min_edge_weight = edgefreqslider[1]
+    
+            nodes_to_remove = [
+                el["data"]["id"]
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if "source" not in el["data"] and not node_range_condition(
+                    el, visualization_app._min_node_weight, visualization_app._max_node_weight)
+            ]
+
+            edges_to_remove  = [
+                el["data"]["id"]
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if "source" in el["data"] and not edge_range_condition(
+                    el, edgefreqslider[0], edgefreqslider[1], nodes_to_remove)
+            ]
+            elements = [
+                el
+                for el in visualization_app._graphs[val]["cytoscape"]
+                if el["data"]["id"] not in nodes_to_remove and el["data"]["id"] not in edges_to_remove
+            ]
   
-    return zoom, elements
+    return [zoom, elements]
 
 
 @visualization_app._app.callback([Output('item-card-body', 'children')],
-                  [Input('cytoscape', 'tapNode'),Input('cytoscape', 'tapEdge')],
+                  [Input('cytoscape', 'tapNode'),
+                   Input('cytoscape', 'tapEdge')],
                   [State('cytoscape', 'selectedNodeData'),
                    State('cytoscape', 'selectedEdgeData'),
                    State('showgraph', 'value')])
@@ -716,11 +877,14 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         definition = ""
         if 'definition' in str(datanode['data']):
             definition = str(datanode['data']['definition'])
-        result_df= linked_mention_df_unique.set_index("concept").loc[str(datanode['style']['label'])]
-        if len(result_df) > 0:
-            definition = result_df.definition.iloc[0]
+
+        entity = str(datanode['style']['label'])
+        if entity in visualization_app._entity_definitions:
+            definition = visualization_app._entity_definitions[entity]
+
         label = str(datanode['style']['label'])
-        _type = str(datanode['data']['type'])
+        _type = str(datanode['data']['entity_type'])
+
         frequency = str(len(datanode['data']['papers']))
         res.append([
             html.H5(label, className="card-title"),
@@ -730,11 +894,12 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
                 className="card-text"
             )
         ])
-        label = "'"+label+"' mentioned in "+frequency+" papers"
+
+        label = "'"+label+"' mentioned in " + frequency + " papers"
         modal_button = dbc.Button(label, id="open-body-scroll",color="primary")
         
         papers= datanode['data']['papers']
-    
+
     elements = visualization_app._graphs[showgraph]["cytoscape"]
     elements_dict = visualization_app._graphs[showgraph]["dict"]
         
@@ -752,7 +917,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         modal_button= dbc.Button(label, id="open-body-scroll",color="primary")
 
     if len(papers) > 0:
-        papers_in_kg = list_papers(papers)
+
+        papers_in_kg = visualization_app._list_papers_callback(papers)
 
         rows = []
         
@@ -809,8 +975,10 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
 
 @visualization_app._app.callback(
                   Output('cytoscape', 'layout'),
-                  [Input('dropdown-layout', 'value'),Input('showgraph', 'value')]
-                 )
+                  [
+                      Input('dropdown-layout', 'value'),
+                      Input('showgraph', 'value')
+                  ])
 def update_cytoscape_layout(layout,showgraph):
     if "style" in visualization_app._graphs[showgraph]:
         return {'name': 'preset'}
@@ -840,25 +1008,18 @@ def update_cytoscape_layout(layout,showgraph):
             'name': layout,
             'animate': True,
             'refresh': 1,
-            'maxSimulationTime': 4000,
+#             'infinite': True,
+            'maxSimulationTime': 8000,
             'ungrabifyWhileSimulating': False,
             'fit': True, 
             'padding': 30,
-            "groups":[{
-              "leaves":[
-                  'http://purl.obolibrary.org/obo/ncit_c2271',
-                  'http://purl.obolibrary.org/obo/ncit_c3333', 
-                  'http://purl.obolibrary.org/obo/ncit_c3193', 
-                  'http://purl.obolibrary.org/obo/ncit_c124113', 
-                  'http://purl.obolibrary.org/obo/ncit_c20506'
-              ]
-            }],
-            'nodeDimensionsIncludeLabels': False,
-            'randomize': False,
+#             'nodeDimensionsIncludeLabels': False,
+            'randomize': True,
             'avoidOverlap': True,
             'handleDisconnected': True,
-            'convergenceThreshold': 0.01,
-            'nodeSpacing': 50
+            'convergenceThreshold': 0.001,
+            'nodeSpacing': 10,
+            'edgeLength': 100
         }
     elif layout == "cose-bilkent":
         return {
@@ -866,10 +1027,12 @@ def update_cytoscape_layout(layout,showgraph):
             "quality": 'default',
             "refresh": 30,
             "fit": True,
-            "padding": 10,
+
+            "padding": 20,
             "randomize": True,
-            "nodeRepulsion": 34500,
-            "idealEdgeLength": 50,
+            "nodeSeparation": 75,
+            "nodeRepulsion": 40500,
+            "idealEdgeLength": 70,
             "edgeElasticity": 0.45,
             "nestingFactor": 0.1,
             "gravity": 50.25,
@@ -890,15 +1053,17 @@ def update_cytoscape_layout(layout,showgraph):
         }
 
 
-@visualization_app._app.callback(Output('cytoscape', 'stylesheet'),
+@visualization_app._app.callback(
+                  Output('cytoscape', 'stylesheet'),
                   [Input('cytoscape', 'tapNode'),
                    Input('cytoscape', 'selectedNodeData'),
                    Input('input-follower-color', 'value'),
                    Input('dropdown-node-shape', 'value'),
                    Input('showgraph', 'value'),
-                   Input('node_freq_type', 'value')],
+                   Input('node_freq_type', 'value'),
+                   Input('edge_freq_type', 'value')],
                    [State('cytoscape', 'stylesheet')])
-def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgraph, node_freq_type,original_stylesheet):
+def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgraph, node_freq_type, edge_freq_type, original_stylesheet):
     if "style" in visualization_app._graphs[showgraph]:
         return visualization_app._graphs[showgraph]["style"]
     else:
@@ -912,24 +1077,29 @@ def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgra
         focus_nodes.append(node)
         
     if node_freq_type or node:
-        stylesheet = [style for style in stylesheet if not (style["selector"] == 'node' and 'width' in style["style"])]
-        
-#         all_frequencies = [
-#             el["data"][node_freq_type]
-#             for el in visualization_app._graphs[showgraph]["cytoscape"]["data"][node_freq_type]
-#         ]
-        
+        stylesheet = [
+            style
+            for style in stylesheet
+            if "style" in style and not (style["selector"] == 'node' and 'width' in style["style"])
+        ]
         stylesheet.append({
             "selector": 'node',
             'style': {
                 'shape': node_shape,
-                'width': 'data(' + node_freq_type +')',
-                'height': 'data(' + node_freq_type +')',
-                'font-size': 'data(' + node_freq_type +')',
+                'width':'data(' + node_freq_type + '_size)',
+                'height':'data(' + node_freq_type + '_size)',
+                'font-size':'data(' + node_freq_type + '_font_size)'
             }
-            }
-        )
-    #print(focus_nodes)
+
+        })
+        
+    if edge_freq_type:
+        stylesheet = [style for style in stylesheet if not (style["selector"] == 'edge' and 'width' in style["style"])]
+        stylesheet.append({
+            "selector": 'edge',
+            'style': {'width':'data(' + edge_freq_type + '_size)'}
+        })
+
     for focus_node in focus_nodes:      
         node_style = [
             {
@@ -995,5 +1165,140 @@ def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgra
                             'z-index': 5000
                         }
                     })
-    
     return stylesheet
+
+
+@visualization_app._app.callback(
+    Output("collapse", "is_open"),
+    [Input("collapse-button", "n_clicks")],
+    [State("collapse", "is_open")])
+def toggle_collapse(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
+@visualization_app._app.callback(
+    Output("modal-body-scroll", "is_open"),
+    [
+        Input("open-body-scroll", "n_clicks"),
+        Input("close-body-scroll", "n_clicks"),
+    ],
+    [State("modal-body-scroll", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+
+@visualization_app._app.callback(
+    Output("searchdropdown", "options"),
+    [Input("searchdropdown", "search_value")],
+    [State("searchdropdown", "value"),
+    State('cytoscape', 'elements')],
+)
+def update_multi_options(search_value, value,elements):
+    if not search_value:
+        raise PreventUpdate
+    res = []
+    for ele_data in elements:
+        if 'name' in ele_data['data']:
+            label =ele_data['data']['name']
+            if (search_value in label) or (label in search_value) or ele_data['data']['id'] in (value or []) :
+                res.append({"label":ele_data['data']['name'],"value":ele_data['data']['id']})
+    return res
+
+
+@visualization_app._app.callback(
+    Output("searchpathto", "options"),
+    [Input("searchpathto", "search_value")],
+    [State("searchpathto", "value"),
+     State('searchpathfrom', 'value'),
+     State('showgraph', 'value')],
+)
+def searchpathto(search_value, value,_from, showgraph):
+    if not search_value:
+        raise PreventUpdate
+    return search(search_value, value, showgraph,[_from])
+
+
+@visualization_app._app.callback(
+    Output("searchnodetotraverse", "options"),
+    [Input("searchnodetotraverse", "search_value")],
+    [State("searchnodetotraverse", "value"),
+     State('searchpathfrom', 'value'),
+     State('searchpathto', 'value'),
+     State('showgraph', 'value')],
+)
+def searchpathtraverse(search_value, value,_from,to, showgraph):
+    if not search_value:
+        raise PreventUpdate
+    return search(search_value, value, showgraph, [_from,to])
+
+
+@visualization_app._app.callback(
+    Output("searchpathfrom", "options"),
+    [Input("searchpathfrom", "search_value")],
+    [State("searchpathfrom", "value"),
+     State('showgraph', 'value')],
+)
+def searchpathfrom(search_value, value, showgraph ):
+    if not search_value:
+        raise PreventUpdate
+    return search(search_value, value,showgraph)
+
+
+# @visualization_app._app.callback(Output('nodefreqslider', 'value'),
+#               [Input('bt-reset', 'n_clicks')],[State('nodefreqslider', 'value')])
+# def display_freq_node(resetbt, nodefreqslider):
+#     ctx = dash.callback_context
+#     if not ctx.triggered:
+#         button_id = 'No clicks yet'
+#     else:
+#         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+#     if button_id == 'bt-reset':
+#         return 1
+
+
+# @visualization_app._app.callback(Output('edgefreqslider', 'value'),
+#               [Input('bt-reset', 'n_clicks')],[State('edgefreqslider', 'value')])
+# def display_freq_edge(resetbt, edgefreqslider):
+#     ctx = dash.callback_context
+#     if not ctx.triggered:
+#         button_id = 'No clicks yet'
+#     else:
+#         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+#     if button_id == 'bt-reset':
+#         return 1
+
+
+@visualization_app._app.callback(
+    [
+        Output('cytoscape', 'generateImage')
+    ],
+    [
+        Input('jpg-menu', 'n_clicks'),
+        Input('svg-menu', 'n_clicks'),
+        Input('png-menu', 'n_clicks')
+    ]
+)
+def download_image(jpg_menu,svg_menu,png_menu):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    ftype  = None
+    if button_id == "png-menu":
+        ftype = "png"
+    if button_id == "jpg-menu":
+        ftype = "jpg"
+    if button_id == "svg-menu":
+        ftype = "svg"
+    return [{
+        'type': ftype,
+        'action': "download"
+    }]
+
+removed = set()
