@@ -112,3 +112,92 @@ CYTOSCAPE_STYLE_STYLESHEET = [
         "style": {"background-color": COLORS["GENE"]},
     }
 ]
+
+
+# Layout configs
+
+COSE_BILKENT_CONFIG = {
+    "quality": 'default',
+    "refresh": 30,
+    "fit": True,
+    "padding": 20,
+    "randomize": True,
+    "nodeSeparation": 75,
+    "nodeRepulsion": 40500,
+    "idealEdgeLength": 70,
+    "edgeElasticity": 0.45,
+    "nestingFactor": 0.1,
+    "gravity": 50.25,
+    "numIter": 2500,
+    "tile": True,
+    "tilingPaddingVertical": 50,
+    "tilingPaddingHorizontal": 50,
+    "gravityRangeCompound": 1.5,
+    "gravityCompound": 2.0,
+    "gravityRange": 23.8,
+    "initialEnergyOnIncremental": 50.5
+}
+
+COLA_CONFIG = {
+    'animate': True,
+    'refresh': 1,
+#             'infinite': True,
+    'maxSimulationTime': 8000,
+    'ungrabifyWhileSimulating': False,
+    'fit': True, 
+    'padding': 30,
+#             'nodeDimensionsIncludeLabels': False,
+    'randomize': True,
+    'avoidOverlap': True,
+    'handleDisconnected': True,
+    'convergenceThreshold': 0.001,
+    'nodeSpacing': 10,
+    'edgeLength': 100
+}
+
+
+COSE_CONFIG = {
+    'showlegend':True,
+    'idealEdgeLength': 100,
+    'nodeOverlap': 0,
+    'refresh': 20,
+    'fit': True,
+    'padding': 30,
+    'randomize': False,
+    'componentSpacing': 100,
+    'nodeRepulsion': 400000,
+    'edgeElasticity': 100,
+    'nestingFactor': 5,
+    'gravity': 80,
+    'numIter': 1000,
+    'initialTemp': 200,
+    'coolingFactor': 0.95,
+    'minTemp': 1.0
+}
+
+
+CISE_CONFIG = {
+    "animate": True,
+    "refresh": 10, 
+    "fit": True,
+    "padding": 30,
+    # separation amount between nodes in a cluster
+    # note: increasing this amount will also increase the simulation time 
+    "nodeSeparation": 12.5,
+    # Inter-cluster edge length factor 
+    # (2.0 means inter-cluster edges should be twice as long as intra-cluster edges)
+    "idealInterClusterEdgeLengthCoefficient": 1.4,
+    # Whether to pull on-circle nodes inside of the circle
+    "allowNodesInsideCircle": False,
+    # Max percentage of the nodes in a circle that can move inside the circle
+    "maxRatioOfNodesInsideCircle": 0.1,
+    # - Lower values give looser springs
+    # - Higher values give tighter springs
+    "springCoeff": 0.45,
+    # Node repulsion (non overlapping) multiplier
+    "nodeRepulsion": 4500,
+    # Gravity force (constant)
+    "gravity": 0.25,
+    # Gravity range (constant)
+    "gravityRange": 3.8,
+}
