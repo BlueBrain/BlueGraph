@@ -144,6 +144,48 @@ def create_node(id, node_type=None,label=None, label_size=10, label_color="black
         }
     }
 
+def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
+
+        if thickness == 0:
+            thickness = 2
+        return {
+            "data": { 
+                "id": str(id),
+                "source": str(from_id).lower(),
+                "target": str(to_id).lower(),
+                "frequency":frequency,
+                "papers":papers
+            },
+            "style": {
+               "label": label if label else '',
+                "width": thickness
+            }
+        }
+
+
+def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
+
+        actualLabel = None
+        if label is not None:
+            actualLabel = label.lower()
+        else:
+            actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
+        frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
+        return {
+            "data": { 
+                "id": str(id).lower(),
+                "frequency":frequency_raw,
+                "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
+                "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
+                "definition":definition,
+                "papers":papers,
+                "type":node_type
+            },
+            "style": {
+                "label": actualLabel
+            }
+        }
+
 node_shape_option_list = [
     'ellipse',
     'triangle',
@@ -844,7 +886,7 @@ def reset_layout(resetbt, removebt, val,
     if resetbt is not None:
         visualization_app._removed_nodes = set()
         visualization_app._removed_edges = set()
-    
+ 
     if button_id == "groupedLayout" or button_id == "cluster_type":
         if len(grouped_layout) == 1:
             if button_id != "groupedLayout":
