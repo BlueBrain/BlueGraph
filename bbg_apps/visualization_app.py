@@ -28,7 +28,8 @@ from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
                                 COSE_BILKENT_CONFIG,
                                 COSE_CONFIG,
                                 COLA_CONFIG,
-                                CISE_CONFIG)
+                                CISE_CONFIG,
+                                COLORS)
 from dash.exceptions import PreventUpdate
 
 from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths)
@@ -67,59 +68,81 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
                 j += 1
 
                 
-def generate_cluster_info(elements, cluster_type):
-    cluster_dict = {}
-    for el in elements:
+def generate_clusters(elements, cluster_type):
+    new_elements = [
+        el
+        for el in elements
+    ]
+    clusters = dict()
+    for el in new_elements:
         if cluster_type in el["data"]:
             cluster_id = el["data"][cluster_type]
-            if cluster_id in cluster_dict:
-                cluster_dict[cluster_id].append(el["data"]["id"])
-            else:
-                cluster_dict[cluster_id] = [el["data"]["id"]]
-    return list(cluster_dict.values())
+            el["data"]["parent"] = "cluster_node_{}".format(cluster_id)
+            clusters[cluster_id] = "cluster_node_{}".format(cluster_id)
+    
+    cluster_nodes = []
+    for k, v in clusters.items():
+        cluster_nodes.append({
+            "data": {
+                "id": v,
+                "type": "cluster_node",
+                cluster_type: k
+            }
+        })
+    return cluster_nodes + new_elements
 
+
+def clear_grouping(elements):
+    new_elements = []
+    for el in elements:
+        if "type" not in el["data"] or el["data"]["type"] != "cluster_node":
+            new_element = {"data": {}}
+            for k, v in el["data"].items():
+                if k != "parent":
+                    new_element['data'][k] = v
+            new_elements.append(new_element)
+    return new_elements        
+    
 
 def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
-
-        if thickness == 0:
-            thickness = 2
-        return {
-            "data": { 
-                "id": str(id),
-                "source": str(from_id).lower(),
-                "target": str(to_id).lower(),
-                "frequency":frequency,
-                "papers":papers
-            },
-            "style": {
-               "label": label if label else '',
-                "width": thickness
-            }
+    if thickness == 0:
+        thickness = 2
+    return {
+        "data": { 
+            "id": str(id),
+            "source": str(from_id).lower(),
+            "target": str(to_id).lower(),
+            "frequency": frequency,
+            "papers": papers
+        },
+        "style": {
+           "label": label if label else '',
+            "width": thickness
         }
+    }
 
 
 def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
-
-        actualLabel = None
-        if label is not None:
-            actualLabel = label.lower()
-        else:
-            actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
-        frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
-        return {
-            "data": { 
-                "id": str(id).lower(),
-                "frequency":frequency_raw,
-                "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
-                "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
-                "definition":definition,
-                "papers":papers,
-                "type":node_type
-            },
-            "style": {
-                "label": actualLabel
-            }
+    actualLabel = None
+    if label is not None:
+        actualLabel = label.lower()
+    else:
+        actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
+    frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
+    return {
+        "data": { 
+            "id": str(id).lower(),
+            "frequency":frequency_raw,
+            "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
+            "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
+            "definition":definition,
+            "papers":papers,
+            "type":node_type
+        },
+        "style": {
+            "label": actualLabel
         }
+    }
 
 node_shape_option_list = [
     'ellipse',
@@ -143,6 +166,7 @@ dropdown_download_option_list = [
 graph_layout_option_list = [
     'cose-bilkent',
     'circle',
+    'dagre',
 #     'cise',
     'random',
     'grid',
@@ -150,7 +174,6 @@ graph_layout_option_list = [
     'concentric',
     'breadthfirst',
     'cose',
-    'dagre',
     'cola',
     'klay',
     'spread',
@@ -161,6 +184,12 @@ node_frequency_type = [
     ("Frequency", "paper_frequency"),
     ("Degree", "degree_frequency"),
     ("PageRank", "pagerank_frequency")
+]
+
+cluster_type = [
+    ("Entity Type", "entity_type"),
+    ("Community by Frequency", "community_frequency"),
+    ("Community by Mutual Information", "community_npmi")
 ]
 
 edge_frequency_type = [
@@ -282,8 +311,7 @@ class VisualizationApp(object):
             dbc.DropdownMenuItem("Degree Frequency",   id="dropdown-menu-freq-degree_frequency"),
             dbc.DropdownMenuItem("PageRank Frequency", id="dropdown-menu-freq-pagerank_frequency")
         ]
-        
-        
+
         
         freq_input_group = dbc.InputGroup(
             [
@@ -353,7 +381,47 @@ class VisualizationApp(object):
             html.Hr(),
             frequencies_form,
             item_details_card])
+        
+        # ------ Clustering form ------
 
+        cluster_group = dbc.InputGroup(
+            [
+                dbc.Label("Cluster by", html_for="cluster_type"),
+                dcc.Dropdown(
+                    id="cluster_type",
+                    value="entity_type",
+                    options=[{'label': val[0], 'value': val[1]} for val in cluster_type],
+                    style={"width":"100%"})
+            ],
+            className="mb-1"
+        )
+        
+        legend = dbc.FormGroup([
+            dbc.Label("Legend", html_for="cluster_board"),
+            html.Div(id="cluster_board", children=[])
+        ])
+        
+        cluster_layout_button = dbc.FormGroup([
+            dbc.Checklist(
+                options=[{"value": 1}],
+                value=[],
+                id="groupedLayout",
+                switch=True,
+            ),
+            dbc.Label("Grouped Layout", html_for="groupedLayout"),
+        ])                
+
+        grouping_form = dbc.Form([
+            cluster_group,
+            cluster_layout_button,
+            html.Hr(),
+            legend,
+            html.Hr(),
+#             subgraph_form
+        ])
+        
+        # ------ Path search form --------
+        
         path_from = dbc.FormGroup([
             dbc.Label("From", html_for="searchpathfrom", width=3),
             dbc.Col(dcc.Dropdown(
@@ -484,9 +552,10 @@ class VisualizationApp(object):
             row=True
         )
 
-        conf_form = dbc.Form([graph_layout,node_shape,link_color_picker])
+        conf_form = dbc.Form([graph_layout, node_shape, link_color_picker])
         
         # ---- Create a layout from components ----------------
+
         self.cyto = cyto.Cytoscape(
             id='cytoscape',
             elements=self._graphs[self._current_graph]["cytoscape"] if self._current_graph is not None else None,
@@ -498,13 +567,14 @@ class VisualizationApp(object):
 #             dcc.Store(id='memory', data={}),
             dbc.Row([]),
             dbc.Row([
-                dbc.Col(dcc.Loading(
-                        id="loading-graph",
-                        children=[html.Div(
-                            style=VISUALIZATION_CONTENT_STYLE, children=[self.cyto])],
-                        type="circle",
-                        style={"margin-top": "75pt"}),
-                    width=8),
+                dbc.Col([
+#                     dcc.Loading(
+#                         id="loading-graph",
+#                         children=[],
+#                         type="circle",
+#                         style={"margin-top": "75pt"}),
+                    html.Div(style=VISUALIZATION_CONTENT_STYLE, children=[self.cyto]), 
+                    ], width=8),
                 dbc.Col(html.Div(children=[
                     dbc.Button(
                         "Controls",
@@ -516,7 +586,10 @@ class VisualizationApp(object):
                             label='Details', label_style={"color": "#00AEF9", "border-radius":"4px"},
                             children=[dbc.Card(dbc.CardBody([form]))]),
                         dbc.Tab(
-                            label='Graph Layout and Shape', label_style={"color": "#00AEF9"},
+                            label="Clusters", label_style={"color": "#00AEF9", "border-radius":"4px"},
+                            children=[dbc.Card(dbc.CardBody([grouping_form]))]),
+                        dbc.Tab(
+                            label='Layout', label_style={"color": "#00AEF9"},
                             children=[dbc.Card(dbc.CardBody([conf_form]))]),
                         dbc.Tab(
                             label='Path Finder', label_style={"color": "#00AEF9"},
@@ -720,7 +793,9 @@ def adapt_weight_ranges(val, node_freq_type, edge_freq_type, cytoelements):
         Input('nodefreqslider', 'value'),
         Input('edgefreqslider', 'value'),
         Input("searchdropdown", "value"),
-        Input('bt-path', 'n_clicks')
+        Input('bt-path', 'n_clicks'),
+        Input('groupedLayout', "value"),
+        Input('cluster_type', "value")
     ],
     [
         State('node_freq_type', 'value'),
@@ -736,12 +811,12 @@ def adapt_weight_ranges(val, node_freq_type, edge_freq_type, cytoelements):
         State('searchpathlimit', 'value'),
         State('searchpathoverlap', 'value'),
         State('nestedpaths', 'value'),
-        State('pathdepth', 'value')
+        State('pathdepth', 'value'),
     ]
 )
 def reset_layout(resetbt, removebt, val, 
                  nodefreqslider, edgefreqslider, 
-                 searchvalues, pathbt, 
+                 searchvalues, pathbt, grouped_layout, cluster_type,
                  node_freq_type, edge_freq_type, cytoelements, data, edge,
                  tappednode, zoom, searchpathfrom,
                  searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
@@ -760,6 +835,7 @@ def reset_layout(resetbt, removebt, val,
         elements = visualization_app._graphs[val]["cytoscape"]
         elements_dict = visualization_app._graphs[val]["dict"]
 
+
     if searchvalues is not None:
         for searchvalue in searchvalues:
             search_node = elements_dict[searchvalue]
@@ -768,7 +844,22 @@ def reset_layout(resetbt, removebt, val,
     if resetbt is not None:
         visualization_app._removed_nodes = set()
         visualization_app._removed_edges = set()
-            
+    
+    if button_id == "groupedLayout" or button_id == "cluster_type":
+        if len(grouped_layout) == 1:
+            if button_id != "groupedLayout":
+#                 print(button_id, grouped_layout)
+                elements = generate_clusters(elements, cluster_type)
+#                 print("Clusters: ", [el["data"]["id"] for el in elements if "type" in el["data"]])
+            else:
+#                 print(button_id, grouped_layout)
+                elements = generate_clusters(clear_grouping(elements), cluster_type)
+#                 print("Clusters: ", [el["data"]["id"] for el in elements if "type" in el["data"]])
+        else:
+#             print(button_id, grouped_layout)
+            elements = clear_grouping(elements)
+#             print("Clusters: ", [el["data"]["id"] for el in elements if "type" in el["data"]])
+    
     if button_id == "remove-button" and removebt is not None:
         nodes_to_remove = set()
         edges_to_remove = set()
@@ -871,7 +962,7 @@ def reset_layout(resetbt, removebt, val,
         if visualization_app._min_node_weight is None or\
            visualization_app._max_node_weight is None:
             visualization_app._min_node_weight = nodefreqslider[0]
-            visualization_app._min_edge_weight = nodefreqslider[1]
+            visualization_app._max_node_weight = nodefreqslider[1]
         elif nodefreqslider[0] != visualization_app._min_node_weight or\
              nodefreqslider[1] != visualization_app._max_node_weight:
 
@@ -904,12 +995,12 @@ def reset_layout(resetbt, removebt, val,
         if visualization_app._min_edge_weight is None or\
            visualization_app._max_edge_weight is None:
             visualization_app._min_edge_weight = edgefreqslider[0]
-            visualization_app._min_edge_weight = edgefreqslider[1]
+            visualization_app._max_edge_weight = edgefreqslider[1]
         elif edgefreqslider[0] != visualization_app._min_edge_weight or\
              edgefreqslider[1] != visualization_app._max_edge_weight:
             
             visualization_app._min_edge_weight = edgefreqslider[0]
-            visualization_app._min_edge_weight = edgefreqslider[1]
+            visualization_app._max_edge_weight = edgefreqslider[1]
     
             nodes_to_remove = [
                 el["data"]["id"]
@@ -924,6 +1015,8 @@ def reset_layout(resetbt, removebt, val,
                 if "source" in el["data"] and not edge_range_condition(
                     el, edgefreqslider[0], edgefreqslider[1], nodes_to_remove)
             ]
+
+
             elements = [
                 el
                 for el in visualization_app._graphs[val]["cytoscape"]
@@ -1046,13 +1139,15 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
 
 
 
-@visualization_app._app.callback(
-                  Output('cytoscape', 'layout'),
-                  [
-                      Input('dropdown-layout', 'value'),
-                      Input('showgraph', 'value')
-                  ])
-def update_cytoscape_layout(layout,showgraph):
+@visualization_app._app.callback(Output('cytoscape', 'layout'),
+    [
+      Input('dropdown-layout', 'value'),
+      Input('showgraph', 'value')
+    ],
+    [
+        State('cytoscape', 'elements')
+    ])
+def update_cytoscape_layout(layout, showgraph, elements):
     if "style" in visualization_app._graphs[showgraph]:
         return {'name': 'preset'}
     if layout == "cose":
@@ -1060,6 +1155,8 @@ def update_cytoscape_layout(layout,showgraph):
     elif layout =="cola":
         layout_config = COLA_CONFIG
     elif layout == "cose-bilkent":
+        layout_config = COSE_BILKENT_CONFIG
+    elif layout == "cose-bilkent (types)":
         layout_config = COSE_BILKENT_CONFIG
     elif layout == "cise":
         layout_config = CISE_CONFIG
@@ -1076,20 +1173,29 @@ def update_cytoscape_layout(layout,showgraph):
 
 
 @visualization_app._app.callback(
-                  Output('cytoscape', 'stylesheet'),
-                  [Input('cytoscape', 'tapNode'),
-                   Input('cytoscape', 'selectedNodeData'),
-                   Input('input-follower-color', 'value'),
-                   Input('dropdown-node-shape', 'value'),
-                   Input('showgraph', 'value'),
-                   Input('node_freq_type', 'value'),
-                   Input('edge_freq_type', 'value')],
-                   [State('cytoscape', 'stylesheet')])
-def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgraph, node_freq_type, edge_freq_type, original_stylesheet):
+    Output('cytoscape', 'stylesheet'),
+    [
+        Input('cytoscape', 'tapNode'),
+        Input('cytoscape', 'selectedNodeData'),
+        Input('input-follower-color', 'value'),
+        Input('dropdown-node-shape', 'value'),
+        Input('showgraph', 'value'),
+        Input('node_freq_type', 'value'),
+        Input('edge_freq_type', 'value'),
+        Input('cluster_type', 'value'),
+    ],
+    [
+        State('cytoscape', 'stylesheet'),
+        State('cytoscape', 'elements'),
+        State('groupedLayout', "value")
+    ])
+def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgraph, node_freq_type, edge_freq_type,
+                        cluster_type, original_stylesheet, elements, grouped_layout):
     if "style" in visualization_app._graphs[showgraph]:
         return visualization_app._graphs[showgraph]["style"]
     else:
         stylesheet = CYTOSCAPE_STYLE_STYLESHEET
+
     focus_nodes = []
     
     if selectedNodes:
@@ -1114,6 +1220,31 @@ def generate_stylesheet(node, selectedNodes, follower_color, node_shape, showgra
             }
 
         })
+        
+    if cluster_type:
+        cluster_styles = []
+        types = set([
+            el['data'][cluster_type]
+            for el in elements
+            if cluster_type in el["data"]
+        ])
+        for t in types:
+            stylesheet.append({
+                "selector": "node[{} = {}]".format(
+                    cluster_type,
+                    t if isinstance(t, int) else "'{}'".format(t)),
+                "style": {"background-color": COLORS[t]}
+            })
+    
+    if grouped_layout:
+        stylesheet.append(
+            {
+                "selector": "node[type = 'cluster_node']",
+                "style": {
+                    "opacity": 0.2,
+                    "shape": "ellipse"
+                },
+            })
         
     if edge_freq_type:
         stylesheet = [style for style in stylesheet if not (style["selector"] == 'edge' and 'width' in style["style"])]
@@ -1322,3 +1453,41 @@ def download_image(jpg_menu,svg_menu,png_menu):
         'type': ftype,
         'action': "download"
     }]
+
+
+@visualization_app._app.callback(
+    [
+        Output('cluster_board', "children")
+    ],
+    [
+        Input('cluster_type', "value")
+    ],
+    [
+        State('cytoscape', 'elements')
+    ])
+def generate_legend(cluster_type, elements):
+    types = set([
+        el['data'][cluster_type] for el in elements if cluster_type in el['data']
+    ])
+    
+    children = []
+    for t in types:
+        children.append(
+            dbc.Button([
+                    html.Span(
+                        className="legend-item",
+                        style={
+                            "height": "15px",
+                            "width": "15px",
+                            "border-radius": "50%",
+                            "display": "inline-block",
+                            "vertical-align": "text-bottom",
+                            "margin-right": "5px",
+                            "background-color": COLORS[t]
+                        }),
+                    t
+                ],
+                color="defalut",
+            )
+        )
+    return [children]

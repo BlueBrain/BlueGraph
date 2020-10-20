@@ -4,8 +4,8 @@ MAX_NODE_SIZE = 65
 MIN_FONT_SIZE = 10
 MAX_FONT_SIZE = 32
 
-MIN_EDGE_WIDTH = 4
-MAX_EDGE_WIDTH = 12
+MIN_EDGE_WIDTH = 3
+MAX_EDGE_WIDTH = 10
 
 
 VISUALIZATION_CONTENT_STYLE = {
@@ -29,16 +29,23 @@ COLORS = {
     "ORGAN": "#adbce9",
     "ORGANISM": "#b3edd5",
     "GENE": "#8dc3b8",
+    0: "#74aff3",
+    1: "#ebaba7",
+    2: "#bcdfa4",
+    3: "#72d5de",
+    4: "#79ddcb",
+    5: "#deb1e0",
+    6: "#dbcd9d",
+    7: "#7cccee",
+    8: "#91c79f",
+    9: "#adbce9",
+    10: "#b3edd5",
+    11: "#8dc3b8",
 }
 
 
 CYTOSCAPE_STYLE_STYLESHEET = [
     {
-        "selector": 'edge',
-        'style': {
-            "width": 5
-        }
-    }, {
         "selector": 'node',
         'style': {
             "font-size": 70,
@@ -50,92 +57,89 @@ CYTOSCAPE_STYLE_STYLESHEET = [
 #             'color': 'data(color)',
         }
     }, {
-        "selector" : "node[community_npmi = 0.0]",
-        "css" : {"background-color" : "rgb(137,208,245)"}
-    }, {
-        "selector" : "node[community_npmi = 1.0]",
-        "css" : {
-          "background-color" : "rgb(255,102,51)"
-        }
-    }, {
-        "selector" : "node[community_npmi = 2.0]",
-        "css" : {
-          "background-color" : "rgb(0,102,0)"
-        }
-    }, {
         "selector":'cytoscape',
         "style": {
             "width": "100%",
             "height": "100%"
         }
     }, {
-        "selector": 'edge',
+        "selector": "edge",
         "style": {
             'curve-style': 'bezier',
             'line-color': '#D5DAE6',
+            "width": 5,
+            "opacity": 0.5
         }
-    }, {
-        "selector": 'node[entity_type = "CHEMICAL"]',
-        "style": {"background-color": COLORS["CHEMICAL"]},
-    }, {
-        "selector": 'node[entity_type = "PROTEIN"]',
-        "style": {"background-color": COLORS["PROTEIN"]},
-    }, {
-        "selector": 'node[entity_type = "DISEASE"]',
-        "style": {"background-color": COLORS["DISEASE"]},
-    }, {
-        "selector": 'node[entity_type = "CELL_TYPE"]',
-        "style": {"background-color": COLORS["CELL_TYPE"]},
-    }, {
-        "selector": 'node[entity_type = "PATHWAY"]',
-        "style": {"background-color": COLORS["PATHWAY"]},
-    }, {
-        "selector": 'node[entity_type = "CELL_COMPARTMENT"]',
-        "style": {"background-color": COLORS["CELL_COMPARTMENT"]},
-    }, {
-        "selector": 'node[entity_type = "DRUG"]',
-        "style": {"background-color": COLORS["DRUG"]},
-    }, {
-        "selector": 'node[entity_type = "Biomarkers"]',
-        "style": {"background-color": COLORS["Biomarkers"]},
-    }, {
-        "selector": 'node[entity_type = "Condition"]',
-        "style": {"background-color": COLORS["Condition"]},
-    }, {
-        "selector": 'node[entity_type = "ORGAN"]',
-        "style": {"background-color": COLORS["ORGAN"]},
-    }, {
-        "selector": 'node[entity_type = "ORGANISM"]',
-        "style": {"background-color": COLORS["ORGANISM"]},
-    }, {
-        "selector": 'node[entity_type = "GENE"]',
-        "style": {"background-color": COLORS["GENE"]},
     }
 ]
 
 
 # Layout configs
 
+# COSE_BILKENT_CONFIG = {
+#     "quality": 'default',
+#     "refresh": 30,
+#     "fit": True,
+#     "padding": 20,
+#     "randomize": True,
+#     "nodeSeparation": 75,
+#     "nodeRepulsion": 40500,
+#     "idealEdgeLength": 70,
+#     "edgeElasticity": 0.45,
+#     "nestingFactor": 0.1,
+#     "gravity": 50.25,
+#     "numIter": 2500,
+#     "tile": True,
+#     "tilingPaddingVertical": 50,
+#     "tilingPaddingHorizontal": 50,
+#     "gravityRangeCompound": 1.5,
+#     "gravityCompound": 2.0,
+#     "gravityRange": 23.8,
+#     "initialEnergyOnIncremental": 50.5
+# }
+
 COSE_BILKENT_CONFIG = {
     "quality": 'default',
+    # Whether to include labels in node dimensions. Useful for avoiding label overlap
+    "nodeDimensionsIncludeLabels": False,
+    # number of ticks per frame; higher is faster but more jerky
     "refresh": 30,
+    # Whether to fit the network view after when done
     "fit": True,
-    "padding": 20,
+    # Padding on fit
+    "padding": 10,
+    # Whether to enable incremental mode
     "randomize": True,
-    "nodeSeparation": 75,
-    "nodeRepulsion": 40500,
-    "idealEdgeLength": 70,
+    # Node repulsion (non overlapping) multiplier
+    "nodeRepulsion": 4500,
+    # Ideal (intra-graph) edge length
+    "idealEdgeLength": 50,
+    # Divisor to compute edge forces
     "edgeElasticity": 0.45,
+    # Nesting factor (multiplier) to compute ideal edge length for inter-graph edges
     "nestingFactor": 0.1,
-    "gravity": 50.25,
+    # Gravity force (constant)
+    "gravity": 0.25,
+    # Maximum number of iterations to perform
     "numIter": 2500,
+    # Whether to tile disconnected nodes
     "tile": True,
-    "tilingPaddingVertical": 50,
-    "tilingPaddingHorizontal": 50,
+    # Type of layout animation. The option set is {'during', 'end', false}
+    "animate": 'end',
+    # Duration for animate:end
+    "animationDuration": 500,
+    # Amount of vertical space to put between degree zero nodes during tiling (can also be a function)
+    "tilingPaddingVertical": 10,
+    # Amount of horizontal space to put between degree zero nodes during tiling (can also be a function)
+    "tilingPaddingHorizontal": 10,
+    # Gravity range (constant) for compounds
     "gravityRangeCompound": 1.5,
-    "gravityCompound": 2.0,
-    "gravityRange": 23.8,
-    "initialEnergyOnIncremental": 50.5
+    # Gravity force (constant) for compounds
+    "gravityCompound": 1.0,
+    # Gravity range (constant)
+    "gravityRange": 30,
+    # Initial cooling factor for incremental layout
+    "initialEnergyOnIncremental": 0.5
 }
 
 COLA_CONFIG = {
