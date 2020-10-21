@@ -96,6 +96,58 @@ def generate_clusters(elements, cluster_type):
 def clear_grouping(elements):
     new_elements = []
     for el in elements:
+        if "type" not in el["data"] or el["data"]["type"] != "cluster_node":
+            new_element = {"data": {}}
+            for k, v in el["data"].items():
+                if k != "parent":
+                    new_element['data'][k] = v
+            new_elements.append(new_element)
+    return new_elements        
+    
+
+def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
+    if thickness == 0:
+        thickness = 2
+    return {
+        "data": { 
+            "id": str(id),
+            "source": str(from_id).lower(),
+            "target": str(to_id).lower(),
+            "frequency": frequency,
+            "papers": papers
+        },
+        "style": {
+           "label": label if label else '',
+            "width": thickness
+        }
+    }
+
+
+def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
+    actualLabel = None
+    if label is not None:
+        actualLabel = label.lower()
+    else:
+        actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
+    frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
+    return {
+        "data": { 
+            "id": str(id).lower(),
+            "frequency":frequency_raw,
+            "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
+            "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
+            "definition":definition,
+            "papers":papers,
+            "type":node_type
+        },
+        "style": {
+            "label": actualLabel
+        }
+    }
+
+def clear_grouping(elements):
+    new_elements = []
+    for el in elements:
         if el["data"]["type"] != "cluster":
             new_element = {"data": {}}
             for k, v in el["data"].items():
@@ -943,7 +995,6 @@ def reset_layout(resetbt, removebt, val,
     if button_id == "bt-reset":
         visualization_app._removed_nodes = set()
         visualization_app._removed_edges = set()
-
  
     if button_id == "cluster_type":
         if len(grouped_layout) == 1:
@@ -1357,7 +1408,6 @@ def update_cytoscape_layout(layout, showgraph, elements, styles):
         Input('node_freq_type', 'value'),
         Input('edge_freq_type', 'value'),
         Input('cluster_type', 'value'),
-        
     ],
     [
         State('cytoscape', 'stylesheet')
