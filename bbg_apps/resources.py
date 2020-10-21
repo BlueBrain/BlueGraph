@@ -8,6 +8,22 @@ MIN_EDGE_WIDTH = 3
 MAX_EDGE_WIDTH = 10
 
 
+DEFAULT_TYPES = [
+    "CHEMICAL",
+    "PROTEIN",
+    "DISEASE",
+    "CELL_TYPE",
+    "PATHWAY",
+    "CELL_COMPARTMENT",
+    "DRUG",
+    "Biomarkers",
+    "Condition",
+    "ORGAN",
+    "ORGANISM",
+    "GENE"
+]
+
+
 VISUALIZATION_CONTENT_STYLE = {
     "width": "100%",
     "top": "0px",
@@ -55,7 +71,6 @@ CYTOSCAPE_STYLE_STYLESHEET = [
         "selector": 'node',
         'style': {
             "opacity": 1,
-            'shape': "ellipse",
             "text-valign": "center",
             "text-halign": "center",
             "label":"data(name)",
