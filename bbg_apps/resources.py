@@ -1,8 +1,8 @@
-MIN_NODE_SIZE = 20
-MAX_NODE_SIZE = 65
+MIN_NODE_SIZE = 10
+MAX_NODE_SIZE = 40
 
-MIN_FONT_SIZE = 10
-MAX_FONT_SIZE = 32
+MIN_FONT_SIZE = 6
+MAX_FONT_SIZE = 24
 
 MIN_EDGE_WIDTH = 3
 MAX_EDGE_WIDTH = 10
@@ -46,31 +46,29 @@ COLORS = {
 
 CYTOSCAPE_STYLE_STYLESHEET = [
     {
-        "selector": 'node',
-        'style': {
-            "font-size": 70,
-            "text-valign": "center",
-            "text-halign": "center",
-            "label":"data(name)",
-            "overlay-padding": "6px",
-            "z-index": "10",
-#             'color': 'data(color)',
-        }
-    }, {
         "selector":'cytoscape',
         "style": {
             "width": "100%",
             "height": "100%"
         }
+    },  {
+        "selector": 'node',
+        'style': {
+            "opacity": 1,
+            'shape': "ellipse",
+            "text-valign": "center",
+            "text-halign": "center",
+            "label":"data(name)",
+            "overlay-padding": "6px",
+            "z-index": "10",
+        }
     }, {
-        "selector": "edge",
+        "selector": 'edge',
         "style": {
             'curve-style': 'bezier',
-            'line-color': '#D5DAE6',
-            "width": 5,
-            "opacity": 0.5
+            'line-color': '#D5DAE6'
         }
-    }
+    }, 
 ]
 
 
@@ -113,13 +111,13 @@ COSE_BILKENT_CONFIG = {
     # Node repulsion (non overlapping) multiplier
     "nodeRepulsion": 4500,
     # Ideal (intra-graph) edge length
-    "idealEdgeLength": 50,
+    "idealEdgeLength": 70,
     # Divisor to compute edge forces
     "edgeElasticity": 0.45,
     # Nesting factor (multiplier) to compute ideal edge length for inter-graph edges
     "nestingFactor": 0.1,
     # Gravity force (constant)
-    "gravity": 0.25,
+    "gravity": 50.25,
     # Maximum number of iterations to perform
     "numIter": 2500,
     # Whether to tile disconnected nodes
@@ -135,7 +133,7 @@ COSE_BILKENT_CONFIG = {
     # Gravity range (constant) for compounds
     "gravityRangeCompound": 1.5,
     # Gravity force (constant) for compounds
-    "gravityCompound": 1.0,
+    "gravityCompound": 2.0,
     # Gravity range (constant)
     "gravityRange": 30,
     # Initial cooling factor for incremental layout

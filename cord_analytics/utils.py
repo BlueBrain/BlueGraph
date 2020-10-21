@@ -547,5 +547,11 @@ def build_cytoscape_data(graph):
             element["data"]["paper_frequency"] = len(papers)
 
         element["data"]["papers"] = list(papers)
+
+        if "source" in element["data"]:
+            element["data"]["type"] = "edge"
+        else:
+            element["data"]["type"] = "node"
+
     elements_dict = {element["data"]["id"]: element for element in elements}
     return elements, elements_dict
