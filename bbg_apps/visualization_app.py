@@ -705,7 +705,7 @@ class VisualizationApp(object):
             [
                 dbc.Col(daq.ColorPicker(
                   id='input-follower-color',
-                  value=dict(hex='#b3132a'),
+                  value=dict(hex='#1375B3'),
                   label="Highlight Color"
                 ))    
             ],
@@ -1098,21 +1098,12 @@ def reset_layout(resetbt, removebt, val,
                     if el["data"]["source"] == searchvalue or\
                        el["data"]["target"] == searchvalue:
                         selected_elements.add(el["data"]["id"])
-
-    selected_elements.update(
-        [el["id"] for el in (edge if edge else [])]
-    )
  
     for el in elements:
         if el["data"]["id"] in selected_elements:        
             el["selected"] = True
-        else:
-            el["selected"] = False
-            
-    print("SELECTED GUYS")
-    for el in elements:
-        if "selected" in el and el["selected"]:
-            print(el["data"]["id"])
+#         else:
+#             el["selected"] = False
     
     if nodes_to_keep is None:
         nodes_to_keep = []
@@ -1536,12 +1527,16 @@ def generate_stylesheet(elements,
             "style": {
                 "border-width": "5px",
                 "border-color": follower_color['hex'],
+                "opacity": 0.8,
                 "text-opacity": 1,
                 'z-index': 9999
             }
         }, {
             "selector": "edge:selected",
-            "style": {"line-color": follower_color['hex']}
+            "style": {
+                "line-color": follower_color['hex'],
+                "opacity": 0.8,
+            }
         }
     ]
     stylesheet += selection_styles
