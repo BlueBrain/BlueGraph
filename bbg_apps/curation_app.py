@@ -44,6 +44,9 @@ DROPDOWN_FILTER_LIST = [
     {"label": "!=", "value": "ne"}
 ]
 
+
+SUPPORTED_JUPYTER_DASH_MODE = ["jupyterlab", "inline","external"]
+
 DEFAULT_ENTITY_FREQUENCY = 1
 
 # -------------- Utils ------------------
@@ -261,8 +264,17 @@ class CurationApp(object):
     def set_ontology_linking_callback(self, func):
         self._ontology_linking_callback = func
         
-    def run(self, port):
-        self._app.run_server(mode="jupyterlab", width="100%", port=port)
+    def run(self, port, mode="jupyterlab"):
+        if mode not in SUPPORTED_JUPYTER_DASH_MODE:
+            raise Exception("Please provide one of the following mode value: "+str(SUPPORTED_JUPYTER_DASH_MODE))
+        try:
+            self._app.run_server(mode=mode, width="100%", port=port)
+        except OSError as ose:
+            print(f"Opening port number {port} failed: {str(ose)}. Trying port number {port+1} ...")
+            try:
+                self._app.run_server(mode=mode, width="100%", port=port+1)
+            except Exception as e:
+                print(e)
 
     def get_curated_table(self):
         table = self._curated_table.copy()
