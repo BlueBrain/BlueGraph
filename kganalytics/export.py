@@ -89,6 +89,13 @@ def load_network(edge_path, node_path, edge_attr=None):
         edge_attr=edge_attr)
 
     with open(node_path, "rb") as f:
-       node_list = pickle.load(f)
+        node_list = pickle.load(f)
     nx.set_node_attributes(network, node_list.to_dict("index"))
     return network
+
+
+def save_network(graph_object, prefix):
+    """Save networkx object into pickle files containing node/edge tables."""
+    edgelist = nx.to_pandas_edgelist(graph_object)
+    edgelist.to_pickle("{}_edge_list.pkl".format(prefix))
+    save_nodes(graph_object, "{}_node_list.pkl".format(prefix))
