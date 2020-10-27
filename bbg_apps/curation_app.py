@@ -167,12 +167,36 @@ class CurationApp(object):
             ]
         )
 
+        top_n_frequent_entity = dbc.FormGroup(
+            [
+                dbc.InputGroupAddon(
+                    children="Generate Graphs from top n frequent entities",
+                    id="top_n_frequent_entity",
+                    addon_type="prepend",
+                    className="mr-1"
+                ),
+                dbc.Tooltip(
+                    "The Co-mention graphs will be generate from the top n most frequent entities",
+                    target="top_n_frequent_entity",
+                    placement="bottom",
+                ),
+                daq.NumericInput(
+                    id="topnentityslider",
+                    max=500,
+                    value=500,
+                    className="mr-1"
+                )
+            ],
+            className="mr-1"
+        )
+
         form_table = dbc.Form(
             [
                 buttons,
                 dropdown,
                 reset,
-                link_ontology  
+                link_ontology,
+                top_n_frequent_entity
             ],
             inline=True)
 
@@ -464,3 +488,11 @@ def display_graph(dts, rows):
         scatter = px.scatter(
             df, x=df.entity, y=df.paper_frequency, color=df.entity_type.apply(lambda x: ",".join(x) if isinstance(x,list) else x))
     return [scatter]
+
+@curation_app._app.callback(
+    Output("top_n_frequent_entity", "children"),
+    [Input("topnentityslider", "value")]
+)
+def set_n_most_frequent(topnentityslider_value):
+    curation_app.n_most_frequent = topnentityslider_value
+    return f"Generate Graphs from top {topnentityslider_value} frequent entities"
