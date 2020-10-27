@@ -1152,22 +1152,21 @@ def reset_layout(resetbt, removebt, val,
                 for path in paths:
                     path_steps = list(path)
                     searchpathfrom = searchpathfrom_dict["data"]["id"]
+                    
+                    s = searchpathfrom
                     for index, path_step in enumerate(path_steps):
-                        if path_step in elements_dict:
-                            path_element = elements_dict[path_step]
-                        else:
-                            print("!!!", path_step, " not in ", elements_dict.keys())
-
-                        path_element_id = path_element['data']['id']
+                        t = path_step
+                        
+                        path_element = elements_dict[path_step]
                         elements.append(path_element)
-
-                        if path_element_id != searchpathfrom and (searchpathfrom, path_element_id) not in visited:
-                            edge_from_id = str(searchpathfrom).lower().replace(" ","_") + "_" + str(path_element_id).lower()
-                            edge_from = create_edge(edge_from_id, searchpathfrom, path_element_id)
+                        
+                        if s != t and (s, t) not in visited and (t, s) not in visited:
+                            edge_from_id = str(s).lower().replace(" ","_") + "_" + str(t).lower()
+                            edge_from = create_edge(edge_from_id, s, t)
                             elements.append(edge_from)
-                            visited.add((searchpathfrom, path_element_id))
+                            visited.add((s, t))
+                        s = path_step
 
-                        searchpathfrom = path_element_id
             except ValueError as e:
                 print(e)
                 no_path_message = "No undirect paths from '{}' to '{}' were found (the nodes are either disconnected or connected by a direct edge only)".format(
