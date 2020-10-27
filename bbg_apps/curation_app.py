@@ -237,6 +237,11 @@ class CurationApp(object):
                             'backgroundColor': 'rgb(230, 230, 230)',
                             'fontWeight': 'bold'
                         },
+                        style_table={
+                            'padding-left': '11pt',
+                            'padding-right': '20pt',
+                            'padding-top': '5pt',
+                        },
                         css=[{
                             'selector': 'dash-fixed-content',
                             'rule': 'height: 100%;'
@@ -296,7 +301,7 @@ class CurationApp(object):
         except OSError as ose:
             print(f"Opening port number {port} failed: {str(ose)}. Trying port number {port+1} ...")
             try:
-                self._app.run_server(mode=mode, width="100%", port=port+1)
+                self._app.run_server(mode=mode, width="100%", port=port + 1)
             except Exception as e:
                 print(e)
 

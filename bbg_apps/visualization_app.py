@@ -105,47 +105,7 @@ def clear_grouping(elements):
                     new_element['data'][k] = v
             new_elements.append(new_element)
     return new_elements        
-    
 
-def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
-    if thickness == 0:
-        thickness = 2
-    return {
-        "data": { 
-            "id": str(id),
-            "source": str(from_id).lower(),
-            "target": str(to_id).lower(),
-            "frequency": frequency,
-            "papers": papers
-        },
-        "style": {
-           "label": label if label else '',
-            "width": thickness
-        }
-    }
-
-
-def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
-    actualLabel = None
-    if label is not None:
-        actualLabel = label.lower()
-    else:
-        actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
-    frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
-    return {
-        "data": { 
-            "id": str(id).lower(),
-            "frequency":frequency_raw,
-            "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
-            "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
-            "definition":definition,
-            "papers":papers,
-            "type":node_type
-        },
-        "style": {
-            "label": actualLabel
-        }
-    }
 
 def clear_grouping(elements):
     new_elements = []
@@ -199,7 +159,8 @@ def create_node(id, node_type=None,label=None, label_size=10, label_color="black
         }
     }
 
-def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
+def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", 
+                edge_style="solid",frequency=1,papers=[]):
 
         if thickness == 0:
             thickness = 2
@@ -308,13 +269,13 @@ class VisualizationApp(object):
         
         # Components
         button_group = dbc.InputGroup([
-            dbc.Button("Reset", color="primary", className="mr-1",id='bt-reset'),
+            dbc.Button("Reset", color="primary", className="mr-1",id='bt-reset', style={"margin": "2pt"}),
             dbc.Tooltip(
                 "Reset the display to default valuess",
                 target="bt-reset",
                 placement="bottom",
             ),
-            dbc.Button("Remove Selected Node", color="primary", className="mr-1",id='remove-button'),
+            dbc.Button("Remove Selected Node", color="primary", className="mr-1",id='remove-button', style={"margin": "2pt"}),
             dbc.DropdownMenu(
                 [
                  dbc.DropdownMenuItem("png", id="png-menu"),
@@ -325,60 +286,27 @@ class VisualizationApp(object):
                 ],
                 label="Download",
                 id='dropdown-download',
-
                 color="primary",
                 group=True,
-                className="mr-1"
+                className="mr-1",
+                style={"margin": "2pt"}
             )
         ])
 
         buttons = dbc.FormGroup([button_group], className="mr-1")
 
-        self.radio_items = dbc.RadioItems(
+        self.dropdown_items = dcc.Dropdown(
             id="showgraph",
             value=self._current_graph,
             options=[{'label': val.capitalize(), 'value': val} for val in self._graphs.values()],
-            inline=True
-        )
+            style={"width":"100%"})
         
-        graph_type_radio = dbc.FormGroup([
-            dbc.Label("Display", html_for="showgraph", width=3),
-            dbc.Col(self.radio_items, width=9)], row=True)
-
-        scope_option_list = ['Paper', 'Section', 'Paragraph']
-
-        scope_radio = dbc.FormGroup(
+        graph_type_dropdown = dbc.FormGroup(
             [
-                dbc.Label("Scope", html_for="graphscope", width=3),
-                dbc.Col(
-                    dbc.RadioItems(
-                        id="graphscope",
-                        value='Paper',
-                        options=[{'label': val.capitalize(), 'value': val} for val in scope_option_list],
-                        inline=True
-                    ), width=9
-                )
-            ],
-            row=True
+                dbc.Label("Display", html_for="showgraph"),
+                self.dropdown_items
+            ]
         )
-
-        group_option_list = ['None','Type', 'Mutual Information']
-
-        group_radio = dbc.FormGroup(
-            [
-                dbc.Label("Group By", html_for="graphgroup", width=3),
-                dbc.Col(
-                    dbc.RadioItems(
-                        id="graphgroup",
-                        value='None',
-                        options=[{'label': val.capitalize(), 'value': val} for val in group_option_list],
-                        inline=True
-                    ), width=9
-                )
-            ],
-            row=True
-        )
-
 
         input_group = dbc.InputGroup([
             dbc.InputGroupAddon("Search", addon_type="prepend"),
@@ -493,7 +421,7 @@ class VisualizationApp(object):
         form = dbc.Form([
             button_group,
             html.Hr(),
-            graph_type_radio,
+            graph_type_dropdown,
             display_message,
             top_n_groups,
             search, 
@@ -520,15 +448,15 @@ class VisualizationApp(object):
             html.Div(id="cluster_board", children=[])
         ])
         
-        cluster_layout_button = dbc.InputGroup([
-            dbc.Checklist(
-                options=[{"value": 1, "disabled": True}],
-                value=[],
-                id="groupedLayout",
-                switch=True,
-            ),
-            dbc.Label("Grouped Layout", html_for="groupedLayout"),
-        ])        
+#         cluster_layout_button = dbc.InputGroup([
+#             dbc.Checklist(
+#                 options=[{"value": 1, "disabled": True}],
+#                 value=[],
+#                 id="groupedLayout",
+#                 switch=True,
+#             ),
+#             dbc.Label("Grouped Layout", html_for="groupedLayout"),
+#         ])        
 
         self.cluster_filter = dcc.Dropdown(
             id="clustersearch",
@@ -561,7 +489,7 @@ class VisualizationApp(object):
 
         grouping_form = dbc.Form([
             cluster_group,
-            cluster_layout_button,
+#             cluster_layout_button,
             html.Hr(),
             legend,
             html.Hr(),
@@ -582,75 +510,71 @@ class VisualizationApp(object):
             dbc.Label("To", html_for="searchpathto", width=3),
             dbc.Col(dcc.Dropdown(id="searchpathto"), width=9)],
             row=True)
-
+        
+        top_n_paths = dbc.FormGroup([
+            dbc.Label("Top N", html_for="searchpathlimit", width=3),
+            dbc.Col(
+                daq.NumericInput(
+                    id="searchpathlimit",
+                    min=1,  
+                    max=50,
+                    value=10,
+                   className="mr-1"
+                ), width=9)], row=True)
+    
         path_condition = dbc.FormGroup([
-            dbc.Label("Constraints"),
+            dbc.Label("Traversal conditions"),
             dbc.FormGroup([
-                dbc.Label("Traverse", html_for="searchnodetotraverse", width=3),
-                dbc.Col(dcc.Dropdown(
-                    id="searchnodetotraverse"
-                ), width=9)],
-                row=True
-            ),
-            dbc.FormGroup(
-                dbc.Row([
-                    dbc.Col(
-                        children=[
-                            dbc.Label("Allow Overlap", html_for="searchpathoverlap"),
-                            dbc.Checklist(
-                                options=[{"value": 1}],
-                                value=[1],
-                                id="searchpathoverlap",
-                                switch=True,
-                            )
-                        ], width=6
-                    ),
-                    dbc.Col(
-                        children=[
-                            dbc.Label("Nested", html_for="nestedpaths"),
-                            dbc.Checklist(
-                                options=[{"value": 1}],
-                                value=[],
-                                id="nestedpaths",
-                                switch=True,
-                            )
-                        ], width=6
+                    dbc.Col([
+                        dbc.Label("Entity to traverse", html_for="searchnodetotraverse"),
+                        dcc.Dropdown(id="searchnodetotraverse")
+                    ], width=6),
+                    dbc.Col([
+                        dbc.Label("Allow Overlap", html_for="searchpathoverlap"),
+                        dbc.Checklist(
+                            options=[{"value": 1}],
+                            value=[1],
+                            id="searchpathoverlap",
+                            switch=True,
+                        )
+                    ], width=6)
+                ], row=True)
+        ])
+            
+        nested_path = dbc.FormGroup([
+            dbc.Label("Nested path search"),
+            dbc.FormGroup([
+                dbc.Col(
+                    children=[
+                        dbc.Label("Nested", html_for="nestedpaths"),
+                        dbc.Checklist(
+                            options=[{"value": 1}],
+                            value=[],
+                            id="nestedpaths",
+                            switch=True,
+                        )
+                    ], width=6
+                ),
+                dbc.Col([
+                    dbc.Label("Depth", html_for="pathdepth"),
+                    daq.NumericInput(
+                        id="pathdepth",
+                        min=1,  
+                        max=4,
+                        value=1,
+                        disabled=True,
+                        className="mr-1"
                     )
-                ])
-            ),
-            dbc.FormGroup(
-                dbc.Row([
-                    dbc.Col(
-                        children=[
-                            dbc.Label("Top N", html_for="searchpathlimit"),
-                            daq.NumericInput(
-                                id="searchpathlimit",
-                                min=1,  
-                                max=50,
-                                value=10,
-                               className="mr-1"
-                         )], width=6
-                    ),
-                    dbc.Col(
-                        children=[
-                            dbc.Label("Depth", html_for="pathdepth"),
-                            daq.NumericInput(
-                                id="pathdepth",
-                                min=1,  
-                                max=4,
-                                value=1,
-                                disabled=True,
-                                className="mr-1"
-                        )], width=6
-                    )
-                ])
-            )])
-
+                ], width=6)
+            ], row=True)
+        ])
+        
+        
         search_path = dbc.InputGroup(
             [
                 html.P("", id="noPathMessage", style={"color": "red", "margin-right": "10pt"}),
                 dbc.Button("Find Paths", color="primary",
-                           className="mr-1", id='bt-path'),
+                           className="mr-1", id='bt-path', style={"float": "right"}),
                 dbc.Tooltip(
                     "Find paths between selected entities",
                     target="bt-path",
@@ -662,8 +586,12 @@ class VisualizationApp(object):
         form_path_finder = dbc.Form([
             path_from,
             path_to,
+            top_n_paths,
             html.Hr(),
             path_condition,
+            html.Hr(),
+            nested_path,
+            html.Hr(),
             search_path])
 
         graph_layout = dbc.FormGroup(
@@ -735,6 +663,9 @@ class VisualizationApp(object):
                         "Controls",
                         id="collapse-button",
                         color="primary",
+                        style={
+                            "margin": "10pt"
+                        }
                     ),
                     dbc.Collapse(dbc.Tabs(id='tabs', children=[
                         dbc.Tab(
@@ -767,7 +698,7 @@ class VisualizationApp(object):
         self._removed_edges = set()
 
     
-    def set_graph(self, graph_id, cyto_repr, dict_repr, style=None, nx_object=None):
+    def set_graph(self, graph_id, cyto_repr, dict_repr, paper_lookup, positioned=False, nx_object=None):
         
         # add some extra attrs to nodes
         weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
@@ -784,15 +715,15 @@ class VisualizationApp(object):
             self._graphs = {}
         self._graphs[graph_id] = {
             "cytoscape": cyto_repr,
-            "dict": dict_repr
+            "dict": dict_repr,
+            "positioned": positioned,
+            "paper_lookup": paper_lookup
         }
-        if style is not None:
-            self._graphs[graph_id]["style"] = style
-        
+
         if nx_object is not None:
             self._graphs[graph_id]["nx_object"] = nx_object
             
-        self.radio_items.options = [
+        self.dropdown_items.options = [
             {'label': val.capitalize(), 'value': val} for val in list(self._graphs.keys())
         ]
         return
@@ -800,7 +731,7 @@ class VisualizationApp(object):
     
     def set_current_graph(self, graph_id):
         self._current_graph = graph_id
-        self.radio_items.value = graph_id
+        self.dropdown_items.value = graph_id
         self.cyto.elements = self._graphs[self._current_graph]["cytoscape"]
         
         types = set([
@@ -912,6 +843,29 @@ def recompute_node_range(elements, freq_type):
     return min_value, max_value, marks, step
 
 
+def filter_elements(input_elements, node_condition, edge_condition=None):
+    # filter graph elements by applyting specified node and edge conditions
+    nodes_to_keep = [
+        el["data"]["id"]
+        for el in input_elements
+        if "source" not in el["data"] and node_condition(el["data"])
+    ]
+
+    edges_to_keep = [
+        el["data"]["id"]
+        for el in input_elements
+        if "source" in el["data"] and (
+            el["data"]["source"] in nodes_to_keep and 
+            el["data"]["target"] in nodes_to_keep and
+            (edge_condition(el["data"]) if edge_condition is not None else True)
+        )
+    ]
+    return [
+        el for el in input_elements
+        if el["data"]["id"] in nodes_to_keep + edges_to_keep
+    ]
+
+
 @visualization_app._app.callback(
     [
         Output('nodefreqslider', 'min'),
@@ -954,10 +908,10 @@ def adapt_weight_ranges(val, node_freq_type, edge_freq_type, cytoelements):
             visualization_app._max_edge_weight = max_edge_value
             edge_value = [min_edge_value, max_edge_value]
     
-    return  [
-        min_node_value, max_node_value, node_marks, node_step,
-        min_edge_value, max_edge_value, edge_marks, edge_step
-    ]    
+        return  [
+            min_node_value, max_node_value, node_marks, node_step,
+            min_edge_value, max_edge_value, edge_marks, edge_step
+        ]    
 
 
 @visualization_app._app.callback(
@@ -1010,7 +964,7 @@ def setup_paths_tab(nestedpaths):
         Input('edgefreqslider', 'value'),
         Input("searchdropdown", "value"),
         Input('bt-path', 'n_clicks'),
-        Input('groupedLayout', "value"),
+#         Input('groupedLayout', "value"),
         Input('cluster_type', "value"),
         Input('top-n-button', "n_clicks"),
         Input("clustersearch", "value"),
@@ -1037,48 +991,48 @@ def setup_paths_tab(nestedpaths):
 )
 def reset_layout(resetbt, removebt, val, 
                  nodefreqslider, edgefreqslider, 
-                 searchvalues, pathbt, grouped_layout, cluster_type, top_n_buttton, clustersearch,
+                 searchvalues, pathbt, 
+#                  grouped_layout, 
+                 cluster_type, top_n_buttton, clustersearch,
                  nodes_to_keep, data, edge, tappednode, 
                  node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                  searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                  nestedpaths, pathdepth, memory_data, top_n_slider_value):
-    elements = visualization_app._graphs[val]["cytoscape"]
-    elements_dict = visualization_app._graphs[val]["dict"]
-    ctx = dash.callback_context
     zoom = 1
     
+    # Get the event that trigerred the callback
+    ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    full_graph_events = [
+        "showgraph",
+        "clustersearch",
+        "top-n-button",
+        "bt-reset",
+        "nodefreqslider",
+        "edgefreqslider",
+        "nodestokeep",
+        "clustersearch"
+    ]
+    if button_id in full_graph_events:
+        elements = visualization_app._graphs[val]["cytoscape"]
+    else:
+        elements = cytoelements
 
-    def filter_elements(input_elements, node_condition, edge_condition=None):
-        # filter graph elements by applyting specified node and edge conditions
-        nodes_to_keep = [
-            el["data"]["id"]
-            for el in input_elements
-            if "source" not in el["data"] and node_condition(el["data"])
-        ]
+    elements_dict = visualization_app._graphs[val]["dict"]
+    
+    if button_id == "selectedNodeData" or button_id == "selectedEdgeData" or button_id == "tapNodeData":
+        elements = cytoelements
+        elements_dict = visualization_app._graphs[val]["dict"]
 
-        edges_to_keep = [
-            el["data"]["id"]
-            for el in input_elements
-            if "source" in el["data"] and (
-                el["data"]["source"] in nodes_to_keep and 
-                el["data"]["target"] in nodes_to_keep and
-                (edge_condition(el["data"]) if edge_condition is not None else True)
-            )
-        ]
-        return [
-            el for el in input_elements
-            if el["data"]["id"] in nodes_to_keep + edges_to_keep
-        ]
-        
     if button_id == 'showgraph':
         visualization_app.set_current_graph(val)
         elements = visualization_app._graphs[val]["cytoscape"]
         elements_dict = visualization_app._graphs[val]["dict"]
-
+        
     # Mark selected nodess and edges
     selected_nodes = [
         el["id"] for el in (data if data else [])
@@ -1086,29 +1040,27 @@ def reset_layout(resetbt, removebt, val,
     
     if searchvalues is None:
         searchvalues = []
-    
+
     selected_elements  = set()
 
     for searchvalue in set(searchvalues + selected_nodes):
         selected_elements.add(searchvalue)
-        search_node = elements_dict[searchvalue]
-        for el in elements:
-            if el["data"]["id"] not in selected_elements:
-                if "source" in el["data"]:
-                    if el["data"]["source"] == searchvalue or\
-                       el["data"]["target"] == searchvalue:
-                        selected_elements.add(el["data"]["id"])
+#         search_node = elements_dict[searchvalue]
+#         for el in elements:
+#             if el["data"]["id"] not in selected_elements:
+#                 if "source" in el["data"]:
+#                     if el["data"]["source"] == searchvalue or\
+#                        el["data"]["target"] == searchvalue:
+#                         selected_elements.add(el["data"]["id"])
  
     for el in elements:
         if el["data"]["id"] in selected_elements:        
             el["selected"] = True
-#         else:
-#             el["selected"] = False
     
     if nodes_to_keep is None:
         nodes_to_keep = []
             
-    if clustersearch is not None and cluster_type is not None:
+    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset":
         elements = filter_elements(
             elements,
             node_condition=lambda x: cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep
@@ -1172,7 +1124,11 @@ def reset_layout(resetbt, removebt, val,
                     ]))
                 
             try:
-                if searchnodetotraverse:
+                if nestedpaths and pathdepth:
+                    paths = top_n_nested_paths(
+                        graph_object, source, target, topN, nested_n=topN,
+                        strategy="naive", distance="distance_npmi", depth=pathdepth)
+                elif searchnodetotraverse:
                     searchnodetotraverse_dict = elements_dict[searchnodetotraverse]
 
                     intersecting = len(searchpathoverlap) == 1
@@ -1181,10 +1137,6 @@ def reset_layout(resetbt, removebt, val,
                         searchnodetotraverse_dict['data']['name'], target, topN,
                         strategy="naive", distance="distance_npmi", intersecting=intersecting, pretty_print=False)
                     paths = a_b_paths + b_c_paths
-                elif nestedpaths and pathdepth:
-                    paths = top_n_nested_paths(
-                        graph_object, source, target, topN, nested_n=topN,
-                        strategy="naive", distance="distance_npmi", depth=pathdepth)
                 else:
                     paths = top_n_paths(
                         graph_object, source, target,
@@ -1229,7 +1181,8 @@ def reset_layout(resetbt, removebt, val,
             result_memory_data["display_top"] = None
             top_n_button_label = "Show N most frequent entities"
             top_n_button_disabled = False
-            message = "Displaying all entities"
+            message = "Displaying all {} entities".format(
+                len([el for el in elements if "source" not in el["data"]]))
         else:
             nodes_to_select = top_n(
                 {
@@ -1244,7 +1197,12 @@ def reset_layout(resetbt, removebt, val,
             top_n_button_label = "Show all entities"
             top_n_button_disabled = True
             result_memory_data["display_top"] = memory_data["display_top"]
-            message = "Displaying top {} most frequent entities".format(memory_data["display_top"])
+            
+            total_number_of_entities = len(
+                [el for el in visualization_app._graphs[val]["cytoscape"] if "source" not in el["data"]])
+            
+            message = "Displaying top {} most frequent entities (out of {})".format(
+                memory_data["display_top"], total_number_of_entities)
     else:
         if button_id == "top-n-button":
             # Top entities are NOT selected but the button is clicked, show top
@@ -1260,13 +1218,18 @@ def reset_layout(resetbt, removebt, val,
             top_n_button_label = "Show all entities"
             top_n_button_disabled = True
             result_memory_data["display_top"] = top_n_slider_value
-            message = "Displaying top {} most frequent entities".format(top_n_slider_value)
+                  
+            total_number_of_entities = len(
+                [el for el in visualization_app._graphs[val]["cytoscape"] if "source" not in el["data"]])
+            message = "Displaying top {} most frequent entities (out of {})".format(
+                top_n_slider_value, total_number_of_entities)
         else:
             # Top entities are NOT selected and buttopn is not clicked
             top_n_button_label = "Show N most frequent entities"
             top_n_button_disabled = False
-            result_memory_data["display_top"] = Nonw
-            message = "Displaying all entities"
+            result_memory_data["display_top"] = None
+            message = "Displaying all {} entities".format(
+                len([el for el in elements if "source" not in el["data"]]))
    
                     
     def node_range_condition(el, start, end):
@@ -1349,15 +1312,14 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     res = []
     modal_button = None
     
+    paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
+    
     if datanode and statedatanode:
         definition = ""
-        if 'definition' in str(datanode['data']):
-            definition = str(datanode['data']['definition'])
-        
-        entity = str(datanode['style']['label'])
-        if entity in visualization_app._entity_definitions:
-            definition = visualization_app._entity_definitions[entity]
-
+        if "definition" in datanode['data']:
+            definition = str(datanode["data"]["definition"])
+        elif datanode["data"]["id"] in visualization_app._entity_definitions:
+            definition = visualization_app._entity_definitions[datanode["data"]["id"]]
         label = str(datanode['style']['label'])
         try:
             _type = str(datanode['data']['entity_type'])
@@ -1365,7 +1327,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             print(e)
             print(datanode['data'])
 
-        frequency = str(len(datanode['data']['papers']))
+        frequency = str(datanode['data']['paper_frequency'])
         res.append([
             html.H5(label, className="card-title"),
             html.H6(_type, className="card-subtitle"),
@@ -1374,10 +1336,10 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
                 className="card-text"
             )
         ])
-        label = "'"+label+"' mentioned in " + frequency + " papers"
+        label = "'" + label + "' mentioned in " + frequency + " papers "
         modal_button = dbc.Button(label, id="open-body-scroll",color="primary")
         
-        papers= datanode['data']['papers']
+        papers = paper_lookup[datanode['data']['id']]
 
     elements = visualization_app._graphs[showgraph]["cytoscape"]
     elements_dict = visualization_app._graphs[showgraph]["dict"]
@@ -1389,9 +1351,11 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         source_label = source_node['data']['name']
         target_node = elements_dict[ dataedge['data']['target']]
         target_label = target_node['data']['name']
-        papers = set(source_node['data']['papers']).intersection(set(target_node['data']['papers']))
+
+        papers = set(paper_lookup[source_node['data']['id']]).intersection(
+            set(paper_lookup[target_node['data']['id']]))
         frequency = str(len(papers))
-        mention_label= ''' '%s' mentioned in %s papers with '%s' ''' % (source_label, frequency, target_label) 
+        mention_label= ''' '%s' mentioned with '%s' in %s papers''' % (source_label, target_label, frequency) 
         label = mention_label if str(dataedge['style']['label']) == "" else str(dataedge['style']['label']) 
         modal_button= dbc.Button(label, id="open-body-scroll",color="primary")
 
@@ -1399,12 +1363,13 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     if len(papers) > 0:
         try:
             papers_in_kg = visualization_app._list_papers_callback(papers)
-        except:
-            error_message = "Failed to retreive papers (check the DB connection in the provided paper-fetching callback)"
-
+        except Exception as e:
+            print(e)
+            error_message = visualization_app._db_error_message
         rows = []
         
         modal_children = []
+
         if papers_in_kg:
             for paper in papers_in_kg:
                 title = paper[0] if paper[0] else ''
@@ -1434,7 +1399,9 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             [
                 modal_button,
                 dbc.Modal([
-                        dbc.ModalHeader(label),
+                        dbc.ModalHeader("{} {}".format(
+                            label,
+                            "(displaying 200 results)" if int(frequency) > 200 else "")),
                         dbc.ModalBody(cards),            
                         dbc.ModalFooter(
                             dbc.Button(
@@ -1469,7 +1436,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     ])
 def update_cytoscape_layout(layout, showgraph, elements, styles):
     
-    if "style" in visualization_app._graphs[showgraph]:
+    if visualization_app._graphs[showgraph]["positioned"] is True:
         return {'name': 'preset'}
     if layout == "cose":
         layout_config = COSE_CONFIG
@@ -1511,14 +1478,11 @@ def generate_stylesheet(elements,
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    if "style" in visualization_app._graphs[showgraph]:
-        return visualization_app._graphs[showgraph]["style"]
-    else:
-        stylesheet = [
-            s
-            for s in CYTOSCAPE_STYLE_STYLESHEET
-            if "selected" not in s["selector"]
-        ]
+    stylesheet = [
+        s
+        for s in CYTOSCAPE_STYLE_STYLESHEET
+        if "selected" not in s["selector"]
+    ]
 
     # Update selection styles to correspond to the follower
     selection_styles = [
@@ -1716,14 +1680,14 @@ def update_nodes_to_keep(search_value, value, elements, showgraph):
     Output("clustersearch", "value"),
     [
         Input("cluster_type", "value"),
-        Input("addAllClusters", "n_clicks")
+        Input("addAllClusters", "n_clicks"),
+        Input("bt-reset", "n_clicks")
     ],
     [
         State('showgraph', 'value'),
         State("clustersearch", "options"),
     ])
-def prepopulate_value(cluster_type, add_all_clusters, current_graph, options):
-    ctx = dash.callback_context
+def prepopulate_value(cluster_type, add_all_clusters, reset_button, current_graph, options):
     types = set([
         el["data"][cluster_type]
         for el in visualization_app._graphs[current_graph]["cytoscape"]
@@ -1744,8 +1708,6 @@ def prepopulate_value(cluster_type, add_all_clusters, current_graph, options):
     ],
 )
 def update_cluster_search(cluster_type, search_value, value, current_graph):
-    if not search_value:
-        raise PreventUpdate
     types = set([
         el["data"][cluster_type]
         for el in visualization_app._graphs[current_graph]["cytoscape"]
@@ -1753,7 +1715,10 @@ def update_cluster_search(cluster_type, search_value, value, current_graph):
     ])
     res = []
     for t in types:
-        if (search_value in t) or (t in search_value) or t in (value or []) :
+        if search_value:
+            if (search_value in t) or (t in search_value) or t in (value or []) :
+                res.append({"label": t, "value": t})
+        else:
             res.append({"label": t, "value": t})
     return res
 

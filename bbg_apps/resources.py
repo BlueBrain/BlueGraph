@@ -81,9 +81,21 @@ CYTOSCAPE_STYLE_STYLESHEET = [
         "selector": "edge",
         "style": {
             'curve-style': 'bezier',
-            'line-color': '#D5DAE6'
+            'line-color': '#D5DAE6',
+
         }
-    }, 
+    }, {
+        "selector": "node",
+        "style": {
+            "width": 10,
+            "height": 10,
+        }
+    }, {
+        "selector": "edge",
+        "style": {
+            "width": 2,
+        }
+    }
 ]
 
 

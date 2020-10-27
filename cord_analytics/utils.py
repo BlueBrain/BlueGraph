@@ -18,12 +18,25 @@ from kganalytics.metrics import (compute_degree_centrality,
                                compute_all_metrics)
 
 from kganalytics.export import (save_nodes,
-                              save_to_gephi)
+                                save_to_gephi,
+                                save_network)
 from kganalytics.paths import (minimum_spanning_tree,
                              top_n_paths,
                              top_n_tripaths,
                              single_shortest_path)
 
+
+NON_ASCII_REPLACE = {
+    "α": "alpha",
+    "β": "beta",
+    "γ": "gamma",
+    "κ": "kappa",
+    "’": "'",
+    "–": "-",
+    "‐": "-",
+    "é": "e",
+    "ó": "o"
+}
 
 def dummy_clean_up(s):
     """Dummy clean-up to remove some errors from NER."""
@@ -31,6 +44,17 @@ def dummy_clean_up(s):
     result = s.strip().strip("\"").strip("\'")\
         .strip("&").strip("#").replace(".", "").replace("- ", "-")
     
+    # cleaning-up non-ascii symbols
+    for s in result:
+        try:
+            s.encode('ascii')
+        except UnicodeEncodeError:
+            if s in NON_ASCII_REPLACE:
+                s_ascii = NON_ASCII_REPLACE[s]
+            else:
+                s_ascii = ""
+            result = result.replace(s, s_ascii)
+
     return result
 
 
@@ -346,8 +370,8 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
         # Set factors as attrs
         nx.set_node_attributes(
             graphs[f],
-            occurrence_data[f].apply(lambda x: list(x)).to_dict(),
-            f)
+            occurrence_data["paper"].apply(lambda x: list(x)).to_dict(),
+            "paper")
             
         compute_all_metrics(
             graphs[f],
@@ -363,7 +387,9 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             trees[f],
             type_dict,
             "entity_type")
-
+        
+        save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
+        
         if graph_dump_prefix:
             save_nodes(
                 graphs[f],
@@ -531,8 +557,14 @@ def link_ontology(linking, type_mapping, curated_table):
     return linked_table
 
 
-def build_cytoscape_data(graph):
+def build_cytoscape_data(graph, positions=None):
     elements = cytoscape_data(graph)
+    paper_table = {}
+    if positions is not None:
+        for el in elements["elements"]['nodes']:
+            if el["data"]["id"] in positions:
+                el["position"] = positions[el["data"]["id"]]
+    
     elements = elements["elements"]['nodes'] + elements["elements"]['edges']
     for element in elements:
         element["data"]["id"] = (
@@ -543,10 +575,10 @@ def build_cytoscape_data(graph):
         papers = []
         if 'paper' in element["data"]:
             papers = element["data"].pop("paper")
-            element["data"]["papers"] = list(papers)
+            paper_table[element["data"]["id"]] = papers
             element["data"]["paper_frequency"] = len(papers)
 
-        element["data"]["papers"] = list(papers)
+#         element["data"]["papers"] = list(papers)
 
         if "source" in element["data"]:
             element["data"]["type"] = "edge"
@@ -554,4 +586,4 @@ def build_cytoscape_data(graph):
             element["data"]["type"] = "node"
 
     elements_dict = {element["data"]["id"]: element for element in elements}
-    return elements, elements_dict
+    return elements, elements_dict, paper_table
