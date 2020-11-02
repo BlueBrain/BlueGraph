@@ -48,10 +48,11 @@ def generate_sizes(start, end, weights, func="linear"):
         sizes = np.linspace(start, end, len(weights))
     elif func == "log":
         sizes = np.logspace(start, end, len(weights))
-    return [
+    sizes = [
         int(round(sizes[el]))
-        for el in sorted_indices
+        for el in np.argsort(sorted_indices)
     ]
+    return sizes
 
 
 def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
@@ -65,13 +66,14 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
         sizes = generate_sizes(min_size, max_size, all_values)
         if min_font_size and max_font_size:
             font_sizes = generate_sizes(min_font_size, max_font_size, all_values)
+
         j = 0
         for i in range(len(cyto_repr)):
             el = cyto_repr[i]
-            if weight in el["data"]:    
-                cyto_repr[i]["data"]["{}_size".format(weight)] = sizes[j]
+            if weight in el["data"]:
+                el["data"]["{}_size".format(weight)] = sizes[j]
                 if min_font_size and max_font_size:
-                    cyto_repr[i]["data"]["{}_font_size".format(weight)] = font_sizes[j]
+                    el["data"]["{}_font_size".format(weight)] = font_sizes[j]
                 j += 1
 
                 
@@ -1310,6 +1312,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     papers = []
     res = []
     modal_button = None
+    npmi_message =  None
     
     paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
     
@@ -1355,8 +1358,11 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             set(paper_lookup[target_node['data']['id']]))
         frequency = str(len(papers))
         mention_label= ''' '%s' mentioned with '%s' in %s papers''' % (source_label, target_label, frequency) 
+        npmi = dataedge["data"]["npmi"]
         label = mention_label if str(dataedge['style']['label']) == "" else str(dataedge['style']['label']) 
-        modal_button= dbc.Button(label, id="open-body-scroll",color="primary")
+        npmi_message = html.P("Normalized pointwise mutual information: {:.2f}".format(npmi), id="edgeDesc")
+        modal_button = dbc.Button(
+            label, id="open-body-scroll", color="primary")
 
     papers_in_kg = None
     if len(papers) > 0:
@@ -1396,6 +1402,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             
         modal = html.Div(
             [
+                npmi_message,
                 modal_button,
                 dbc.Modal([
                         dbc.ModalHeader("{} {}".format(
@@ -1434,7 +1441,6 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         State("cytoscape", "stylesheet")
     ])
 def update_cytoscape_layout(layout, showgraph, elements, styles):
-    
     if visualization_app._graphs[showgraph]["positioned"] is True:
         return {'name': 'preset'}
     if layout == "cose":
@@ -1844,18 +1850,26 @@ def download_image(jpg_menu,svg_menu,png_menu):
         Output('cluster_board', "children")
     ],
     [
-        Input('cluster_type', "value")
+        Input('cluster_type', "value"),
+        Input("clustersearch", "value"),
     ],
     [
         State('cytoscape', 'elements')
     ])
-def generate_legend(cluster_type, elements):
+def generate_legend(cluster_type, cluster_search, elements):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
     types = set([
         el['data'][cluster_type] for el in elements if cluster_type in el['data']
     ])
-    
+
     children = []
-    for t in types:
+#     for t in types:
+    for t in cluster_search:
         children.append(
             dbc.Button([
                     html.Span(
@@ -1874,4 +1888,5 @@ def generate_legend(cluster_type, elements):
                 color="defalut",
             )
         )
+    
     return [children]
