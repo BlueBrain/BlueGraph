@@ -1,3 +1,6 @@
+import os
+import flask
+
 import math
 import numpy as np
 import networkx as nx
@@ -13,6 +16,8 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_daq as daq
+from dash_extensions import Download
+# from dash_extensions.snippets import download_store
 
 from dash.dependencies import Input, Output, State
 
@@ -39,9 +44,9 @@ from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths)
 from kganalytics.utils import (top_n)
 
 
-DEFAULT_TOP_N = 50
+DEFAULT_TOP_N = 100
 
-    
+
 def generate_sizes(start, end, weights, func="linear"):
     sorted_indices = np.argsort(weights)
     if func == "linear":
@@ -121,7 +126,8 @@ def clear_grouping(elements):
     return new_elements        
     
 
-def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", edge_style="solid",frequency=1,papers=[]):
+def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2,
+                edge_color="grey", edge_style="solid", frequency=1, papers=[]):
     if thickness == 0:
         thickness = 2
     return {
@@ -139,7 +145,8 @@ def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="blac
     }
 
 
-def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
+def create_node(id, node_type=None,vlabel=None, label_size=10, label_color="black",
+                radius=30, node_color='grey', frequency={}, definition="", papers=[]):
     actualLabel = None
     if label is not None:
         actualLabel = label.lower()
@@ -161,48 +168,70 @@ def create_node(id, node_type=None,label=None, label_size=10, label_color="black
         }
     }
 
-def create_edge(id, from_id, to_id, label=None, label_size=10, label_color="black", thickness=2, edge_color="grey", 
-                edge_style="solid",frequency=1,papers=[]):
 
-        if thickness == 0:
-            thickness = 2
-        return {
-            "data": { 
-                "id": str(id),
-                "source": str(from_id).lower(),
-                "target": str(to_id).lower(),
-                "frequency":frequency,
-                "papers":papers
-            },
-            "style": {
-               "label": label if label else '',
-                "width": thickness
-            }
-        }
-
-
-def create_node(id, node_type=None,label=None, label_size=10, label_color="black", radius=30, node_color='grey',frequency={}, definition="",papers=[]):
-
-        actualLabel = None
-        if label is not None:
-            actualLabel = label.lower()
+def generate_gml(elements, node_freq_type=None, edge_freq_type=None):
+    result = (
+"""graph
+[
+    Creator "bbg_app"
+    directed 0"""
+)
+    for el in elements:
+        if "source" not in el["data"]:
+            x = y = 0.0
+            if "position" in el:
+                x = el["position"]["x"]
+                y = el["position"]["y"]
+                
+            w = h = 10
+            if node_freq_type:
+                w = h = el["data"]["{}_size".format(node_freq_type)]
+            if "entity_type" in el["data"]:
+                result += (
+"""    node
+    [
+        id "{}"
+        label "{}"
+        graphics
+        [
+            x {}
+            y {}
+            z 0.0
+            w {}
+            h {}
+            d 0.0
+            fill "{}"
+        ]
+    ]
+"""
+                ).format(
+                    el["data"]["id"],
+                    el["data"]["id"],
+                    x, y, w, h,
+                    COLORS[el["data"]["entity_type"]])
         else:
-            actualLabel = str(id).lower().split("/")[-1].split("#")[-1]
-        frequency_raw = frequency['frequency'] if 'frequency' in frequency else 1
-        return {
-            "data": { 
-                "id": str(id).lower(),
-                "frequency":frequency_raw,
-                "degree_frequency":frequency['degree_frequency'] if 'degree_frequency' in frequency else frequency_raw,
-                "pagerank_frequency":frequency['pagerank_frequency'] if 'pagerank_frequency' in frequency else frequency_raw,
-                "definition":definition,
-                "papers":papers,
-                "type":node_type
-            },
-            "style": {
-                "label": actualLabel
-            }
-        }
+            edge_weight = 1
+            if edge_freq_type:
+                edge_weight = el["data"]["{}_size".format(edge_freq_type)]
+            result += (
+"""    edge
+    [
+        id "{}"
+        source "{}"
+        target "{}"
+        value {}
+    ]
+"""
+             ).format(
+                 el["data"]["id"],
+                 el["data"]["source"],
+                 el["data"]["target"],
+                 edge_weight)
+          
+    result += "]"
+
+    return result
+
 
 node_shape_option_list = [
     'ellipse',
@@ -215,12 +244,6 @@ node_shape_option_list = [
     'octagon',
     'star',
     'polygon'
-]
-
-dropdown_download_option_list = [
-    'jpg',
-    'png',
-    'svg'
 ]
 
 graph_layout_options = {
@@ -280,12 +303,15 @@ class VisualizationApp(object):
             dbc.Button("Remove Selected Node", color="primary", className="mr-1",id='remove-button', style={"margin": "2pt"}),
             dbc.DropdownMenu(
                 [
-                 dbc.DropdownMenuItem("png", id="png-menu"),
+                    dbc.DropdownMenuItem("png", id="png-menu"),
                     dbc.DropdownMenuItem(divider=True),
-                 dbc.DropdownMenuItem("jpg", id="jpg-menu"),
-                     dbc.DropdownMenuItem(divider=True),
-                 dbc.DropdownMenuItem("svg", id="svg-menu")
-                ],
+                    dbc.DropdownMenuItem("jpg", id="jpg-menu"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem("svg", id="svg-menu"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem(
+                        "gml", id="gml-menu", href="/download/graph.gml")
+                ] + [Download(id="download-gml")],
                 label="Download",
                 id='dropdown-download',
                 color="primary",
@@ -747,7 +773,7 @@ class VisualizationApp(object):
         ]
 
     def run(self, port):
-        self._app.run_server(mode="jupyterlab", width="100%", port=port)
+        self._app.run_server(mode="jupyterlab", debug=True, width="100%", port=port)
 
     def set_list_papers_callback(self, func):
         self._list_papers_callback = func
@@ -1203,7 +1229,10 @@ def reset_layout(resetbt, removebt, val,
                 [el for el in visualization_app._graphs[val]["cytoscape"] if "source" not in el["data"]])
             
             message = "Displaying top {} most frequent entities (out of {})".format(
-                memory_data["display_top"], total_number_of_entities)
+                memory_data["display_top"]
+                if memory_data["display_top"] <= total_number_of_entities
+                else total_number_of_entities,
+                total_number_of_entities)
     else:
         if button_id == "top-n-button":
             # Top entities are NOT selected but the button is clicked, show top
@@ -1223,7 +1252,10 @@ def reset_layout(resetbt, removebt, val,
             total_number_of_entities = len(
                 [el for el in visualization_app._graphs[val]["cytoscape"] if "source" not in el["data"]])
             message = "Displaying top {} most frequent entities (out of {})".format(
-                top_n_slider_value, total_number_of_entities)
+                top_n_slider_value
+                if top_n_slider_value <= total_number_of_entities
+                else total_number_of_entities,
+                total_number_of_entities)
         else:
             # Top entities are NOT selected and buttopn is not clicked
             top_n_button_label = "Show N most frequent entities"
@@ -1792,30 +1824,6 @@ def searchpathfrom(search_value, value, showgraph,
         cluster_type, cluster_search, nodes_to_keep)
 
 
-# @visualization_app._app.callback(Output('nodefreqslider', 'value'),
-#               [Input('bt-reset', 'n_clicks')],[State('nodefreqslider', 'value')])
-# def display_freq_node(resetbt, nodefreqslider):
-#     ctx = dash.callback_context
-#     if not ctx.triggered:
-#         button_id = 'No clicks yet'
-#     else:
-#         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-#     if button_id == 'bt-reset':
-#         return 1
-
-
-# @visualization_app._app.callback(Output('edgefreqslider', 'value'),
-#               [Input('bt-reset', 'n_clicks')],[State('edgefreqslider', 'value')])
-# def display_freq_edge(resetbt, edgefreqslider):
-#     ctx = dash.callback_context
-#     if not ctx.triggered:
-#         button_id = 'No clicks yet'
-#     else:
-#         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-#     if button_id == 'bt-reset':
-#         return 1
-
-
 @visualization_app._app.callback(
     [
         Output('cytoscape', 'generateImage')
@@ -1823,10 +1831,10 @@ def searchpathfrom(search_value, value, showgraph,
     [
         Input('jpg-menu', 'n_clicks'),
         Input('svg-menu', 'n_clicks'),
-        Input('png-menu', 'n_clicks')
+        Input('png-menu', 'n_clicks'),
     ]
 )
-def download_image(jpg_menu,svg_menu,png_menu):
+def download_image(jpg_menu, svg_menu, png_menu):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
@@ -1839,10 +1847,45 @@ def download_image(jpg_menu,svg_menu,png_menu):
         ftype = "jpg"
     if button_id == "svg-menu":
         ftype = "svg"
+
     return [{
         'type': ftype,
         'action': "download"
     }]
+
+
+# @app.callback(Output("download", "data"), [Input("btn", "n_clicks")])
+# def generate_xlsx(n_nlicks):
+
+#     def to_xlsx(bytes_io):
+#         xslx_writer = pd.ExcelWriter(bytes_io, engine="xlsxwriter")
+#         df.to_excel(xslx_writer, index=False, sheet_name="sheet1")
+#         xslx_writer.save()
+
+#     return send_bytes(to_xlsx, "some_name.xlsx")
+
+
+@visualization_app._app.callback(
+    Output('download-gml', 'data'),
+    [Input('gml-menu', 'n_clicks')],
+    [
+        State("cytoscape", "elements"),
+        State("node_freq_type", "value"),
+        State("edge_freq_type", "value")
+    ])
+def download_gml(clicks, elements, node_freq_type, edge_freq_type):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+    if button_id == "gml-menu":
+        data_string = generate_gml(
+            elements, node_freq_type, edge_freq_type)
+        return dict(filename="graph.gml", content=data_string, type="text/gml")
+    else:
+        raise PreventUpdate
 
 
 @visualization_app._app.callback(
