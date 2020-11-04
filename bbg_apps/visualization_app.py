@@ -1307,7 +1307,7 @@ def reset_layout(resetbt, removebt, val,
             el["data"]["id"] not in visualization_app._removed_edges
     ]
     
-     if button_id in full_graph_events:
+    if button_id in full_graph_events:
         if visualization_app._graphs[val]["top_n"] is None and\
            visualization_app._graphs[val]["positions"] is not None:
             visualization_app._current_layout = "preset"
