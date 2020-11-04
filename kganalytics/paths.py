@@ -193,8 +193,9 @@ def graph_from_paths(paths, source_graph=None):
     nodes = set()
     edges = set()
     for p in paths:
+        nodes.add(p[0])
         for i in range(1, len(p)):
-            nodes.add(p[i - 1])
+            nodes.add(p[i])
             edges.add((p[i - 1], p[i]))
     graph = nx.Graph()
     graph.add_nodes_from(nodes)

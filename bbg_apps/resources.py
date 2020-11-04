@@ -61,13 +61,14 @@ COLORS = {
 
 
 CYTOSCAPE_STYLE_STYLESHEET = [
+#     {
+#         "selector":'cy',
+#         "style": {
+#             "width": "100%",
+#             "height": "100%"
+#         }
+#     },  
     {
-        "selector":'cytoscape',
-        "style": {
-            "width": "100%",
-            "height": "100%"
-        }
-    },  {
         "selector": 'node',
         'style': {
             "opacity": 1,
@@ -124,6 +125,7 @@ CYTOSCAPE_STYLE_STYLESHEET = [
 # }
 
 COSE_BILKENT_CONFIG = {
+    "name": "cose-bilkent",
     "quality": 'default',
     # Whether to include labels in node dimensions. Useful for avoiding label overlap
     "nodeDimensionsIncludeLabels": False,
@@ -150,7 +152,7 @@ COSE_BILKENT_CONFIG = {
     # Whether to tile disconnected nodes
     "tile": True,
     # Type of layout animation. The option set is {'during', 'end', false}
-    "animate": 'end',
+    "animate": False,
     # Duration for animate:end
     "animationDuration": 500,
     # Amount of vertical space to put between degree zero nodes during tiling (can also be a function)
@@ -168,6 +170,7 @@ COSE_BILKENT_CONFIG = {
 }
 
 COLA_CONFIG = {
+    'name': 'cola',
     'animate': True,
     'refresh': 1,
 #             'infinite': True,
@@ -186,6 +189,7 @@ COLA_CONFIG = {
 
 
 COSE_CONFIG = {
+    'name': "cose",
     'showlegend':True,
     'idealEdgeLength': 100,
     'nodeOverlap': 0,
@@ -205,28 +209,24 @@ COSE_CONFIG = {
 }
 
 
-CISE_CONFIG = {
-    "animate": True,
-    "refresh": 10, 
-    "fit": True,
-    "padding": 30,
-    # separation amount between nodes in a cluster
-    # note: increasing this amount will also increase the simulation time 
-    "nodeSeparation": 12.5,
-    # Inter-cluster edge length factor 
-    # (2.0 means inter-cluster edges should be twice as long as intra-cluster edges)
-    "idealInterClusterEdgeLengthCoefficient": 1.4,
-    # Whether to pull on-circle nodes inside of the circle
-    "allowNodesInsideCircle": False,
-    # Max percentage of the nodes in a circle that can move inside the circle
-    "maxRatioOfNodesInsideCircle": 0.1,
-    # - Lower values give looser springs
-    # - Higher values give tighter springs
-    "springCoeff": 0.45,
-    # Node repulsion (non overlapping) multiplier
-    "nodeRepulsion": 4500,
-    # Gravity force (constant)
-    "gravity": 0.25,
-    # Gravity range (constant)
-    "gravityRange": 3.8
+
+LAYOUT_CONFIGS = {
+    "preset": {
+        "name": "preset"
+    },
+    "cose": COSE_CONFIG,
+    "cose-bilkent": COSE_BILKENT_CONFIG,
+    "cola": COLA_CONFIG
 }
+#     if visualization_app._graphs[showgraph]["top_n"] is None and\
+#        visualization_app._graphs[showgraph]["positions"] is not None:
+#         layout = "preset"
+#         layout_config = {}
+#     if layout == "cose":
+#         layout_config = COSE_CONFIG
+#     elif layout =="cola":
+#         layout_config = COLA_CONFIG
+#     elif layout == "cose-bilkent":
+#         layout_config = COSE_BILKENT_CONFIG
+#     else:    
+        

@@ -557,9 +557,17 @@ def link_ontology(linking, type_mapping, curated_table):
     return linked_table
 
 
+def generate_paper_lookup(graph):
+    paper_table = {}
+    for n in graph.nodes():
+        if "paper" in graph.nodes[n]:
+            paper_table[n] = list(graph.nodes[n]["paper"])
+    return paper_table
+
+
 def build_cytoscape_data(graph, positions=None):
     elements = cytoscape_data(graph)
-    paper_table = {}
+    
     if positions is not None:
         for el in elements["elements"]['nodes']:
             if el["data"]["id"] in positions:
@@ -575,15 +583,11 @@ def build_cytoscape_data(graph, positions=None):
         papers = []
         if 'paper' in element["data"]:
             papers = element["data"].pop("paper")
-            paper_table[element["data"]["id"]] = papers
             element["data"]["paper_frequency"] = len(papers)
-
-#         element["data"]["papers"] = list(papers)
 
         if "source" in element["data"]:
             element["data"]["type"] = "edge"
         else:
             element["data"]["type"] = "node"
 
-    elements_dict = {element["data"]["id"]: element for element in elements}
-    return elements, elements_dict, paper_table
+    return elements
