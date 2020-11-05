@@ -1235,7 +1235,7 @@ def reset_layout(resetbt, removebt, val,
                 top_n_slider_value
             )
             elements = get_cytoscape_data(tree)
-            visualization_app._update_cyto_graph(val, elements, top_n_slider_value, node_freq_type, edge_freq_type)
+            visualization_app._update_cyto_graph(val, elements, top_n_slider_value)
             visualization_app._update_weight_data(
                 val, elements, node_freq_type, edge_freq_type)
             
@@ -1256,7 +1256,7 @@ def reset_layout(resetbt, removebt, val,
                 )
             elements = get_cytoscape_data(tree, visualization_app._graphs[val]["positions"])
 
-            visualization_app._update_cyto_graph(val, elements, None, node_freq_type, edge_freq_type)
+            visualization_app._update_cyto_graph(val, elements, None)
             visualization_app._update_weight_data(
                 val, elements, node_freq_type, edge_freq_type)
 
@@ -1310,10 +1310,11 @@ def reset_layout(resetbt, removebt, val,
     if button_id in full_graph_events:
         if visualization_app._graphs[val]["top_n"] is None and\
            visualization_app._graphs[val]["positions"] is not None:
+            print("Setting preset")
             visualization_app._current_layout = "preset"
-            for el in elements:
-                if "source" not in el["data"]:
-                    el["position"] = visualization_app._graphs[val]["positions"][el["data"]["id"]]
+#             for el in elements:
+#                 if "source" not in el["data"]:
+#                     el["position"] = visualization_app._graphs[val]["positions"][el["data"]["id"]]
         else:
             visualization_app._current_layout = DEFAULT_LAYOUT
     else:
