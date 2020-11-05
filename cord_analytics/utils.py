@@ -1,9 +1,13 @@
 """Small module for data preparation and network generation for COVID-19 paper."""
 import operator
 import pickle
+
 import pandas as pd
 import networkx as nx
 import numpy as np
+
+from collections import Counter
+
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from kganalytics.network_generation import generate_comention_network
@@ -591,3 +595,23 @@ def build_cytoscape_data(graph, positions=None):
             element["data"]["type"] = "node"
 
     return elements
+
+
+def most_common(x):
+    c = Counter(x)
+    return c.most_common(1)[0][0]
+
+
+CORD_ATTRS_RESOLVER = {
+    "entity_type": most_common,
+    "paper": lambda x: list(set(sum(x, []))),
+    "degree_frequency": sum,
+    "pagerank_frequency": max,
+    "community_frequency": most_common,
+    "community_npmi": most_common,
+    "frequency": sum,
+    "ppmi": max,
+    "npmi": max,
+    "distance_ppmi": min,
+    "distance_npmi": min
+}
