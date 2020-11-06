@@ -40,22 +40,63 @@ from kganalytics.utils import (top_n, merge_nodes)
 from cord_analytics.utils import (build_cytoscape_data, generate_paper_lookup, CORD_ATTRS_RESOLVER)
 
 
+def filter_nodes_by_attr(graph_object, key, values):
+    result = []
+    for n in graph_object.nodes():
+        if key in graph_object.nodes[n]:
+            if graph_object.nodes[n][key] in values:
+                result.append(n)
+    return result
 
-def top_n_spanning_tree(graph_object, n):
-    """Build a spanning tree with default top n nodes."""
-    if n <= len(graph_object.nodes()):
+def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
+    """Get top N nodes by paper frequency."""
+    if nodes_to_keep is None:
+        nodes_to_keep = []
+
+    if n is None:
+        n = len(graph_object.nodes())
+    
+    if node_subset is None:
+        node_subset = graph_object.nodes()
+    
+    if n <= len(node_subset):
         node_frequencies = {}
-        for node in graph_object.nodes():
+        for node in node_subset:
             node_frequencies[node] = len(graph_object.nodes[node]["paper"])
-
         nodes_to_include = top_n(node_frequencies, n)
     else:
-        nodes_to_include = graph_object.nodes()
+        nodes_to_include = node_subset
+
+    return nodes_to_include + [n for n in nodes_to_keep if n not in nodes_to_include]
+
+
+def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
+    """Build a spanning tree with default top n nodes."""
+    nodes_to_include = get_top_n_nodes(
+        graph_object, n, node_subset, nodes_to_keep)
 
     tree = minimum_spanning_tree(
         graph_object.subgraph(nodes_to_include),
         "distance_npmi")
     return tree
+
+
+def get_cytoscape_data(graph, positions=None):
+     # Generate a cytoscape repr of the input graph
+    cyto_repr = build_cytoscape_data(graph, positions=positions)
+    
+    # add some extra attrs to nodes
+    weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
+    set_sizes_from_weights(
+        cyto_repr, weights, MIN_NODE_SIZE, MAX_NODE_SIZE,
+        MIN_FONT_SIZE, MAX_FONT_SIZE)
+
+    # add some extra attrs to nodes
+    weights = ["npmi", "ppmi", "frequency"]
+    set_sizes_from_weights(
+        cyto_repr, weights, MIN_EDGE_WIDTH, MAX_EDGE_WIDTH)
+
+    return cyto_repr
 
 
 def generate_sizes(start, end, weights, func="linear"):
@@ -231,6 +272,7 @@ class VisualizationApp(object):
 
     def _update_weight_data(self, graph_id, cyto_repr,
                            node_freq_type="degree_frequency", edge_freq_type="npmi"):
+        
         min_value, max_value, marks, step = recompute_node_range(cyto_repr, node_freq_type)
         self._graphs[graph_id]["min_node_weight"] = min_value
         self._graphs[graph_id]["max_node_weight"] = max_value
@@ -245,53 +287,67 @@ class VisualizationApp(object):
         self._graphs[graph_id]["edge_marks"] = marks
         self._graphs[graph_id]["edge_step"] = step
 
-    def _update_cyto_graph(self, graph_id, new_cyto_repr, top_n_entities):
-        self._graphs[graph_id]["cytoscape"] = new_cyto_repr
+    def _update_cyto_graph(self, graph_id, graph_object, top_n_entities=None, positions=None,
+                           node_freq_type="degree_frequency", edge_freq_type="npmi", node_subset=None,
+                           nodes_to_keep=None):
+        if top_n_entities is None and "default_top_n" in self._graphs[graph_id]:
+            top_n_entities = self._graphs[graph_id]["default_top_n"]
+        
+        if top_n_entities is None:
+            # compute the spanning tree on all the nodes
+            if "full_tree" in self._graphs[graph_id]:
+                tree = self._graphs[graph_id]["full_tree"]
+            else:
+                tree = top_n_spanning_tree(
+                    graph_object, len(graph_object.nodes()),
+                    node_subset=node_subset, nodes_to_keep=nodes_to_keep)
+        else:
+            # compute the spanning tree on n nodes
+            tree = top_n_spanning_tree(
+                graph_object, top_n_entities, node_subset=node_subset, nodes_to_keep=nodes_to_keep)
+    
+        if positions is None and top_n_entities is None:
+            if "positions" in self._graphs[graph_id]:
+                positions = self._graphs[graph_id]["positions"]
+            
+        cyto_repr = get_cytoscape_data(tree, positions=positions)
+        
+        self._graphs[graph_id]["cytoscape"] = cyto_repr
         self._graphs[graph_id]["top_n"] = top_n_entities
+        
+        self._update_weight_data(
+            graph_id, cyto_repr, node_freq_type=node_freq_type, edge_freq_type=edge_freq_type)
+        return cyto_repr
         
     def set_graph(self, graph_id, graph_object, tree_object=None,
                   positions=None, default_top_n=None):
         # Generate a paper lookup table
         paper_lookup = generate_paper_lookup(graph_object)
 
-        # Build a spanning tree with default top n nodes
-        if default_top_n is None:
-            if tree_object is not None:
-                tree = tree_object
-            else:
-                tree = top_n_spanning_tree(graph_object, len(graph_object.nodes()))
-            top_n_entities = None
-        else:
-            if len(graph_object.nodes()) <= default_top_n and tree_object is not None:
-                tree = tree_object
-                top_n_entities = len(graph_object.nodes())
-            else:
-                tree = top_n_spanning_tree(graph_object, default_top_n)
-                top_n_entities = default_top_n
-                
-        # Generate a cytoscape repr of the input graph
-        cyto_repr = get_cytoscape_data(tree, positions=positions)
-
         if self._graphs is None:
             self._graphs = {}
+
         self._graphs[graph_id] = {
             "nx_object": graph_object,
             "positions": positions,
             "paper_lookup": paper_lookup,
         }
-        
-        self._update_cyto_graph(graph_id, cyto_repr, top_n_entities)
-        self._update_weight_data(graph_id, cyto_repr)
-        
+
         if tree_object:
             self._graphs[graph_id]["full_tree"] = tree_object
-            
+
         if default_top_n:
+            default_top_n = len(graph_object.nodes()) if default_top_n > len(graph_object.nodes()) else default_top_n
             self._graphs[graph_id]["default_top_n"] = default_top_n
 
+         # Build a cyto repe with the spanning tree with default top n nodes
+        self._update_cyto_graph(
+            graph_id, graph_object, default_top_n, positions)   
+            
         self.dropdown_items.options = [
             {'label': val.capitalize(), 'value': val} for val in list(self._graphs.keys())
         ]
+        
         return
 
     def set_current_graph(self, graph_id):
@@ -322,28 +378,9 @@ class VisualizationApp(object):
 visualization_app = VisualizationApp()
 
 
-
     
 # ############################## CALLBACKS ####################################
 
-def get_cytoscape_data(graph, positions=None):
-     # Generate a cytoscape repr of the input graph
-    cyto_repr = build_cytoscape_data(graph, positions=positions)
-    
-    # add some extra attrs to nodes
-    weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
-    set_sizes_from_weights(
-        cyto_repr, weights, MIN_NODE_SIZE, MAX_NODE_SIZE,
-        MIN_FONT_SIZE, MAX_FONT_SIZE)
-
-    # add some extra attrs to nodes
-    weights = ["npmi", "ppmi", "frequency"]
-    set_sizes_from_weights(
-        cyto_repr, weights, MIN_EDGE_WIDTH, MAX_EDGE_WIDTH)
-
-    return cyto_repr
-    
-    
 def search(search_value,value, showgraph, diffs=[],
            cluster_type=None, cluster_search=None, nodes_to_keep=None,
            global_scope=False):
@@ -548,6 +585,7 @@ def setup_paths_tab(nestedpaths):
 
 @visualization_app._app.callback(
     [
+        Output("memory", "data"),
         Output('dropdown-layout', 'value'),
         Output('cytoscape', 'zoom'),
         Output('cytoscape', 'elements'),
@@ -555,7 +593,7 @@ def setup_paths_tab(nestedpaths):
         Output("noPathMessage", "children"),
         Output("merge-button", "disabled"),
         Output("merge-modal", "is_open"),
-        Output("memory", "data")
+        Output("remove-button", "disabled")
     ],
     [
         Input('bt-reset', 'n_clicks'),
@@ -594,7 +632,9 @@ def setup_paths_tab(nestedpaths):
         State('dropdown-layout', 'value'),
         State("merge-modal", "is_open"),
         State("memory", "data"),
-        State("merge-label-input", "value")
+        State("merge-label-input", "value"),
+        State("recompute-spanning-tree", "value"),
+#         State("recompute-spanning-tree-cluster", "value")
     ]
 )
 def update_cytoscape_elements(resetbt, removebt, val, 
@@ -608,7 +648,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                               nestedpaths, pathdepth, top_n_slider_value, dropdown_layout,
-                              open_merge_modal, memory, merge_label_value):
+                              open_merge_modal, memory, merge_label_value, recompute_spanning_tree):
     zoom = 1
     
     # Get the event that trigerred the callback
@@ -635,10 +675,26 @@ def update_cytoscape_elements(resetbt, removebt, val,
     else:
         elements = cytoelements
 
-    print("Current elements ({}): ".format(button_id),  [
-        el["data"]["id"] for el in elements if "source" not in el["data"]
-    ])
+    # -------- Filter elements by selected clusters to display -------- 
+    if nodes_to_keep is None:
+        nodes_to_keep = []
 
+    nodes_with_cluster = filter_nodes_by_attr(
+        visualization_app._graphs[val]["nx_object"], cluster_type, clustersearch)
+    
+    nodes_with_cluster += nodes_to_keep
+            
+    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset":
+        if len(recompute_spanning_tree) > 0:
+            elements = visualization_app._update_cyto_graph(
+                val, visualization_app._graphs[val]["nx_object"], top_n_slider_value,
+                node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
+                node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
+        else:
+            elements = filter_elements(
+                elements,
+                node_condition=lambda x: cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep)
+        
     # -------- Handle node/edge selection -------- 
     
     # Mark selected nodes and edges
@@ -654,8 +710,11 @@ def update_cytoscape_elements(resetbt, removebt, val,
     selected_nodes = set(searchvalues + selected_nodes)
     
     merge_disabled = True
+    remove_disabled = True
     if len(selected_nodes) > 1:
         merge_disabled = False
+    if len(selected_nodes) > 0:
+        remove_disabled = False
     
     for searchvalue in selected_nodes:
         selected_elements.add(searchvalue)
@@ -663,47 +722,11 @@ def update_cytoscape_elements(resetbt, removebt, val,
     for el in elements:
         if el["data"]["id"] in selected_elements:        
             el["selected"] = True
-    
-    # -------- Filter elements by selected clusters to display -------- 
-
-    if nodes_to_keep is None:
-        nodes_to_keep = []
-        
-    def to_keep(x):
-        result = cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep
-        return result
-            
-    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset":
-        elements = filter_elements(
-            elements, node_condition=to_keep)
 
     # -------- Handle reset -------- 
-
     if button_id == "bt-reset":
         memory["removed_nodes"] = []
         memory["removed_edges"] = []
-        
-        # recompute the cytoscape object
-        top_n = visualization_app._graphs[val]["top_n"]
-        if top_n:
-            tree = top_n_spanning_tree(
-                visualization_app._graphs[val]["nx_object"], top_n)
-        else:
-            if "full_tree" in visualization_app._graphs[val]:
-                tree = visualization_app._graphs[val]["full_tree"]
-            else:
-                tree = top_n_spanning_tree(
-                    visualization_app._graphs[val]["nx_object"],
-                    len(visualization_app._graphs[val]["nx_object"].nodes()))
-            
-        elements = get_cytoscape_data(tree, top_n)
-        visualization_app._update_cyto_graph(
-            val, elements, top_n)
-        visualization_app._update_weight_data(
-            val, elements, node_freq_type, edge_freq_type)
-    
-#         visualization_app._removed_nodes = set()
-#         visualization_app._removed_edges = set()
  
     # -------- Handle grouped layout -------- 
 
@@ -756,20 +779,24 @@ def update_cytoscape_elements(resetbt, removebt, val,
     if button_id == "merge-apply" and merge_label_value:
         # Retreive name 
         new_name = merge_label_value
-            
+        
+        if new_name not in visualization_app._entity_definitions:
+            # choose a random definiton
+            definition = ""
+            for n in selected_nodes:
+                if n in visualization_app._entity_definitions:
+                    definition = visualization_app._entity_definitions[n]
+                    break
+            visualization_app._entity_definitions[new_name] = definition
+        
         new_graph = merge_nodes(
             visualization_app._graphs[val]["nx_object"], list(selected_nodes),
-            new_name, CORD_ATTRS_RESOLVER, copy=True)
+            new_name, CORD_ATTRS_RESOLVER, copy=False)
 
-        tree = top_n_spanning_tree(
-            new_graph,
-#             visualization_app._graphs[val]["nx_object"],
-            visualization_app._graphs[val]["top_n"]
-        )
-        elements = get_cytoscape_data(tree)
-        visualization_app._update_cyto_graph(val, elements, visualization_app._graphs[val]["top_n"])
-        visualization_app._update_weight_data(
-            val, elements, node_freq_type, edge_freq_type)
+        elements = visualization_app._update_cyto_graph(
+            val, new_graph, visualization_app._graphs[val]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
 
         visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
 
@@ -849,17 +876,38 @@ def update_cytoscape_elements(resetbt, removebt, val,
         else "Displaying all {} entities".format(total_number_of_entities)
     )
     
+    def has_clusters(graph, node):
+        if clustersearch is not None and cluster_type is not None:
+            if cluster_type in graph.nodes[node] and\
+               graph.nodes[node][cluster_type] in clustersearch:
+                return True
+            else:
+                return False
+        else:
+            return True
+    
     if button_id == "top-n-button":
         if current_top_n is None or current_top_n != top_n_slider_value:
-            tree = top_n_spanning_tree(
-                visualization_app._graphs[val]["nx_object"],
-                top_n_slider_value
-            )
-            elements = get_cytoscape_data(tree)
-            visualization_app._update_cyto_graph(val, elements, top_n_slider_value)
-            visualization_app._update_weight_data(
-                val, elements, node_freq_type, edge_freq_type)
-            
+            if len(recompute_spanning_tree) > 0:
+                elements = visualization_app._update_cyto_graph(
+                    val, visualization_app._graphs[val]["nx_object"], top_n_slider_value,
+                    node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
+                    node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
+            else:
+                top_n_nodes = get_top_n_nodes(
+                    visualization_app._graphs[val]["nx_object"], top_n_slider_value,
+                )
+                
+                elements = filter_elements(
+                    elements,
+                    lambda x: x["id"] in top_n_nodes or x["id"] in nodes_to_keep,
+                    lambda x: (
+                        x["source"] in top_n_nodes or x["source"] in nodes_to_keep
+                     ) and (
+                        x["target"] in top_n_nodes or x["target"] in nodes_to_keep
+                    )
+                )
+                    
         message = "Displaying top {} most frequent entities (out of {})".format(
             top_n_slider_value
             if top_n_slider_value <= total_number_of_entities
@@ -868,24 +916,18 @@ def update_cytoscape_elements(resetbt, removebt, val,
     elif button_id == "show-all-button":
         if current_top_n is not None:
             # Top entities are selected, but button is clicked, so show all
-            if "full_tree" in visualization_app._graphs[val]:
-                tree = visualization_app._graphs[val]["full_tree"]
-            else:
-                tree = top_n_spanning_tree(
-                    visualization_app._graphs[val]["nx_object"],
-                    len(visualization_app._graphs[val]["nx_object"].nodes())
-                )
-            elements = get_cytoscape_data(tree, visualization_app._graphs[val]["positions"])
-
-            visualization_app._update_cyto_graph(val, elements, None)
-            visualization_app._update_weight_data(
-                val, elements, node_freq_type, edge_freq_type)
+            elements = visualization_app._update_cyto_graph(
+                val, visualization_app._graphs[val]["nx_object"], None,
+                node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
+                node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
 
         message = "Displaying all {} entities".format(total_number_of_entities) 
     
     # -------- Handle node/edge weight sliders -------
     
     def node_range_condition(el, start, end):
+        if el["id"] in nodes_to_keep:
+            return True
         if node_freq_type in el:
             if el[node_freq_type] >= start and\
                el[node_freq_type] <= end:
@@ -945,13 +987,14 @@ def update_cytoscape_elements(resetbt, removebt, val,
             visualization_app._current_layout = "klay"
 
     return [
+        memory,
         visualization_app._current_layout,
         zoom, elements,
         message,
         no_path_message,
         merge_disabled,
         open_merge_modal,
-        memory
+        remove_disabled
     ]
 
 
@@ -1361,16 +1404,26 @@ def update_nodes_to_keep(search_value, value, elements, showgraph):
 
 
 @visualization_app._app.callback(
+    [
         Output("clustersearch", "value"),
+        Output("legend-title", "children")
+    ],
     [
         Input("showgraph", "value"),
         Input("cluster_type", "value"),
         Input("addAllClusters", "n_clicks"),
-        Input("bt-reset", "n_clicks")
+#         Input("bt-reset", "n_clicks")
     ])
-def prepopulate_value(val, cluster_type, add_all_clusters, reset_button):
+def prepopulate_value(val, cluster_type, add_all_clusters):
     types = get_all_clusters(val, cluster_type)
-    return types
+    
+    l = ""
+    for l, v in components.cluster_type:
+        if v == cluster_type:
+            cluster_label = l
+    
+    legend_title = "Legend (colored by {})".format(cluster_label)
+    return [types, legend_title]
     
 
 @visualization_app._app.callback(
