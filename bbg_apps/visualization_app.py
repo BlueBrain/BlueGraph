@@ -57,7 +57,7 @@ def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
         n = len(graph_object.nodes())
     
     if node_subset is None:
-        node_subset = graph_object.nodes()
+        node_subset = list(graph_object.nodes())
     
     if n <= len(node_subset):
         node_frequencies = {}
@@ -84,7 +84,7 @@ def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
 def get_cytoscape_data(graph, positions=None):
      # Generate a cytoscape repr of the input graph
     cyto_repr = build_cytoscape_data(graph, positions=positions)
-    
+
     # add some extra attrs to nodes
     weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
     set_sizes_from_weights(
@@ -268,7 +268,7 @@ class VisualizationApp(object):
         self._max_edge_weight = None
 
         self._current_layout = components.DEFAULT_LAYOUT
-        self._reset_in_progress = False
+
 
     def _update_weight_data(self, graph_id, cyto_repr,
                            node_freq_type="degree_frequency", edge_freq_type="npmi"):
@@ -512,6 +512,14 @@ def get_all_clusters(graph_id, cluster_type):
     ]))
 
 
+def get_all_clusters(graph_id, cluster_type):
+    return list(set([
+        visualization_app._graphs[graph_id]["nx_object"].nodes[n][cluster_type]
+        for n in visualization_app._graphs[graph_id]["nx_object"].nodes()
+        if cluster_type in visualization_app._graphs[graph_id]["nx_object"].nodes[n]
+    ]))
+
+
 @visualization_app._app.callback(
     [
         Output('nodefreqslider', 'children'),
@@ -674,6 +682,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "nodestokeep",
         "clustersearch",
     ]
+    
     if button_id in full_graph_events:
         elements = visualization_app._graphs[val]["cytoscape"]
     else:
@@ -716,6 +725,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 node_condition=lambda x: cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep)
             memory["hidden_elements"] = hidden_elements
 
+
     # -------- Handle node/edge selection -------- 
     
     # Mark selected nodes and edges
@@ -744,7 +754,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
     for el in elements:
         if el["data"]["id"] in selected_elements:        
             el["selected"] = True
-    
  
     # -------- Handle grouped layout -------- 
 
@@ -815,7 +824,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
             val, new_graph, visualization_app._graphs[val]["top_n"],
             node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
             nodes_to_keep=nodes_to_keep)
-        
+
         # TODO: merge using currently displayed elements
 
         visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
@@ -997,6 +1006,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 lambda x: edge_range_condition(
                     x, edgefreqslider[0], edgefreqslider[1]))
             visualization_app._graphs[val]["current_edge_value"] = edgefreqslider
+
             memory["hidden_elements"] = hidden_elements
                    
             new_marks = {}
@@ -1035,7 +1045,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     node_marks = visualization_app._graphs[val]["node_marks"] 
     edge_marks = visualization_app._graphs[val]["edge_marks"]
-    
+
     return [
         memory,
         visualization_app._current_layout,
@@ -1480,10 +1490,9 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
     for l, v in components.cluster_type:
         if v == cluster_type:
             cluster_label = l
-    
     if button_id == "bt-reset":
         visualization_app._graphs[val]["top_n"] = None
-    
+
     legend_title = "Legend (colored by {})".format(cluster_label)
     return [types, legend_title]
     
