@@ -37,18 +37,23 @@ def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None,
     return nx.Graph(graph.subgraph(nodes))
 
 
-def merge_attrs(old_attrs, collection_of_attrs, attr_resolver):
+def merge_attrs(old_attrs, collection_of_attrs, attr_resolver, attrs_to_ignore=None):
+    
+    if attrs_to_ignore is None:
+        attrs_to_ignore = []
+    
     all_keys = set(sum([list(attrs.keys()) for attrs in collection_of_attrs], []))
     
-    for k in all_keys:            
-        if k in attr_resolver:
-            old_attrs[k] = attr_resolver[k](
-                ([old_attrs[k]] if k in old_attrs else []) + [
-                    attrs[k] for attrs in collection_of_attrs if k in attrs
-                ]
-            )
-        else:
-            old_attrs[k] = None
+    for k in all_keys:       
+        if k not in attrs_to_ignore:
+            if k in attr_resolver:
+                old_attrs[k] = attr_resolver[k](
+                    ([old_attrs[k]] if k in old_attrs else []) + [
+                        attrs[k] for attrs in collection_of_attrs if k in attrs
+                    ]
+                )
+            else:
+                old_attrs[k] = None
 
 
 def merge_nodes(graph, nodes_to_merge, new_name=None, attr_resolver=None, copy=False):

@@ -247,7 +247,9 @@ class VisualizationApp(object):
     def __init__(self):
         self._app =  JupyterDash("allvis")
         self._app.add_bootstrap_links = True
-        self._app.external_stylesheets = dbc.themes.CYBORG
+        self._app.external_stylesheets = [
+            dbc.themes.CYBORG
+        ]
 
         self._server = self._app.server
 
@@ -330,6 +332,7 @@ class VisualizationApp(object):
             self._graphs = {}
 
         self._graphs[graph_id] = {
+            "nx_object_backup": graph_object.copy(),
             "nx_object": graph_object,
             "positions": positions,
             "paper_lookup": paper_lookup,
@@ -781,9 +784,19 @@ def update_cytoscape_elements(resetbt, removebt, val,
             }
         if selected_edge_data:
             edges_to_remove = {ele_data['id'] for ele_data in selected_edge_data}
-
-        visualization_app._removed_nodes.update(nodes_to_remove)
-        visualization_app._removed_edges.update(edges_to_remove)
+        
+        for n in nodes_to_remove:
+            visualization_app._graphs[val]["nx_object"].remove_node(n)
+        
+        if selected_edge_data:
+            for ele_data in selected_edge_data:
+                if (ele_data["source"], ele_data["target"]) in visualization_app._graphs[val]["nx_object"].edges():
+                    visualization_app._graphs[val]["nx_object"].remove_edge(ele_data["source"], ele_data["target"])
+    
+        elements = visualization_app._update_cyto_graph(
+            val, visualization_app._graphs[val]["nx_object"], visualization_app._graphs[val]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
         
     # -------- Handle merge selected nodes -------
        
@@ -1109,9 +1122,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         
     if dataedge and statedataedge:
         label = str(dataedge['style']['label'])
-
-        papers = set(paper_lookup[dataedge['data']['source']]).intersection(
-            set(paper_lookup[dataedge['data']['target']]))
+        papers = list(set(paper_lookup[dataedge['data']['source']]).intersection(
+            set(paper_lookup[dataedge['data']['target']])))
         frequency = str(len(papers))
         mention_label= ''' '%s' mentioned with '%s' in %s papers''' % (
             dataedge['data']['source'], dataedge['data']['target'], frequency) 
@@ -1126,7 +1138,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         try:
             papers_in_kg = visualization_app._list_papers_callback(papers)
         except Exception as e:
-#             print(e)
+            print(e)
             error_message = visualization_app._db_error_message
         rows = []
         
@@ -1146,8 +1158,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
                 paper_card = dbc.Card(
                     dbc.CardBody([
                         html.H4(title, className="card-title"),
-                        html.H5(authors, className="card-subtitle"),
-                        html.H6(journal + "( " + publish_time + " )", className="card-subtitle"),
+                        html.H5(authors, className="card-subtitle", style={"margin-bottom": "20pt"}),
+                        html.H6(journal + " (" + publish_time + ")", className="card-subtitle"),
                         html.P(abstract, className="card-text" ),
                         dbc.Button("View the paper", href=url,target="_blank",color="primary"),
                     ]))
@@ -1485,8 +1497,8 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
             cluster_label = l
     if button_id == "bt-reset":
         visualization_app._graphs[val]["top_n"] = None
-        visualization_app._removed_nodes = set()
-        visualization_app._removed_edges = set()
+#         visualization_app._removed_nodes = set()
+#         visualization_app._removed_edges = set()
 
     legend_title = "Legend (colored by {})".format(cluster_label)
     return [types, legend_title]

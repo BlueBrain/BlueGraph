@@ -60,7 +60,7 @@ graph_layout_options = {
 
 global_button_group = dbc.FormGroup([
     dbc.Col([
-        dbc.Button("Reset", color="primary", className="mr-1", id='bt-reset', style={"margin": "2pt"}),
+        dbc.Button("Reset view", color="primary", className="mr-1", id='bt-reset', style={"margin": "2pt"}),
         dbc.Tooltip(
             "Reset the display to default values",
             target="bt-reset",
