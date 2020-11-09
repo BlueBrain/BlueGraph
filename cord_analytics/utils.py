@@ -1,9 +1,13 @@
 """Small module for data preparation and network generation for COVID-19 paper."""
 import operator
 import pickle
+
 import pandas as pd
 import networkx as nx
 import numpy as np
+
+from collections import Counter
+
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from kganalytics.network_generation import generate_comention_network
@@ -557,9 +561,17 @@ def link_ontology(linking, type_mapping, curated_table):
     return linked_table
 
 
+def generate_paper_lookup(graph):
+    paper_table = {}
+    for n in graph.nodes():
+        if "paper" in graph.nodes[n]:
+            paper_table[n] = list(graph.nodes[n]["paper"])
+    return paper_table
+
+
 def build_cytoscape_data(graph, positions=None):
     elements = cytoscape_data(graph)
-    paper_table = {}
+    
     if positions is not None:
         for el in elements["elements"]['nodes']:
             if el["data"]["id"] in positions:
@@ -575,15 +587,31 @@ def build_cytoscape_data(graph, positions=None):
         papers = []
         if 'paper' in element["data"]:
             papers = element["data"].pop("paper")
-            paper_table[element["data"]["id"]] = papers
             element["data"]["paper_frequency"] = len(papers)
-
-#         element["data"]["papers"] = list(papers)
 
         if "source" in element["data"]:
             element["data"]["type"] = "edge"
         else:
             element["data"]["type"] = "node"
 
-    elements_dict = {element["data"]["id"]: element for element in elements}
-    return elements, elements_dict, paper_table
+    return elements
+
+
+def most_common(x):
+    c = Counter(x)
+    return c.most_common(1)[0][0]
+
+
+CORD_ATTRS_RESOLVER = {
+    "entity_type": most_common,
+    "paper": lambda x: list(set(sum(x, []))),
+    "degree_frequency": sum,
+    "pagerank_frequency": max,
+    "community_frequency": most_common,
+    "community_npmi": most_common,
+    "frequency": sum,
+    "ppmi": max,
+    "npmi": max,
+    "distance_ppmi": min,
+    "distance_npmi": min
+}
