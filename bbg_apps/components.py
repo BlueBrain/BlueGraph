@@ -83,7 +83,7 @@ global_button_group = dbc.FormGroup([
             group=True,
             className="mr-1",
             style={"margin": "2pt"}
-        )], width=6),
+        )], width=6, style={"padding-left": "0pt"}),
     dbc.Col([
         dbc.Label("Recompute spanning tree", html_for="recompute-spanning-tree"),
         dbc.Checklist(
@@ -555,7 +555,8 @@ layout  = html.Div([
        "removed_edges": [],
        "added_nodes": [],
        "added_edges": [],
-       "merged_nodes": {}
+       "merged_nodes": {},
+       "hidden_elements": []
    }),
     dbc.Row([]),
     dbc.Row([
@@ -577,10 +578,14 @@ layout  = html.Div([
                 id="collapse-button",
                 color="primary",
                 style={
-                    "margin": "10pt"
+                    "margin": "10pt",
+                    "margin-left": "80%"
                 }
             ),
             dbc.Collapse(dbc.Tabs(id='tabs', children=[
+                dbc.Tab(
+                    label='Element view', label_style={"color": "#00AEF9", "border-radius":"4px"},
+                    children=[dbc.Card(dbc.CardBody([element_form]))]),
                 dbc.Tab(
                     label='Graph view', label_style={"color": "#00AEF9", "border-radius":"4px"},
                     children=[dbc.Card(dbc.CardBody([form]))]),
@@ -591,11 +596,8 @@ layout  = html.Div([
                     label='Layout', label_style={"color": "#00AEF9"},
                     children=[dbc.Card(dbc.CardBody([conf_form]))]),
                 dbc.Tab(
-                    label='Path Finder', label_style={"color": "#00AEF9"},
-                    children=[dbc.Card(dbc.CardBody([form_path_finder]))]),
-                dbc.Tab(
-                    label='Element view', label_style={"color": "#00AEF9", "border-radius":"4px"},
-                    children=[dbc.Card(dbc.CardBody([element_form]))])
+                    label='Path finder', label_style={"color": "#00AEF9"},
+                    children=[dbc.Card(dbc.CardBody([form_path_finder]))])
             ]), id="collapse"),
             ]),
             width=4
