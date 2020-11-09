@@ -268,6 +268,8 @@ class VisualizationApp(object):
         self._max_edge_weight = None
 
         self._current_layout = components.DEFAULT_LAYOUT
+        self._removed_nodes = set()
+        self._removed_edges = set()
 
 
     def _update_weight_data(self, graph_id, cyto_repr,
@@ -690,10 +692,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     current_top_n = visualization_app._graphs[val]["top_n"]
     total_number_of_entities = len(visualization_app._graphs[val]["nx_object"].nodes())
-
-    # -------- Handle reset -------- 
-    if button_id == "bt-reset":
-        elements += memory["hidden_elements"]
         
     # -------- Filter elements by selected clusters to display -------- 
     if nodes_to_keep is None:
@@ -784,14 +782,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
         if selected_edge_data:
             edges_to_remove = {ele_data['id'] for ele_data in selected_edge_data}
 
-        memory["removed_nodes"] += [
-            n for n in nodes_to_remove
-            if n not in memory["removed_nodes"]
-        ]
-        memory["removed_edges"] += [
-            n for n in edges_to_remove
-            if n not in memory["removed_edges"]
-        ]
+        visualization_app._removed_nodes.update(nodes_to_remove)
+        visualization_app._removed_edges.update(edges_to_remove)
         
     # -------- Handle merge selected nodes -------
        
@@ -1023,14 +1015,15 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 
             visualization_app._graphs[val]["edge_marks"] = new_marks
   
-    # -------- Filter removed elements -------
+    # -------- Filter removed or hidden elements -------
 
     elements = [
         el for el in elements
-        if el["data"]["id"] not in memory["removed_nodes"] and\
-            el["data"]["id"] not in memory["removed_edges"]
+        if el["data"]["id"] not in visualization_app._removed_nodes and\
+            el["data"]["id"] not in visualization_app._removed_edges and\
+            el["data"]["id"] not in memory["hidden_elements"]
     ]
-    
+
     # -------- Automatically switch the layout -------
         
     if button_id in full_graph_events:
@@ -1492,6 +1485,8 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
             cluster_label = l
     if button_id == "bt-reset":
         visualization_app._graphs[val]["top_n"] = None
+        visualization_app._removed_nodes = set()
+        visualization_app._removed_edges = set()
 
     legend_title = "Legend (colored by {})".format(cluster_label)
     return [types, legend_title]

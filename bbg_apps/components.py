@@ -584,7 +584,7 @@ layout  = html.Div([
             ),
             dbc.Collapse(dbc.Tabs(id='tabs', children=[
                 dbc.Tab(
-                    label='Element view', label_style={"color": "#00AEF9", "border-radius":"4px"},
+                    label='Element edit/view', label_style={"color": "#00AEF9", "border-radius":"4px"},
                     children=[dbc.Card(dbc.CardBody([element_form]))]),
                 dbc.Tab(
                     label='Graph view', label_style={"color": "#00AEF9", "border-radius":"4px"},
