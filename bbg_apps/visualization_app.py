@@ -295,8 +295,6 @@ class VisualizationApp(object):
     def _update_cyto_graph(self, graph_id, graph_object, top_n_entities=None, positions=None,
                            node_freq_type="degree_frequency", edge_freq_type="npmi", node_subset=None,
                            nodes_to_keep=None):
-        if top_n_entities is None and "default_top_n" in self._graphs[graph_id]:
-            top_n_entities = self._graphs[graph_id]["default_top_n"]
         
         if top_n_entities is None:
             # compute the spanning tree on all the nodes
