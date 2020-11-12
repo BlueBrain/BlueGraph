@@ -277,6 +277,7 @@ def merge_with_ontology_linking(occurence_data,
     if linking is not None:
         linking = linking.rename(columns={"mention": "entity"})
         linking["concept"] = linking["concept"].apply(lambda x: x.lower())
+        linking["entity"] = linking["entity"].apply(lambda x: x.lower()) # The provided occcurence_data is expected to be lower cased and the merge is performed on the 'entity' column and not the column one.
         
         print("Merging the occurrence data with the ontology linking...")
     
@@ -615,5 +616,3 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
-
-
