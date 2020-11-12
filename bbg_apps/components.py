@@ -83,9 +83,15 @@ global_button_group = dbc.FormGroup([
             group=True,
             className="mr-1",
             style={"margin": "2pt"}
-        )], width=6, style={"padding-left": "0pt"}),
+        ),
+        dbc.Tooltip(
+            "Choose a format to download the current graph view",
+            target="dropdown-download",
+            placement="bottom",
+        ),
+    ], width=6, style={"padding-left": "0pt"}),
     dbc.Col([
-        dbc.Label("Recompute spanning tree", html_for="recompute-spanning-tree"),
+        dbc.Label(html.Span("Recompute spanning tree", id="recomp-label"), html_for="recompute-spanning-tree"),
         dbc.Checklist(
             options=[{"value": 1}],
             value=[1],
@@ -95,7 +101,7 @@ global_button_group = dbc.FormGroup([
         ),
         dbc.Tooltip(
             "If enabled, the minimum spanning tree will be recomputed on the nodes selected in the current graph view (does not apply to filtering)",
-            target="recompute-spanning-tree",
+            target="recomp-label",
             placement="bottom",
         )
     ], width=6)   
@@ -128,6 +134,8 @@ edit_button_group = dbc.InputGroup([
         style={"margin": "2pt"}),
     dbc.Button(
         "Merge selected nodes", color="primary", className="mr-1", id='merge-button', style={"margin": "2pt"}, disabled=True),
+    dbc.Button(
+        "Reset graph", color="primary", className="mr-1", id='reset-elements-button', style={"margin": "2pt"}, disabled=False),
     dbc.Modal(
         [
             dbc.ModalHeader("Merged label"),
@@ -160,16 +168,6 @@ edit_button_group = dbc.InputGroup([
     ),
 ])
 
-edit_button_card = dbc.Card(
-    dbc.CardBody(
-        [
-            html.H6("Edit graph elements", className="card-title"),
-            edit_button_group
-        ]
-    ), id="edit-button-card", style={"margin-bottom": "10pt"}
-)
-
-
 dropdown_items = dcc.Dropdown(
     id="showgraph",
     value="",
@@ -178,20 +176,35 @@ dropdown_items = dcc.Dropdown(
 )
 
 graph_type_dropdown = dbc.FormGroup([
-    dbc.Label("Graph to display", html_for="showgraph"),
+    dbc.Label(html.Span("Graph to display", id="showgraph-label"), html_for="showgraph"),
+    dbc.Tooltip(
+        "Switch between different loaded graphs to display.",
+        target="showgraph-label",
+        placement="top",
+    ),
     dropdown_items
 ])
 
 search = dbc.FormGroup(
     [
-        dbc.Label("Search node", html_for="searchdropdown", width=3),
+        dbc.Label(
+            "Search node", html_for="searchdropdown", width=4,
+            style={"text-align": "right", "padding-right": "0pt"}
+        ),
         dbc.Col(dcc.Dropdown(
             id="searchdropdown",
-            multi=True
-        ), width=9)
-
+            multi=False
+        ), width=8),
+#         dbc.Col(
+#             dbc.Button(
+#                 "Reset zoom",
+#                 color="primary",
+#                 className="mr-1",
+#                 id='reset-zoom'),
+#             width=3
+#         )
     ],
-    row=True
+    row=True, style={"margin": "3pt"}
 )
 
 dropdown_menu_items = [
@@ -202,30 +215,45 @@ dropdown_menu_items = [
 
 freq_input_group = dbc.InputGroup(
     [
-        dbc.Label("Node Weight", html_for="node_freq_type"),
+        dbc.Label(html.Span("Node Weight", id="node_freq_type-label"), html_for="node_freq_type"),
+        dbc.Tooltip(
+            "Select a metric to use as the node weight (node sizes are proportional to the selected weight)",
+            target="node_freq_type-label",
+            placement="top",
+        ),
         dcc.Dropdown(
             id="node_freq_type",
             value="degree_frequency",
             options=[{'label': val[0], 'value': val[1]} for val in node_frequency_type],
-            style={"width":"100%"})
+            style={"width":"100%"}),
     ],
     className="mb-1"
 )
 
 node_range_group = dbc.FormGroup(
     [
-        dbc.Label("Display Range", html_for="nodefreqslider"),
+        dbc.Label(html.Span("Display Range", id="nodefreqslider-label"), html_for="nodefreqslider"),
         html.Div(
             [dcc.RangeSlider(id="nodefreqslider_content", min=0, max=100000)],
             id="nodefreqslider"
-        )
+        ),
+        dbc.Tooltip(
+            "Adjust the node weight range (only the nodes having the weight in the selected range will be displayed)",
+            target="nodefreqslider-label",
+            placement="bottom",
+        ),
     ]
 )
 
 edge_input_group = dbc.InputGroup(
     [
-         dbc.Label("Edge Weight", html_for="edge_freq_type"),
-         dcc.Dropdown(
+        dbc.Label(html.Span("Edge Weight", id="edge_freq_type-label"), html_for="edge_freq_type"),
+        dbc.Tooltip(
+            "Select a metric to use as the edge weight (edge thickness is proportional to the selected weight)",
+            target="edge_freq_type-label",
+            placement="top",
+        ),
+        dcc.Dropdown(
             id="edge_freq_type",
             value="npmi",
             options=[{'label': val[0], 'value': val[1]} for val in edge_frequency_type],
@@ -239,10 +267,15 @@ edge_input_group = dbc.InputGroup(
 
 edge_range_group = dbc.FormGroup(
 [
-    dbc.Label("Display Range", html_for="edgefreqslider"),
+    dbc.Label(html.Span("Display Range", id="edgefreqslider-label"), html_for="edgefreqslider"),
     html.Div(
         [dcc.RangeSlider(id="edgefreqslider_content", min=0, max=100000)],
-        id="edgefreqslider")
+        id="edgefreqslider"),
+    dbc.Tooltip(
+        "Adjust the edge weight range (only the edge having the weight in the selected range will be displayed)",
+        target="edgefreqslider-label",
+        placement="bottom",
+    ),
 ]
 )
 
@@ -287,7 +320,20 @@ show_all_button = dbc.Button(
     style={"float": "right", "margin": "5pt"})
 
 top_n_groups = dbc.InputGroup(
-    [top_n_button, top_n_slider, show_all_button],
+    [
+        top_n_button, 
+        dbc.Tooltip(
+            "Display N nodes with the highest paper occurrence frequency, where N is defined by the slider on the right.",
+            target="top-n-button",
+            placement="top",
+        ),
+        top_n_slider,
+        show_all_button,
+        dbc.Tooltip(
+            "Display all the nodes of the current graph.",
+            target="show-all-button",
+            placement="top",
+        )],
     style={"margin-bottom": "10pt"})
 
 item_details = dbc.FormGroup([html.Div(id="modal")])
@@ -309,15 +355,21 @@ view_selection_card = dbc.Card(
         html.H6("View selection", className="card-title"),
         graph_type_dropdown,
         display_message,
-        top_n_groups
+        top_n_groups,
+        frequencies_form
     ]),
-    id="view-selection-card"
-#     style={"margin-bottom": "10pt"}
+    id="view-selection-card",
+    style={"margin-bottom": "10pt"}
 )
 
 cluster_group = dbc.InputGroup(
     [
-        dbc.Label("Group by", html_for="cluster_type"),
+        dbc.Label(html.Span("Group by", id="group-by-label"), html_for="cluster_type"),
+        dbc.Tooltip(
+            "Select a grouping factor for the nodes.",
+            target="group-by-label",
+            placement="top",
+        ),
         dcc.Dropdown(
             id="cluster_type",
             value="entity_type",
@@ -337,11 +389,22 @@ cluster_filter = dcc.Dropdown(
 
 filter_by_cluster = dbc.FormGroup(
     [
-        dbc.Label("Groups to display", html_for="clustersearch"),
+        dbc.Label(
+            html.Span("Groups to display", id="clustersearch-label"), html_for="clustersearch"),
+        dbc.Tooltip(
+            "Only the nodes beloning to the groups selected in the field below will be displayed. You click or start typing to add new groups to display, or click on the cross icon to remove a group.",
+            target="clustersearch-label",
+            placement="top",
+        ),
         cluster_filter,
         dbc.Button(
             "Add all groups", color="primary", className="mr-1", id='addAllClusters',
-            style={"margin-top": "10pt"})
+            style={"margin-top": "10pt"}),
+        dbc.Tooltip(
+            "Add all available node groups to display.",
+            target="addAllClusters",
+            placement="bottom",
+        )
     ], style={"margin-top": "10pt"}
 )
 
@@ -355,14 +418,24 @@ cluster_selection_card = dbc.Card(
     style={"margin-bottom": "10pt"}
 )
 
+
+
 nodes_to_keep = dbc.FormGroup(
     [
-        dbc.Label("Nodes to keep", html_for="nodestokeep"),
+        dbc.Label(
+            html.Span("Nodes to keep", id="nodestokeep-label"), 
+            html_for="nodestokeep"),
         dcc.Dropdown(
             id="nodestokeep",
             multi=True,
             options=[],
+            placeholder="Nodes to fix in the view..."
         ),
+        dbc.Tooltip(
+            "The selected nodes will be fixed in the graph view and will not be filtered by 'top N' or group filters (start typing to obtain the nodes to select from).",
+            target="nodestokeep-label",
+            placement="top",
+        )
     ],
 )
 
@@ -371,14 +444,7 @@ form = dbc.Form([
     nodes_to_keep,
     view_selection_card,
     cluster_selection_card,
-#     filter_card,
 ])
-        
-element_form = dbc.Form([
-    edit_button_card,
-    search,
-    item_details_card
-], id="element-form")
 
 
 legend = dbc.FormGroup([
@@ -399,19 +465,42 @@ legend = dbc.FormGroup([
 # ------ Path search form --------
         
 path_from = dbc.FormGroup([
-    dbc.Label("From", html_for="searchpathfrom", width=3),
+    dbc.Label(
+        html.Span("From", id="searchpathfrom-label"),
+        html_for="searchpathfrom", width=3
+    ),
+    dbc.Tooltip(
+        "Select a node to use as the source in the path search",
+        target="searchpathfrom-label",
+        placement="top",
+    ),
     dbc.Col(dcc.Dropdown(
         id="searchpathfrom"
     ), width=9)],
     row=True)
 
 path_to = dbc.FormGroup([
-    dbc.Label("To", html_for="searchpathto", width=3),
+    dbc.Label(
+        html.Span("To", id="searchpathto-label"), 
+        html_for="searchpathto", width=3),
+    dbc.Tooltip(
+        "Select a node to use as the target in the path search",
+        target="searchpathto-label",
+        placement="top",
+    ),
     dbc.Col(dcc.Dropdown(id="searchpathto"), width=9)],
     row=True)
 
 top_n_paths = dbc.FormGroup([
-    dbc.Label("Top N", html_for="searchpathlimit", width=3),
+    dbc.Label(
+        html.Span("Top N", id="searchpathlimit-label"),
+        html_for="searchpathlimit", width=3
+    ),
+    dbc.Tooltip(
+        "Set a number of best paths to search for (the best paths are the ones that maximize the mutual information)",
+        target="searchpathlimit-label",
+        placement="top",
+    ),
     dbc.Col(
         daq.NumericInput(
             id="searchpathlimit",
@@ -425,11 +514,23 @@ path_condition = dbc.FormGroup([
     dbc.Label("Traversal conditions"),
     dbc.FormGroup([
             dbc.Col([
-                dbc.Label("Entity to traverse", html_for="searchnodetotraverse"),
+                dbc.Label(
+                    html.Span("Entity to traverse", id="searchnodetotraverse-label"), html_for="searchnodetotraverse"),
+                dbc.Tooltip(
+                    "Select an entity to traverse in the path search (if selected, the search is performed in two steps: from the source to the selected entity, and from the selected entity to the target)",
+                    target="searchnodetotraverse-label",
+                    placement="top",
+                ),
                 dcc.Dropdown(id="searchnodetotraverse")
             ], width=6),
             dbc.Col([
-                dbc.Label("Allow Overlap", html_for="searchpathoverlap"),
+                dbc.Label(
+                    html.Span("Allow Overlap", id="searchpathoverlap-label"), html_for="searchpathoverlap"),
+                dbc.Tooltip(
+                    "If the overlap is allowed, then the the paths from the source to the intermediate entity can go through the same entities as the paths from the intermediary to the target. Otherwise the paths should go through distinct entities",
+                    target="searchpathoverlap-label",
+                    placement="top",
+                ),
                 dbc.Checklist(
                     options=[{"value": 1}],
                     value=[1],
@@ -445,7 +546,12 @@ nested_path = dbc.FormGroup([
     dbc.FormGroup([
         dbc.Col(
             children=[
-                dbc.Label("Nested", html_for="nestedpaths"),
+                dbc.Label(html.Span("Nested", id="nestedpaths-label"), html_for="nestedpaths"),
+                dbc.Tooltip(
+                    "If enabled, the nested paths are found, i.e. for every edge found in a path we search for other N best paths from the source to the target of this edge for <depth> times",
+                    target="nestedpaths-label",
+                    placement="top",
+                ),
                 dbc.Checklist(
                     options=[{"value": 1}],
                     value=[],
@@ -455,7 +561,13 @@ nested_path = dbc.FormGroup([
             ], width=6
         ),
         dbc.Col([
-            dbc.Label("Depth", html_for="pathdepth"),
+            dbc.Label(
+                html.Span("Depth", id="pathdepth-label"), html_for="pathdepth"),
+            dbc.Tooltip(
+                "Select the depth of nesting indicating for how many iterations we expand the encountered edges into the best paths.",
+                target="pathdepth-label",
+                placement="top",
+            ),
             daq.NumericInput(
                 id="pathdepth",
                 min=1,  
@@ -547,7 +659,12 @@ cyto = cyto.Cytoscape(
     id='cytoscape',
     elements=None,
     stylesheet=CYTOSCAPE_STYLE_STYLESHEET,
-    style={"width": "100%", "height": "100%"})
+    style={"width": "100%", "height": "100%"},
+#     autoRefreshLayout=False
+#     hideEdgesOnViewport=True,
+#     textureOnViewport=True,
+#     pixelRatio='auto'
+)
 
 layout  = html.Div([
    dcc.Store(id='memory', data={
@@ -561,16 +678,81 @@ layout  = html.Div([
     dbc.Row([]),
     dbc.Row([
         dbc.Col([
-            html.Div(style=VISUALIZATION_CONTENT_STYLE, children=[cyto]), 
+            html.Div(style=VISUALIZATION_CONTENT_STYLE, children=[cyto]),
+            html.Div(
+                [
+                    dcc.Loading(id="loading", children=[html.Div(id="loading-output")], type="default"),
+                ],
+                id="loader-container",
+                className="fixed-top",
+                style={"width": "60pt", "height": "60pt", "margin": "20pt"}
+            ),
+            html.Div(
+                [search],
+                id="search-container",
+                className="fixed-top",
+                style={"width": "30%", "margin-left": "80pt"}
+            ),
             html.Div([
-                dbc.Card([
-                    html.H6(
-                        "Legend (colored by Entity Type)", className="card-title",
-                        id="legend-title"
-                    ),
-                    legend
-                ], body=True)
-            ], className="fixed-bottom", style={"width": "35%", "height": "150pt"})
+                dbc.Button(
+                    "Legend", id="toggle-legend", color="primary", className="mr-1"
+                ),
+                dbc.Button(
+                    "Details", id="toggle-details", color="primary", className="mr-1"
+                ),
+                dbc.Button(
+                    "Edit graph", id="toggle-edit", color="primary", className="mr-1"
+                ),
+                dbc.Collapse(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                "Legend (colored by Entity Type)",
+                                className="card-title",
+                                style={"margin-botton": "0pt"},
+                                id="legend-title"
+                            )
+                        ], style={"margin-botton": "0pt"}),
+                        dbc.CardBody([legend]),
+                    ], style={"height": "100%"}), 
+                    style={"height": "150pt"},
+                    id="collapse-legend"
+                ),
+                dbc.Collapse(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                "Details",
+                                className="card-title",
+                                style={"margin-botton": "0pt"}
+                            )
+                        ], style={"margin-botton": "0pt"}),
+                        dbc.CardBody(
+                            [
+                                item_details_card
+                            ], style={"overflow-y": "scroll"})
+                    ], style={"height": "100%"}), 
+                    style={"height": "250pt"},
+                    id="collapse-details"
+                ),
+                dbc.Collapse(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                "Edit graph",
+                                className="card-title",
+                                style={"margin-botton": "0pt"}
+                            )
+                        ], style={"margin-botton": "0pt"}),
+                        dbc.CardBody([edit_button_group])
+                    ], style={"height": "100%"}), 
+                    style={"height": "150pt"},
+                    id="collapse-edit"
+                )
+            ], className="fixed-bottom", style={
+                "width": "45%", 
+#                 "height": "180pt"
+            })
         ], width=8),
         dbc.Col(html.Div(children=[
             dbc.Button(
@@ -579,28 +761,44 @@ layout  = html.Div([
                 color="primary",
                 style={
                     "margin": "10pt",
-                    "margin-left": "80%"
+                    "margin-left": "75%"
                 }
             ),
             dbc.Collapse(dbc.Tabs(id='tabs', children=[
+#                 dbc.Tab(
+#                     label='Element view', label_style={
+#                         "color": "#00AEF9", "border-radius":"4px",
+#                         "background-color": "white"
+#                     },
+#                     children=[dbc.Card(dbc.CardBody([element_form]))]),
                 dbc.Tab(
-                    label='Element edit/view', label_style={"color": "#00AEF9", "border-radius":"4px"},
-                    children=[dbc.Card(dbc.CardBody([element_form]))]),
-                dbc.Tab(
-                    label='Graph view', label_style={"color": "#00AEF9", "border-radius":"4px"},
+                    label='Graph view',
+                    label_style={
+                        "color": "#00AEF9", "border-radius":"4px",
+                        "background-color": "white"
+                    },
                     children=[dbc.Card(dbc.CardBody([form]))]),
+#                 dbc.Tab(
+#                     label="Filters", label_style={
+#                         "color": "#00AEF9", "border-radius":"4px",
+#                         "background-color": "white"
+#                     },
+#                     children=[dbc.Card(dbc.CardBody([frequencies_form]))]),
                 dbc.Tab(
-                    label="Filters", label_style={"color": "#00AEF9", "border-radius":"4px"},
-                    children=[dbc.Card(dbc.CardBody([frequencies_form]))]),
-                dbc.Tab(
-                    label='Layout', label_style={"color": "#00AEF9"},
+                    label='Layout', label_style={
+                        "color": "#00AEF9", "border-radius":"4px",
+                        "background-color": "white"
+                    },
                     children=[dbc.Card(dbc.CardBody([conf_form]))]),
                 dbc.Tab(
-                    label='Path finder', label_style={"color": "#00AEF9"},
+                    label='Path finder', label_style={
+                        "color": "#00AEF9", "border-radius":"4px",
+                        "background-color": "white"
+                    },
                     children=[dbc.Card(dbc.CardBody([form_path_finder]))])
             ]), id="collapse"),
             ]),
             width=4
         )
     ])
-])
+], style={"overflow-x": "hidden"})

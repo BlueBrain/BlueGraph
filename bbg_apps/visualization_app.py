@@ -1,6 +1,7 @@
 import os
 import flask
 
+import time
 import math
 import numpy as np
 import networkx as nx
@@ -634,7 +635,9 @@ def setup_paths_tab(nestedpaths):
         Input('cytoscape', 'tapNodeData'),
         Input("merge-button", "n_clicks"),
         Input("merge-close", "n_clicks"),
-        Input("merge-apply", "n_clicks")
+        Input("merge-apply", "n_clicks"),
+        Input('reset-elements-button', "n_clicks"),
+#         Input('reset-zoom', "n_clicks"),
     ],
     [
         State('node_freq_type', 'value'),
@@ -663,7 +666,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               # grouped_layout, 
                               cluster_type, top_n_buttton, show_all_button, clustersearch,
                               nodes_to_keep, selected_node_data, selected_edge_data, tappednode,
-                              merge_button, close_merge_button, apply_merge_button,
+                              merge_button, close_merge_button, apply_merge_button, reset_graph_button,
                               # states
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
@@ -736,6 +739,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     if searchvalues is None:
         searchvalues = []
+    else:
+        searchvalues = [searchvalues]
 
     selected_elements  = set()
 
@@ -787,7 +792,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         
         for n in nodes_to_remove:
             visualization_app._graphs[val]["nx_object"].remove_node(n)
-        
+
         if selected_edge_data:
             for ele_data in selected_edge_data:
                 if (ele_data["source"], ele_data["target"]) in visualization_app._graphs[val]["nx_object"].edges():
@@ -834,6 +839,13 @@ def update_cytoscape_elements(resetbt, removebt, val,
 
         visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
 
+    # -------- Handle reset graph elements --------
+    if button_id == "reset-elements-button":
+        elements = visualization_app._update_cyto_graph(
+                val, visualization_app._graphs[val]["nx_object_backup"], visualization_app._graphs[val]["top_n"],
+                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+                nodes_to_keep=nodes_to_keep)
+        
     # -------- Handle path search -------
     
     no_path_message = ""
@@ -1055,7 +1067,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
     return [
         memory,
         visualization_app._current_layout,
-        zoom, elements,
+        zoom, 
+        elements,
         message,
         no_path_message,
         merge_disabled,
@@ -1086,8 +1099,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     npmi_message =  None
     
     paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
-    
-    if datanode and statedatanode:
+
+    if datanode:
         definition = ""
         if "definition" in datanode['data']:
             definition = str(datanode["data"]["definition"])
@@ -1203,18 +1216,25 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     Output('cytoscape', 'layout'),
     [
         Input('dropdown-layout', 'value'),
+#         Input("reset-zoom", "n_clicks"),
+#         Input("showgraph", "value"),
+#         Input("top-n-button", "n_clicks"),
+#         Input("show-all-button", "n_clicks"),
+#         Input("bt-reset", "n_clicks"),
+#         Input("bt-path", "n_clicks"),
     ],
     [
-        State('showgraph', 'value')
-    ])
+        State("showgraph", "value"),
+    ]
+)
 def update_cytoscape_layout(layout, current_graph):
+#     , b1, b2, b3, b4):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
-#     print("Invoked by: ", button_id, " layout: ", layout)
 
     visualization_app._current_layout = layout
     
@@ -1702,7 +1722,7 @@ def update_merge_input(value, searched_entities, selected_nodes):
     if value == 1:
         nodes_to_merge = [
             el["id"] for el in (selected_nodes if selected_nodes else [])
-        ] + (searched_entities if searched_entities else [])
+        ] + ([searched_entities] if searched_entities else [])
         options = [
             {"label": n, "value": n} for n in nodes_to_merge
         ]
@@ -1714,27 +1734,57 @@ def update_merge_input(value, searched_entities, selected_nodes):
         return dbc.Input(
             id="merge-label-input", placeholder="New entity name...", type="text")
 
+
+@visualization_app._app.callback(
+    [
+        Output("collapse-legend", "is_open"),
+        Output("collapse-details", "is_open"),
+        Output("collapse-edit", "is_open"),
+    ],
+    [
+        Input("toggle-legend", "n_clicks"),
+        Input("toggle-details", "n_clicks"),
+        Input("toggle-edit", "n_clicks"),
+        Input('cytoscape', 'tapNode'),
+        Input('cytoscape', 'tapEdge')
+    ],
+    [
+        State("collapse-legend", "is_open"),
+        State("collapse-details", "is_open"),
+        State("collapse-edit", "is_open")
+    ])
+def toggle_bottom_tabs(legend_b, details_b, edit_b, tap_node, tap_edge,
+                       legend_is_open, details_is_open, edit_is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if button_id == "toggle-legend":
+        legend_is_open = not legend_is_open
+        details_is_open = False
+        edit_is_open = False
     
-# @visualization_app._app.callback(
-#     Output("merge-label-search", "options"),
-#     [
-#         Input("merge-label-search", "search_value")
-#     ],
-#     [
-#         State("searchdropdown", "value"),
-#         State("cytoscape", "selectedNodeData")
-#     ],
-# )
-# def update_multi_options(search_value, searched_entities, selected_nodes):
-#     if not search_value:
-#         raise PreventUpdate
+    if button_id == "toggle-details" or button_id == "cytoscape":
+        legend_is_open = False
+        if button_id == "cytoscape":
+            details_is_open = True
+        else:
+            details_is_open = not details_is_open
+        edit_is_open = False
     
-#     nodes_to_merge =   [
-#         el["id"] for el in (selected_nodes if selected_nodes else [])
-#     ] + (searched_entities if searched_entities else [])
-    
-#     res = []
-#     for n in nodes_to_merge:
-#         if (search_value in n) or (n in search_value) or n in (value or []) :
-#             res.append({"label": n, "value": n})
-#     return res
+    if button_id == "toggle-edit":
+        legend_is_open = False
+        details_is_open = False
+        edit_is_open = not edit_is_open
+
+    return [legend_is_open, details_is_open, edit_is_open]
+
+
+@visualization_app._app.callback(
+    Output("loading-output", "children"),
+    [Input("cytoscape", "elements")]
+)
+def input_triggers_spinner(value):
+    time.sleep(1)
+    return []
