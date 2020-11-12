@@ -1,6 +1,7 @@
 import os
 import flask
 
+import time
 import math
 import numpy as np
 import networkx as nx
@@ -57,7 +58,7 @@ def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
         n = len(graph_object.nodes())
     
     if node_subset is None:
-        node_subset = graph_object.nodes()
+        node_subset = list(graph_object.nodes())
     
     if n <= len(node_subset):
         node_frequencies = {}
@@ -84,7 +85,7 @@ def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
 def get_cytoscape_data(graph, positions=None):
      # Generate a cytoscape repr of the input graph
     cyto_repr = build_cytoscape_data(graph, positions=positions)
-    
+
     # add some extra attrs to nodes
     weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
     set_sizes_from_weights(
@@ -247,7 +248,9 @@ class VisualizationApp(object):
     def __init__(self):
         self._app =  JupyterDash("allvis")
         self._app.add_bootstrap_links = True
-        self._app.external_stylesheets = dbc.themes.CYBORG
+        self._app.external_stylesheets = [
+            dbc.themes.CYBORG
+        ]
 
         self._server = self._app.server
 
@@ -268,6 +271,8 @@ class VisualizationApp(object):
         self._max_edge_weight = None
 
         self._current_layout = components.DEFAULT_LAYOUT
+        self._removed_nodes = set()
+        self._removed_edges = set()
 
 
     def _update_weight_data(self, graph_id, cyto_repr,
@@ -290,8 +295,6 @@ class VisualizationApp(object):
     def _update_cyto_graph(self, graph_id, graph_object, top_n_entities=None, positions=None,
                            node_freq_type="degree_frequency", edge_freq_type="npmi", node_subset=None,
                            nodes_to_keep=None):
-        if top_n_entities is None and "default_top_n" in self._graphs[graph_id]:
-            top_n_entities = self._graphs[graph_id]["default_top_n"]
         
         if top_n_entities is None:
             # compute the spanning tree on all the nodes
@@ -328,6 +331,7 @@ class VisualizationApp(object):
             self._graphs = {}
 
         self._graphs[graph_id] = {
+            "nx_object_backup": graph_object.copy(),
             "nx_object": graph_object,
             "positions": positions,
             "paper_lookup": paper_lookup,
@@ -434,6 +438,12 @@ def search(search_value,value, showgraph, diffs=[],
                     res.append({"label": label, "value": el_id})
     return res
 
+def generate_mark(val):
+    return (
+        "{}".format(val)
+        if isinstance(val, int) else
+        "{:.2f}".format(val)
+    )
 
 def recompute_node_range(elements, freq_type):
     all_weights = [
@@ -459,16 +469,8 @@ def recompute_node_range(elements, freq_type):
         max_value = 0
 
     marks = {
-        min_value: (
-            "{}".format(min_value)
-            if isinstance(min_value, int) else
-            "{:.2f}".format(min_value)
-        ),
-        max_value: (
-            "{}".format(max_value)
-            if isinstance(max_value, int) else
-            "{:.2f}".format(max_value)
-        ),
+        min_value: generate_mark(min_value),
+        max_value: generate_mark(max_value)
     }
     
     step = (max_value - min_value) / 100
@@ -493,10 +495,25 @@ def filter_elements(input_elements, node_condition, edge_condition=None):
             (edge_condition(el["data"]) if edge_condition is not None else True)
         )
     ]
-    return [
+    
+    elements = [
         el for el in input_elements
         if el["data"]["id"] in nodes_to_keep + edges_to_keep
     ]
+
+    hidden_elements = [
+        el for el in input_elements
+        if el["data"]["id"] not in nodes_to_keep + edges_to_keep
+    ]
+    return elements, hidden_elements
+
+
+def get_all_clusters(graph_id, cluster_type):
+    return list(set([
+        visualization_app._graphs[graph_id]["nx_object"].nodes[n][cluster_type]
+        for n in visualization_app._graphs[graph_id]["nx_object"].nodes()
+        if cluster_type in visualization_app._graphs[graph_id]["nx_object"].nodes[n]
+    ]))
 
 
 def get_all_clusters(graph_id, cluster_type):
@@ -593,7 +610,9 @@ def setup_paths_tab(nestedpaths):
         Output("noPathMessage", "children"),
         Output("merge-button", "disabled"),
         Output("merge-modal", "is_open"),
-        Output("remove-button", "disabled")
+        Output("remove-button", "disabled"),
+        Output('nodefreqslider_content', 'marks'),
+        Output('edgefreqslider_content', 'marks'),
     ],
     [
         Input('bt-reset', 'n_clicks'),
@@ -614,7 +633,9 @@ def setup_paths_tab(nestedpaths):
         Input('cytoscape', 'tapNodeData'),
         Input("merge-button", "n_clicks"),
         Input("merge-close", "n_clicks"),
-        Input("merge-apply", "n_clicks")
+        Input("merge-apply", "n_clicks"),
+        Input('reset-elements-button', "n_clicks"),
+#         Input('reset-zoom', "n_clicks"),
     ],
     [
         State('node_freq_type', 'value'),
@@ -643,7 +664,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               # grouped_layout, 
                               cluster_type, top_n_buttton, show_all_button, clustersearch,
                               nodes_to_keep, selected_node_data, selected_edge_data, tappednode,
-                              merge_button, close_merge_button, apply_merge_button,
+                              merge_button, close_merge_button, apply_merge_button, reset_graph_button,
                               # states
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
@@ -664,8 +685,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "top-n-button",
         "show-all-button",
         "bt-reset",
-        "nodefreqslider_content",
-        "edgefreqslider_content",
         "nodestokeep",
         "clustersearch",
     ]
@@ -674,7 +693,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
         elements = visualization_app._graphs[val]["cytoscape"]
     else:
         elements = cytoelements
-
+    
+    current_top_n = visualization_app._graphs[val]["top_n"]
+    total_number_of_entities = len(visualization_app._graphs[val]["nx_object"].nodes())
+        
     # -------- Filter elements by selected clusters to display -------- 
     if nodes_to_keep is None:
         nodes_to_keep = []
@@ -683,18 +705,29 @@ def update_cytoscape_elements(resetbt, removebt, val,
         visualization_app._graphs[val]["nx_object"], cluster_type, clustersearch)
     
     nodes_with_cluster += nodes_to_keep
-            
-    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset":
+         
+    element_preserving = [
+        "cytoscape",
+        "remove-button",
+        "merge_button",
+        "edgefreqslider_content",
+        "nodefreqslider_content"
+    ]
+    
+    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset" and button_id not in element_preserving:
         if len(recompute_spanning_tree) > 0:
             elements = visualization_app._update_cyto_graph(
-                val, visualization_app._graphs[val]["nx_object"], top_n_slider_value,
+                val, visualization_app._graphs[val]["nx_object"],
+                visualization_app._graphs[val]["top_n"],
                 node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
                 node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
         else:
-            elements = filter_elements(
+            elements, hidden_elements = filter_elements(
                 elements,
                 node_condition=lambda x: cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep)
-        
+            memory["hidden_elements"] = hidden_elements
+
+
     # -------- Handle node/edge selection -------- 
     
     # Mark selected nodes and edges
@@ -704,6 +737,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     if searchvalues is None:
         searchvalues = []
+    else:
+        searchvalues = [searchvalues]
 
     selected_elements  = set()
 
@@ -711,6 +746,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     merge_disabled = True
     remove_disabled = True
+
     if len(selected_nodes) > 1:
         merge_disabled = False
     if len(selected_nodes) > 0:
@@ -722,11 +758,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
     for el in elements:
         if el["data"]["id"] in selected_elements:        
             el["selected"] = True
-
-    # -------- Handle reset -------- 
-    if button_id == "bt-reset":
-        memory["removed_nodes"] = []
-        memory["removed_edges"] = []
  
     # -------- Handle grouped layout -------- 
 
@@ -756,15 +787,19 @@ def update_cytoscape_elements(resetbt, removebt, val,
             }
         if selected_edge_data:
             edges_to_remove = {ele_data['id'] for ele_data in selected_edge_data}
+        
+        for n in nodes_to_remove:
+            visualization_app._graphs[val]["nx_object"].remove_node(n)
 
-        memory["removed_nodes"] += [
-            n for n in nodes_to_remove
-            if n not in memory["removed_nodes"]
-        ]
-        memory["removed_edges"] += [
-            n for n in edges_to_remove
-            if n not in memory["removed_edges"]
-        ]
+        if selected_edge_data:
+            for ele_data in selected_edge_data:
+                if (ele_data["source"], ele_data["target"]) in visualization_app._graphs[val]["nx_object"].edges():
+                    visualization_app._graphs[val]["nx_object"].remove_edge(ele_data["source"], ele_data["target"])
+    
+        elements = visualization_app._update_cyto_graph(
+            val, visualization_app._graphs[val]["nx_object"], visualization_app._graphs[val]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
         
     # -------- Handle merge selected nodes -------
        
@@ -798,16 +833,24 @@ def update_cytoscape_elements(resetbt, removebt, val,
             node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
             nodes_to_keep=nodes_to_keep)
 
+        # TODO: merge using currently displayed elements
+
         visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
 
+    # -------- Handle reset graph elements --------
+    if button_id == "reset-elements-button":
+        elements = visualization_app._update_cyto_graph(
+                val, visualization_app._graphs[val]["nx_object_backup"], visualization_app._graphs[val]["top_n"],
+                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+                nodes_to_keep=nodes_to_keep)
+        
     # -------- Handle path search -------
     
     no_path_message = ""
     if button_id == "bt-path" and pathbt is not None:
         memory["removed_nodes"] = []
-        memory["removed_edges"] = []   
-#         visualization_app._removed_nodes = set()
-#         visualization_app._removed_edges = set()
+        memory["removed_edges"] = []
+        memory["hidden_elements"] = []
         
         success = False
         if searchpathfrom and searchpathto:
@@ -865,9 +908,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 visualization_app._current_layout = "cic"
     
     # -------- Handle 'display a spanning tree on top N nodes' -------
-    
-    current_top_n = visualization_app._graphs[val]["top_n"]
-    total_number_of_entities = len(visualization_app._graphs[val]["nx_object"].nodes())
 
     message = (
         "Displaying top {} most frequent entities (out of {})".format(
@@ -898,7 +938,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                     visualization_app._graphs[val]["nx_object"], top_n_slider_value,
                 )
                 
-                elements = filter_elements(
+                elements, hidden_elements = filter_elements(
                     elements,
                     lambda x: x["id"] in top_n_nodes or x["id"] in nodes_to_keep,
                     lambda x: (
@@ -907,6 +947,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                         x["target"] in top_n_nodes or x["target"] in nodes_to_keep
                     )
                 )
+                memory["hidden_elements"] = hidden_elements
                     
         message = "Displaying top {} most frequent entities (out of {})".format(
             top_n_slider_value
@@ -944,20 +985,35 @@ def update_cytoscape_elements(resetbt, removebt, val,
     if nodefreqslider and button_id == "nodefreqslider_content":
         if nodefreqslider[0] != visualization_app._graphs[val]["current_node_value"][0] or\
            nodefreqslider[1] != visualization_app._graphs[val]["current_node_value"][1]:
-            elements = filter_elements(
-                elements,
+            elements, hidden_elements = filter_elements(
+                elements + memory["hidden_elements"],
                 lambda x: node_range_condition(x, nodefreqslider[0], nodefreqslider[1]),
                 lambda x: edge_range_condition(
                     x,
                     visualization_app._graphs[val]["current_edge_value"][0],
                     visualization_app._graphs[val]["current_edge_value"][1]))
             visualization_app._graphs[val]["current_node_value"] = nodefreqslider
+            memory["hidden_elements"] = hidden_elements
+
+            new_marks = {}
+            for k, v in visualization_app._graphs[val]["node_marks"].items():
+                if k == visualization_app._graphs[val]["min_node_weight"] or\
+                   k == visualization_app._graphs[val]["max_node_weight"]:
+                     new_marks[k] = v
+            
+            # add a new value mark
+            if nodefreqslider[0] != visualization_app._graphs[val]["min_node_weight"]:           
+                new_marks[nodefreqslider[0]] = generate_mark(nodefreqslider[0])
+            if nodefreqslider[1] != visualization_app._graphs[val]["max_node_weight"]:           
+                new_marks[nodefreqslider[1]] = generate_mark(nodefreqslider[1])
+                
+            visualization_app._graphs[val]["node_marks"] = new_marks
 
     elif edgefreqslider and button_id == "edgefreqslider_content":
         if edgefreqslider[0] != visualization_app._graphs[val]["current_edge_value"][0] or\
            edgefreqslider[1] != visualization_app._graphs[val]["current_edge_value"][1]:
-            elements = filter_elements(
-                elements,
+            elements, hidden_elements = filter_elements(
+                elements + memory["hidden_elements"],
                 lambda x: node_range_condition(
                     x,
                     visualization_app._graphs[val]["current_node_value"][0],
@@ -965,15 +1021,32 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 lambda x: edge_range_condition(
                     x, edgefreqslider[0], edgefreqslider[1]))
             visualization_app._graphs[val]["current_edge_value"] = edgefreqslider
+
+            memory["hidden_elements"] = hidden_elements
+                   
+            new_marks = {}
+            for k, v in visualization_app._graphs[val]["edge_marks"].items():
+                if k == visualization_app._graphs[val]["min_edge_weight"] or\
+                   k == visualization_app._graphs[val]["max_edge_weight"]:
+                     new_marks[k] = v
+    
+            # add a new value mark
+            if edgefreqslider[0] != visualization_app._graphs[val]["min_edge_weight"]:           
+                new_marks[edgefreqslider[0]] = generate_mark(edgefreqslider[0])
+            if edgefreqslider[1] != visualization_app._graphs[val]["max_edge_weight"]:           
+                new_marks[edgefreqslider[1]] = generate_mark(edgefreqslider[1])
+                
+            visualization_app._graphs[val]["edge_marks"] = new_marks
   
-    # -------- Filter removed elements -------
+    # -------- Filter removed or hidden elements -------
 
     elements = [
         el for el in elements
-        if el["data"]["id"] not in memory["removed_nodes"] and\
-            el["data"]["id"] not in memory["removed_edges"]
+        if el["data"]["id"] not in visualization_app._removed_nodes and\
+            el["data"]["id"] not in visualization_app._removed_edges and\
+            el["data"]["id"] not in memory["hidden_elements"]
     ]
-    
+
     # -------- Automatically switch the layout -------
         
     if button_id in full_graph_events:
@@ -985,16 +1058,22 @@ def update_cytoscape_elements(resetbt, removebt, val,
     else:
         if button_id == "bt-path":
             visualization_app._current_layout = "klay"
+    
+    node_marks = visualization_app._graphs[val]["node_marks"] 
+    edge_marks = visualization_app._graphs[val]["edge_marks"]
 
     return [
         memory,
         visualization_app._current_layout,
-        zoom, elements,
+        zoom, 
+        elements,
         message,
         no_path_message,
         merge_disabled,
         open_merge_modal,
-        remove_disabled
+        remove_disabled,
+        node_marks,
+        edge_marks
     ]
 
 
@@ -1018,8 +1097,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     npmi_message =  None
     
     paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
-    
-    if datanode and statedatanode:
+
+    if datanode:
         definition = ""
         if "definition" in datanode['data']:
             definition = str(datanode["data"]["definition"])
@@ -1054,9 +1133,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         
     if dataedge and statedataedge:
         label = str(dataedge['style']['label'])
-
-        papers = set(paper_lookup[dataedge['data']['source']]).intersection(
-            set(paper_lookup[dataedge['data']['target']]))
+        papers = list(set(paper_lookup[dataedge['data']['source']]).intersection(
+            set(paper_lookup[dataedge['data']['target']])))
         frequency = str(len(papers))
         mention_label= ''' '%s' mentioned with '%s' in %s papers''' % (
             dataedge['data']['source'], dataedge['data']['target'], frequency) 
@@ -1071,7 +1149,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         try:
             papers_in_kg = visualization_app._list_papers_callback(papers)
         except Exception as e:
-#             print(e)
+            print(e)
             error_message = visualization_app._db_error_message
         rows = []
         
@@ -1091,8 +1169,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
                 paper_card = dbc.Card(
                     dbc.CardBody([
                         html.H4(title, className="card-title"),
-                        html.H5(authors, className="card-subtitle"),
-                        html.H6(journal + "( " + publish_time + " )", className="card-subtitle"),
+                        html.H5(authors, className="card-subtitle", style={"margin-bottom": "20pt"}),
+                        html.H6(journal + " (" + publish_time + ")", className="card-subtitle"),
                         html.P(abstract, className="card-text" ),
                         dbc.Button("View the paper", href=url,target="_blank",color="primary"),
                     ]))
@@ -1136,18 +1214,25 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     Output('cytoscape', 'layout'),
     [
         Input('dropdown-layout', 'value'),
+#         Input("reset-zoom", "n_clicks"),
+#         Input("showgraph", "value"),
+#         Input("top-n-button", "n_clicks"),
+#         Input("show-all-button", "n_clicks"),
+#         Input("bt-reset", "n_clicks"),
+#         Input("bt-path", "n_clicks"),
     ],
     [
-        State('showgraph', 'value')
-    ])
+        State("showgraph", "value"),
+    ]
+)
 def update_cytoscape_layout(layout, current_graph):
+#     , b1, b2, b3, b4):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
-#     print("Invoked by: ", button_id, " layout: ", layout)
 
     visualization_app._current_layout = layout
     
@@ -1412,16 +1497,27 @@ def update_nodes_to_keep(search_value, value, elements, showgraph):
         Input("showgraph", "value"),
         Input("cluster_type", "value"),
         Input("addAllClusters", "n_clicks"),
-#         Input("bt-reset", "n_clicks")
+        Input("bt-reset", "n_clicks")
     ])
-def prepopulate_value(val, cluster_type, add_all_clusters):
+def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
     types = get_all_clusters(val, cluster_type)
     
     l = ""
     for l, v in components.cluster_type:
         if v == cluster_type:
             cluster_label = l
-    
+    if button_id == "bt-reset":
+        visualization_app._graphs[val]["top_n"] = None
+#         visualization_app._removed_nodes = set()
+#         visualization_app._removed_edges = set()
+
     legend_title = "Legend (colored by {})".format(cluster_label)
     return [types, legend_title]
     
@@ -1624,7 +1720,7 @@ def update_merge_input(value, searched_entities, selected_nodes):
     if value == 1:
         nodes_to_merge = [
             el["id"] for el in (selected_nodes if selected_nodes else [])
-        ] + (searched_entities if searched_entities else [])
+        ] + ([searched_entities] if searched_entities else [])
         options = [
             {"label": n, "value": n} for n in nodes_to_merge
         ]
@@ -1636,27 +1732,57 @@ def update_merge_input(value, searched_entities, selected_nodes):
         return dbc.Input(
             id="merge-label-input", placeholder="New entity name...", type="text")
 
+
+@visualization_app._app.callback(
+    [
+        Output("collapse-legend", "is_open"),
+        Output("collapse-details", "is_open"),
+        Output("collapse-edit", "is_open"),
+    ],
+    [
+        Input("toggle-legend", "n_clicks"),
+        Input("toggle-details", "n_clicks"),
+        Input("toggle-edit", "n_clicks"),
+        Input('cytoscape', 'tapNode'),
+        Input('cytoscape', 'tapEdge')
+    ],
+    [
+        State("collapse-legend", "is_open"),
+        State("collapse-details", "is_open"),
+        State("collapse-edit", "is_open")
+    ])
+def toggle_bottom_tabs(legend_b, details_b, edit_b, tap_node, tap_edge,
+                       legend_is_open, details_is_open, edit_is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if button_id == "toggle-legend":
+        legend_is_open = not legend_is_open
+        details_is_open = False
+        edit_is_open = False
     
-# @visualization_app._app.callback(
-#     Output("merge-label-search", "options"),
-#     [
-#         Input("merge-label-search", "search_value")
-#     ],
-#     [
-#         State("searchdropdown", "value"),
-#         State("cytoscape", "selectedNodeData")
-#     ],
-# )
-# def update_multi_options(search_value, searched_entities, selected_nodes):
-#     if not search_value:
-#         raise PreventUpdate
+    if button_id == "toggle-details" or button_id == "cytoscape":
+        legend_is_open = False
+        if button_id == "cytoscape":
+            details_is_open = True
+        else:
+            details_is_open = not details_is_open
+        edit_is_open = False
     
-#     nodes_to_merge =   [
-#         el["id"] for el in (selected_nodes if selected_nodes else [])
-#     ] + (searched_entities if searched_entities else [])
-    
-#     res = []
-#     for n in nodes_to_merge:
-#         if (search_value in n) or (n in search_value) or n in (value or []) :
-#             res.append({"label": n, "value": n})
-#     return res
+    if button_id == "toggle-edit":
+        legend_is_open = False
+        details_is_open = False
+        edit_is_open = not edit_is_open
+
+    return [legend_is_open, details_is_open, edit_is_open]
+
+
+@visualization_app._app.callback(
+    Output("loading-output", "children"),
+    [Input("cytoscape", "elements")]
+)
+def input_triggers_spinner(value):
+    time.sleep(1)
+    return []
