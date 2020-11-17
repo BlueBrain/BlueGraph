@@ -4,6 +4,7 @@ import dash_html_components as html
 import dash_daq as daq
 
 from dash_extensions import Download
+import visdcc
 
 import dash_cytoscape as cyto
 from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
@@ -667,18 +668,19 @@ cyto = cyto.Cytoscape(
 )
 
 layout  = html.Div([
-   dcc.Store(id='memory', data={
-       "removed_nodes": [],
-       "removed_edges": [],
-       "added_nodes": [],
-       "added_edges": [],
-       "merged_nodes": {},
-       "hidden_elements": []
-   }),
+    dcc.Store(id='memory', data={
+        "removed_nodes": [],
+        "removed_edges": [],
+        "added_nodes": [],
+        "added_edges": [],
+        "merged_nodes": {},
+        "hidden_elements": []
+    }),
+    visdcc.Run_js(id='javascript'),
     dbc.Row([]),
     dbc.Row([
         dbc.Col([
-            html.Div(style=VISUALIZATION_CONTENT_STYLE, children=[cyto]),
+            html.Div(style=VISUALIZATION_CONTENT_STYLE, children=[cyto], id="cyto-container"),
             html.Div(
                 [
                     dcc.Loading(id="loading", children=[html.Div(id="loading-output")], type="default"),

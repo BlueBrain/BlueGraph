@@ -613,6 +613,7 @@ def setup_paths_tab(nestedpaths):
         Output("remove-button", "disabled"),
         Output('nodefreqslider_content', 'marks'),
         Output('edgefreqslider_content', 'marks'),
+        Output('javascript', 'run'),
     ],
     [
         Input('bt-reset', 'n_clicks'),
@@ -1073,7 +1074,17 @@ def update_cytoscape_elements(resetbt, removebt, val,
         open_merge_modal,
         remove_disabled,
         node_marks,
-        edge_marks
+        edge_marks,
+        """
+var cy = cytoscape({
+    container: document.getElementById('cytoscape'),
+});
+cy.ready(function() {
+  console.log("Nodes:", cy.nodes().jsons());
+  console.log('Edges:', cy.edges().jsons());
+  console.log('Elements:', cy.elements().jsons());
+});
+        """
     ]
 
 
