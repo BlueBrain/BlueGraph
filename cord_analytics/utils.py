@@ -350,8 +350,10 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             f,
             counts[f],
             n_most_frequent=n_most_frequent,
-            dump_path="{}_{}_edge_list.pkl".format(
-                graph_dump_prefix, f),
+            dump_path=(
+                "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
+                if graph_dump_prefix else None
+            ),
             parallelize=True,
             cores=cores)
         
@@ -393,7 +395,8 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             type_dict,
             "entity_type")
         
-        save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
+        if graph_dump_prefix:
+            save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
         
         if graph_dump_prefix:
             save_nodes(
@@ -550,8 +553,8 @@ def link_ontology(linking, type_mapping, curated_table):
     linked_table = linked_table.reset_index()
     linked_table["paper_frequency"] = linked_table["paper"].apply(lambda x: len(x))
     linked_table["paper"] = linked_table["paper"].apply(lambda x: list(x))
-    linked_table["section"] = linked_table["paper"].apply(lambda x: list(x))
-    linked_table["paragraph"] = linked_table["paper"].apply(lambda x: list(x))
+    linked_table["section"] = linked_table["section"].apply(lambda x: list(x))
+    linked_table["paragraph"] = linked_table["paragraph"].apply(lambda x: list(x))
     
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(

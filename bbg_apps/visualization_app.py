@@ -369,8 +369,8 @@ class VisualizationApp(object):
             for t in types
         ]
 
-    def run(self, port):
-        self._app.run_server(mode="jupyterlab", debug=True, width="100%", port=port)
+    def run(self, port, mode="jupyterlab"):
+        self._app.run_server(mode=mode, debug=True, width="100%", port=port)
 
     def set_list_papers_callback(self, func):
         self._list_papers_callback = func
@@ -613,7 +613,7 @@ def setup_paths_tab(nestedpaths):
         Output("remove-button", "disabled"),
         Output('nodefreqslider_content', 'marks'),
         Output('edgefreqslider_content', 'marks'),
-        Output('javascript', 'run'),
+#         Output('javascript', 'run'),
     ],
     [
         Input('bt-reset', 'n_clicks'),
@@ -688,13 +688,14 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "bt-reset",
         "nodestokeep",
         "clustersearch",
+        "reset-elements-button"
     ]
     
     if button_id in full_graph_events:
         elements = visualization_app._graphs[val]["cytoscape"]
     else:
         elements = cytoelements
-    
+
     current_top_n = visualization_app._graphs[val]["top_n"]
     total_number_of_entities = len(visualization_app._graphs[val]["nx_object"].nodes())
         
@@ -710,7 +711,9 @@ def update_cytoscape_elements(resetbt, removebt, val,
     element_preserving = [
         "cytoscape",
         "remove-button",
-        "merge_button",
+        "merge-button",
+        "merge-apply",
+        "merge-close",
         "edgefreqslider_content",
         "nodefreqslider_content"
     ]
@@ -824,7 +827,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                     definition = visualization_app._entity_definitions[n]
                     break
             visualization_app._entity_definitions[new_name] = definition
-        
+
         new_graph = merge_nodes(
             visualization_app._graphs[val]["nx_object"], list(selected_nodes),
             new_name, CORD_ATTRS_RESOLVER, copy=False)
@@ -840,10 +843,14 @@ def update_cytoscape_elements(resetbt, removebt, val,
 
     # -------- Handle reset graph elements --------
     if button_id == "reset-elements-button":
+        visualization_app._graphs[val]["nx_object"] = visualization_app._graphs[
+            val]["nx_object_backup"].copy()
         elements = visualization_app._update_cyto_graph(
-                val, visualization_app._graphs[val]["nx_object_backup"], visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
+            val, visualization_app._graphs[val]["nx_object_backup"], visualization_app._graphs[val]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
+        visualization_app._removed_nodes = set()
+        visualization_app._removed_edges = set()
         
     # -------- Handle path search -------
     
@@ -1075,16 +1082,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
         remove_disabled,
         node_marks,
         edge_marks,
-        """
-var cy = cytoscape({
-    container: document.getElementById('cytoscape'),
-});
-cy.ready(function() {
-  console.log("Nodes:", cy.nodes().jsons());
-  console.log('Edges:', cy.edges().jsons());
-  console.log('Elements:', cy.elements().jsons());
-});
-        """
     ]
 
 
