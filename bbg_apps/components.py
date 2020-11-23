@@ -61,35 +61,16 @@ graph_layout_options = {
 
 global_button_group = dbc.FormGroup([
     dbc.Col([
-        dbc.Button("Reset view", color="primary", className="mr-1", id='bt-reset', style={"margin": "2pt"}),
+        dbc.Button(
+            html.Span([
+                html.I(className="fas fa-redo"), " Reset view"
+            ]),
+            color="secondary", className="mr-1", id='bt-reset', style={"margin": "2pt"}),
         dbc.Tooltip(
             "Reset the display to default values",
             target="bt-reset",
             placement="bottom",
-        ),
-        dbc.DropdownMenu(
-            [
-                dbc.DropdownMenuItem("png", id="png-menu"),
-                dbc.DropdownMenuItem(divider=True),
-                dbc.DropdownMenuItem("jpg", id="jpg-menu"),
-                dbc.DropdownMenuItem(divider=True),
-                dbc.DropdownMenuItem("svg", id="svg-menu"),
-                dbc.DropdownMenuItem(divider=True),
-                dbc.DropdownMenuItem(
-                    "gml", id="gml-menu", href="/download/graph.gml")
-            ] + [Download(id="download-gml")],
-            label="Download",
-            id='dropdown-download',
-            color="primary",
-            group=True,
-            className="mr-1",
-            style={"margin": "2pt"}
-        ),
-        dbc.Tooltip(
-            "Choose a format to download the current graph view",
-            target="dropdown-download",
-            placement="bottom",
-        ),
+        )
     ], width=6, style={"padding-left": "0pt"}),
     dbc.Col([
         dbc.Label(html.Span("Recompute spanning tree", id="recomp-label"), html_for="recompute-spanning-tree"),
@@ -108,35 +89,37 @@ global_button_group = dbc.FormGroup([
     ], width=6)   
 ], row=True, style={"margin-left": "5pt"})
             
-# recompute_tree = dbc.FormGroup([
-#     dbc.Label("Recompute spanning tree", html_for="recompute-spanning-tree"),
-#     dbc.Checklist(
-#         options=[{"value": 1}],
-#         value=[1],
-#         id="recompute-spanning-tree",
-#         switch=True,
-#         style={"margin-left": "5pt"}
-#     ),
-#     dbc.Tooltip(
-#         "If enabled, the minimum spanning tree will be recomputed on the nodes selected in the current graph view (does not apply to filtering)",
-#         target="recompute-spanning-tree",
-#         placement="bottom",
-#     )
-# ], style={"margin-left": "10pt"}, row=True)
 
+reset_button = dbc.InputGroup(
+    [dbc.Button(
+        html.Span([
+            html.I(className="fas fa-redo"),
+            " Reset graph"
+        ]),
+        color="secondary", className="mr-1", id='reset-elements-button', style={"float": "right", "margin": "2pt"}, disabled=False)]
+)
 
 edit_button_group = dbc.InputGroup([
     dbc.Button(
-        "Remove selection",
+        html.Span([
+            html.I(className="fas fa-minus"),
+            " Remove selection"
+        ]),
         color="primary",
         className="mr-1",
         id='remove-button', 
         disabled=True,
         style={"margin": "2pt"}),
     dbc.Button(
-        "Merge selected nodes", color="primary", className="mr-1", id='merge-button', style={"margin": "2pt"}, disabled=True),
+        html.Span([
+            html.I(className="fas fa-compress-alt"),
+            " Merge selected nodes"
+        ]), color="primary", className="mr-1", id='merge-button', style={"margin": "2pt"}, disabled=True),
     dbc.Button(
-        "Reset graph", color="primary", className="mr-1", id='reset-elements-button', style={"margin": "2pt"}, disabled=False),
+        html.Span([
+            html.I(className="fas fa-edit"),
+            " Rename"
+        ]), color="primary", className="mr-1", id='rename-button', style={"margin": "2pt"}, disabled=True),
     dbc.Modal(
         [
             dbc.ModalHeader("Merged label"),
@@ -167,6 +150,25 @@ edit_button_group = dbc.InputGroup([
         ],
         id="merge-modal",
     ),
+    dbc.Modal(
+        [
+            dbc.ModalHeader("Rename the selected node"),
+            dbc.ModalBody([
+                html.P(id="rename-error-message", style={"color": "red"}),
+                dbc.FormGroup(
+                    [
+                        dbc.Col(dbc.Label("New label"), width=3),
+                        dbc.Col(dbc.Input(id="rename-input"), width=9)
+                    ], row=True
+                ),
+            ]),
+            dbc.ModalFooter([
+                dbc.Button("Apply", id="rename-apply", color="primary", className="ml-auto"),
+                dbc.Button("Close", id="rename-close",  color="default", className="ml-auto")
+            ]),
+        ],
+        id="rename-modal",
+    ),
 ])
 
 dropdown_items = dcc.Dropdown(
@@ -189,21 +191,33 @@ graph_type_dropdown = dbc.FormGroup([
 search = dbc.FormGroup(
     [
         dbc.Label(
-            "Search node", html_for="searchdropdown", width=4,
+            "Search node", html_for="searchdropdown", width=3,
             style={"text-align": "right", "padding-right": "0pt"}
         ),
         dbc.Col(dcc.Dropdown(
             id="searchdropdown",
             multi=False
-        ), width=8),
-#         dbc.Col(
-#             dbc.Button(
-#                 "Reset zoom",
-#                 color="primary",
-#                 className="mr-1",
-#                 id='reset-zoom'),
-#             width=3
-#         )
+        ), width=6),
+        dbc.Col([
+            dbc.DropdownMenu(
+                [
+                    dbc.DropdownMenuItem("png", id="png-menu"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem("jpg", id="jpg-menu"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem("svg", id="svg-menu"),
+                    dbc.DropdownMenuItem(divider=True),
+                    dbc.DropdownMenuItem(
+                        "gml", id="gml-menu", href="/download/graph.gml")
+                ] + [Download(id="download-gml")],
+                label="Download",
+                id='dropdown-download',
+                color="primary",
+                group=True,
+                className="mr-1",
+                in_navbar=True
+            ),
+        ], width=3)
     ],
     row=True, style={"margin": "3pt"}
 )
@@ -287,14 +301,6 @@ frequencies_form = dbc.FormGroup(
     ],
     style={"margin-bottom": "0pt"},
     row=True)
-
-# filter_card = dbc.Card(
-#     dbc.CardBody([
-#         html.H6("Filters", className="card-title"),
-#         frequencies_form
-#     ]),
-#     id="filter-card"
-# )
 
 display_message = html.P(
     "Displaying top 100 most frequent entities",
@@ -420,6 +426,33 @@ cluster_selection_card = dbc.Card(
 )
 
 
+nodes_to_hide_selector = dcc.Dropdown(
+    id="nodestohide",
+    multi=True,
+    options=[]
+)
+
+
+masking_card_content = dbc.FormGroup(
+    [
+        dbc.Label(
+            html.Span("Nodes to hide", id="nodestohide-label"), html_for="nodestohide"),
+        dbc.Tooltip(
+            "The selected nodes will be not visible in the current view.",
+            target="nodestohide-label",
+            placement="top",
+        ),
+        nodes_to_hide_selector,
+        dbc.Button(
+            "Clear", color="primary", className="mr-1", id='clear-mask',
+            style={"margin-top": "10pt"}),
+        dbc.Tooltip(
+            "Clear the list of hidden nodes.",
+            target="clear-mask",
+            placement="bottom",
+        )
+    ], style={"margin-top": "10pt"}
+)
 
 nodes_to_keep = dbc.FormGroup(
     [
@@ -595,6 +628,7 @@ search_path = dbc.InputGroup(
     ], style={"float": "right"}
 )
 
+
 form_path_finder = dbc.Form([
     path_from,
     path_to,
@@ -604,6 +638,8 @@ form_path_finder = dbc.Form([
     html.Hr(),
     nested_path,
     html.Hr(),
+#     nodes_to_hide,
+#     html.Hr(),
     search_path])
 
 graph_layout = dbc.FormGroup(
@@ -645,7 +681,7 @@ link_color_picker = dbc.FormGroup(
     [
         dbc.Col(daq.ColorPicker(
           id='input-follower-color',
-          value=dict(hex='#1375B3'),
+          value=dict(rgb=dict(r=190, g=36, b=37, a=0)),
           label="Highlight Color"
         ))    
     ],
@@ -690,20 +726,38 @@ layout  = html.Div([
                 style={"width": "60pt", "height": "60pt", "margin": "20pt"}
             ),
             html.Div(
-                [search],
+                [
+                    search,
+                ],
                 id="search-container",
                 className="fixed-top",
                 style={"width": "30%", "margin-left": "80pt"}
             ),
             html.Div([
                 dbc.Button(
-                    "Legend", id="toggle-legend", color="primary", className="mr-1"
+                    html.Span([
+                        html.I(className="fas fa-binoculars"), " Legend"
+                    ]), id="toggle-legend", color="primary", className="mr-1"
                 ),
                 dbc.Button(
-                    "Details", id="toggle-details", color="primary", className="mr-1"
+                    html.Span([
+                        html.I(className="fas fa-search-plus"), " Details" 
+                    ]), id="toggle-details", color="primary", className="mr-1"
                 ),
                 dbc.Button(
-                    "Edit graph", id="toggle-edit", color="primary", className="mr-1"
+                    html.Span([
+                        html.I(className="fas fa-pen"), " Editing" 
+                    ]), id="toggle-edit", color="primary", className="mr-1"
+                ),
+                dbc.Button(
+                    html.Span([
+                        html.I(className="fas fa-eye-slash"), " Masking" 
+                    ]), id="toggle-mask", color="primary", className="mr-1"
+                ),
+                dbc.Button(
+                    html.Span([
+                        html.I(className="fas fa-angle-down"), " Hide panel" 
+                    ]), id="toggle-hide", color="light", className="mr-1"
                 ),
                 dbc.Collapse(
                     dbc.Card([
@@ -746,19 +800,34 @@ layout  = html.Div([
                                 style={"margin-botton": "0pt"}
                             )
                         ], style={"margin-botton": "0pt"}),
-                        dbc.CardBody([edit_button_group])
+                        dbc.CardBody([edit_button_group, reset_button])
                     ], style={"height": "100%"}), 
                     style={"height": "150pt"},
                     id="collapse-edit"
+                ),
+                dbc.Collapse(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                "Masking",
+                                className="card-title",
+                                style={"margin-botton": "0pt"}
+                            )
+                        ], style={"margin-botton": "0pt"}),
+                        dbc.CardBody([masking_card_content])
+                    ], style={"height": "100%"}), 
+                    style={"height": "175pt"},
+                    id="collapse-mask"
                 )
             ], className="fixed-bottom", style={
                 "width": "45%", 
-#                 "height": "180pt"
             })
         ], width=8),
         dbc.Col(html.Div(children=[
             dbc.Button(
-                "Controls",
+                html.Span([
+                    html.I(className="fas fa-cog"), " Controls"
+                ]),
                 id="collapse-button",
                 color="primary",
                 style={
@@ -767,12 +836,6 @@ layout  = html.Div([
                 }
             ),
             dbc.Collapse(dbc.Tabs(id='tabs', children=[
-#                 dbc.Tab(
-#                     label='Element view', label_style={
-#                         "color": "#00AEF9", "border-radius":"4px",
-#                         "background-color": "white"
-#                     },
-#                     children=[dbc.Card(dbc.CardBody([element_form]))]),
                 dbc.Tab(
                     label='Graph view',
                     label_style={
@@ -780,12 +843,6 @@ layout  = html.Div([
                         "background-color": "white"
                     },
                     children=[dbc.Card(dbc.CardBody([form]))]),
-#                 dbc.Tab(
-#                     label="Filters", label_style={
-#                         "color": "#00AEF9", "border-radius":"4px",
-#                         "background-color": "white"
-#                     },
-#                     children=[dbc.Card(dbc.CardBody([frequencies_form]))]),
                 dbc.Tab(
                     label='Layout', label_style={
                         "color": "#00AEF9", "border-radius":"4px",

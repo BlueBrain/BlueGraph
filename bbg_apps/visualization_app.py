@@ -40,6 +40,20 @@ from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths,
 from kganalytics.utils import (top_n, merge_nodes)
 from cord_analytics.utils import (build_cytoscape_data, generate_paper_lookup, CORD_ATTRS_RESOLVER)
 
+from colorsys import rgb_to_hls, hls_to_rgb
+from bbg_apps.utils import save_run
+
+
+def adjust_color_lightness(r, g, b, factor):
+    h, l, s = rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    l = max(min(l * factor, 1.0), 0.0)
+    r, g, b = hls_to_rgb(h, l, s)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def lighten_color(r, g, b, factor=0.1):
+    return adjust_color_lightness(r, g, b, 1 + factor)
+
 
 def filter_nodes_by_attr(graph_object, key, values):
     result = []
@@ -248,8 +262,12 @@ class VisualizationApp(object):
     def __init__(self):
         self._app =  JupyterDash("allvis")
         self._app.add_bootstrap_links = True
+        
+        FONT_AWESOME = "https://pro.fontawesome.com/releases/v5.10.0/css/all.css"
         self._app.external_stylesheets = [
-            dbc.themes.CYBORG
+            dbc.themes.CYBORG,
+            dbc.themes.BOOTSTRAP,
+            FONT_AWESOME
         ]
 
         self._server = self._app.server
@@ -369,8 +387,8 @@ class VisualizationApp(object):
             for t in types
         ]
 
-    def run(self, port, mode="jupyterlab"):
-        self._app.run_server(mode=mode, debug=True, width="100%", port=port)
+    def run(self, port, mode="jupyterlab", debug=False, inline_exceptions=False):
+        save_run(self, port, mode=mode, debug=debug, inline_exceptions=inline_exceptions)
 
     def set_list_papers_callback(self, func):
         self._list_papers_callback = func
@@ -385,13 +403,19 @@ visualization_app = VisualizationApp()
     
 # ############################## CALLBACKS ####################################
 
-def search(search_value,value, showgraph, diffs=[],
+def search(elements, search_value, value, showgraph, diffs=None,
            cluster_type=None, cluster_search=None, nodes_to_keep=None,
            global_scope=False):
     res = []
 
     if nodes_to_keep is None:
         nodes_to_keep = []
+
+    if diffs is None:
+        diffs = []
+    
+    if value is None:
+        value = []
           
     if global_scope:
         for n in visualization_app._graphs[showgraph]["nx_object"].nodes():
@@ -413,12 +437,9 @@ def search(search_value,value, showgraph, diffs=[],
             if cluster_matches and name_matches:
                 res.append({"label": n, "value": n})
     else:
-        elements = visualization_app._graphs[showgraph]["cytoscape"]
-
         for ele_data in elements:
-            if 'name' in ele_data['data']:
+            if 'source' not in ele_data['data']:
                 el_id = ele_data["data"]["id"]
-                label = ele_data['data']['name']
 
                 cluster_matches = False
                 if cluster_type is not None and cluster_search is not None:
@@ -430,12 +451,15 @@ def search(search_value,value, showgraph, diffs=[],
 
                 # Check if the name matches
                 name_matches = False
-                if (search_value in label) or (label in search_value) or el_id in (value or []) :
+
+                if (search_value in el_id) or (el_id in search_value) or el_id in value:
                     if el_id not in diffs:
                         name_matches = True
 
                 if cluster_matches and name_matches:
-                    res.append({"label": label, "value": el_id})
+                    res.append({"label": el_id, "value": el_id})
+
+
     return res
 
 def generate_mark(val):
@@ -610,7 +634,12 @@ def setup_paths_tab(nestedpaths):
         Output("noPathMessage", "children"),
         Output("merge-button", "disabled"),
         Output("merge-modal", "is_open"),
+        Output("rename-modal", "is_open"),
         Output("remove-button", "disabled"),
+        Output("rename-button", "disabled"),
+        Output("rename-input", "value"),
+        Output("rename-input", "invalid"),
+        Output("rename-error-message", "children"),
         Output('nodefreqslider_content', 'marks'),
         Output('edgefreqslider_content', 'marks'),
 #         Output('javascript', 'run'),
@@ -628,6 +657,7 @@ def setup_paths_tab(nestedpaths):
         Input('top-n-button', "n_clicks"),
         Input('show-all-button', "n_clicks"),
         Input("clustersearch", "value"),
+        Input("nodestohide", "value"),
         Input("nodestokeep", "value"),
         Input('cytoscape', 'selectedNodeData'),
         Input('cytoscape', 'selectedEdgeData'),
@@ -636,6 +666,9 @@ def setup_paths_tab(nestedpaths):
         Input("merge-close", "n_clicks"),
         Input("merge-apply", "n_clicks"),
         Input('reset-elements-button', "n_clicks"),
+        Input("rename-button", "n_clicks"),
+        Input("rename-close", "n_clicks"),
+        Input("rename-apply", "n_clicks"),
 #         Input('reset-zoom', "n_clicks"),
     ],
     [
@@ -653,9 +686,11 @@ def setup_paths_tab(nestedpaths):
         State('top-n-slider', 'value'),
         State('dropdown-layout', 'value'),
         State("merge-modal", "is_open"),
+        State("rename-modal", "is_open"),
         State("memory", "data"),
         State("merge-label-input", "value"),
         State("recompute-spanning-tree", "value"),
+        State("rename-input", "value")
 #         State("recompute-spanning-tree-cluster", "value")
     ]
 )
@@ -663,14 +698,16 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               nodefreqslider, edgefreqslider, 
                               searchvalues, pathbt, 
                               # grouped_layout, 
-                              cluster_type, top_n_buttton, show_all_button, clustersearch,
+                              cluster_type, top_n_buttton, show_all_button, clustersearch, nodes_to_hide,
                               nodes_to_keep, selected_node_data, selected_edge_data, tappednode,
-                              merge_button, close_merge_button, apply_merge_button, reset_graph_button,
+                              merge_button, close_merge_button, apply_merge_button, reset_graph_button, rename_button,
+                              rename_apply_button, rename_close_button,
                               # states
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                               nestedpaths, pathdepth, top_n_slider_value, dropdown_layout,
-                              open_merge_modal, memory, merge_label_value, recompute_spanning_tree):
+                              open_merge_modal, open_rename_modal, memory, merge_label_value, recompute_spanning_tree,
+                              selected_rename_input):
     zoom = 1
     
     # Get the event that trigerred the callback
@@ -688,7 +725,15 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "bt-reset",
         "nodestokeep",
         "clustersearch",
-        "reset-elements-button"
+        "reset-elements-button",
+        # --------------
+        "remove-button",
+        "merge-button",
+        "merge-apply",
+        "merge-close",
+        "rename-button",
+        "rename-apply",
+        "rename-close",
     ]
     
     if button_id in full_graph_events:
@@ -702,6 +747,9 @@ def update_cytoscape_elements(resetbt, removebt, val,
     # -------- Filter elements by selected clusters to display -------- 
     if nodes_to_keep is None:
         nodes_to_keep = []
+        
+    if nodes_to_hide is None:
+        nodes_to_hide = []
 
     nodes_with_cluster = filter_nodes_by_attr(
         visualization_app._graphs[val]["nx_object"], cluster_type, clustersearch)
@@ -710,12 +758,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
          
     element_preserving = [
         "cytoscape",
-        "remove-button",
-        "merge-button",
-        "merge-apply",
-        "merge-close",
         "edgefreqslider_content",
-        "nodefreqslider_content"
+        "nodefreqslider_content",
+        "searchdropdown",
+        "nodestohide"
     ]
     
     if clustersearch is not None and cluster_type is not None and button_id != "bt-reset" and button_id not in element_preserving:
@@ -728,7 +774,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
         else:
             elements, hidden_elements = filter_elements(
                 elements,
-                node_condition=lambda x: cluster_type in x and x[cluster_type] in clustersearch or x["id"] in nodes_to_keep)
+                node_condition=lambda x: (cluster_type in x and x[cluster_type] in clustersearch and x["id"] not in nodes_to_hide) or x["id"] in nodes_to_keep 
+            )
             memory["hidden_elements"] = hidden_elements
 
 
@@ -744,24 +791,33 @@ def update_cytoscape_elements(resetbt, removebt, val,
     else:
         searchvalues = [searchvalues]
 
-    selected_elements  = set()
+#     selected_elements  = set()
 
-    selected_nodes = set(searchvalues + selected_nodes)
-    
+#     selected_nodes = set(searchvalues + selected_nodes)
     merge_disabled = True
     remove_disabled = True
+    rename_disabled = True
+    rename_input_value = ""
+    rename_invalid = False
+    rename_error_message = None
 
     if len(selected_nodes) > 1:
         merge_disabled = False
     if len(selected_nodes) > 0:
         remove_disabled = False
+    if len(selected_nodes) == 1:
+        rename_disabled = False
+        if not selected_rename_input:
+            rename_input_value = selected_nodes[0]
+        else:
+            rename_input_value = selected_rename_input
     
-    for searchvalue in selected_nodes:
-        selected_elements.add(searchvalue)
+#     for searchvalue in selected_nodes:
+#         selected_elements.add(searchvalue)
  
-    for el in elements:
-        if el["data"]["id"] in selected_elements:        
-            el["selected"] = True
+#     for el in elements:
+#         if el["data"]["id"] in selected_elements:        
+#             el["selected"] = True
  
     # -------- Handle grouped layout -------- 
 
@@ -837,10 +893,37 @@ def update_cytoscape_elements(resetbt, removebt, val,
             node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
             nodes_to_keep=nodes_to_keep)
 
-        # TODO: merge using currently displayed elements
-
         visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
 
+    if button_id == "rename-apply" and rename_input_value:     
+        # Check if the rename input is valid
+        if rename_input_value != selected_nodes[0]:
+            if rename_input_value in visualization_app._graphs[val]["nx_object"].nodes():
+                rename_invalid = True
+                rename_error_message = "Node with the label '{}' already exists".format(
+                    rename_input_value)
+            else:
+                # Rename node in the graph
+                new_graph = nx.relabel_nodes(
+                    visualization_app._graphs[val]["nx_object"],
+                    {selected_nodes[0]: rename_input_value})
+                
+                visualization_app._graphs[val]["nx_object"] = new_graph
+                elements = visualization_app._update_cyto_graph(
+                    val, new_graph, visualization_app._graphs[val]["top_n"],
+                    node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+                    nodes_to_keep=nodes_to_keep)
+
+                visualization_app._graphs[val]["paper_lookup"][rename_input_value] = visualization_app._graphs[
+                    val]["paper_lookup"][selected_nodes[0]]
+                visualization_app._entity_definitions[rename_input_value] =\
+                    visualization_app._entity_definitions[selected_nodes[0]]            
+
+    # Open/close the rename dialog
+    if button_id == "rename-button" or button_id == "rename-close" or\
+       (button_id == "rename-apply" and not rename_invalid):
+        open_rename_modal = not open_rename_modal
+                        
     # -------- Handle reset graph elements --------
     if button_id == "reset-elements-button":
         visualization_app._graphs[val]["nx_object"] = visualization_app._graphs[
@@ -849,8 +932,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
             val, visualization_app._graphs[val]["nx_object_backup"], visualization_app._graphs[val]["top_n"],
             node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
             nodes_to_keep=nodes_to_keep)
-        visualization_app._removed_nodes = set()
-        visualization_app._removed_edges = set()
+#         visualization_app._removed_nodes = set()
+#         visualization_app._removed_edges = set()
         
     # -------- Handle path search -------
     
@@ -948,11 +1031,11 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 
                 elements, hidden_elements = filter_elements(
                     elements,
-                    lambda x: x["id"] in top_n_nodes or x["id"] in nodes_to_keep,
+                    lambda x: (x["id"] in top_n_nodes and x["id"] not in nodes_to_hide) or x["id"] in nodes_to_keep, 
                     lambda x: (
-                        x["source"] in top_n_nodes or x["source"] in nodes_to_keep
+                        (x["source"] in top_n_nodes and x["source"] not in nodes_to_hide) or x["source"] in nodes_to_keep
                      ) and (
-                        x["target"] in top_n_nodes or x["target"] in nodes_to_keep
+                        (x["target"] in top_n_nodes and x["target"] not in nodes_to_hide) or x["target"] in nodes_to_keep
                     )
                 )
                 memory["hidden_elements"] = hidden_elements
@@ -972,11 +1055,23 @@ def update_cytoscape_elements(resetbt, removebt, val,
 
         message = "Displaying all {} entities".format(total_number_of_entities) 
     
+    # -------- Handle node masking ---------
+    
+    if button_id == "nodestohide":
+        elements, hidden_elements = filter_elements(
+            elements + memory["hidden_elements"],
+            lambda x: x["id"] not in nodes_to_hide,
+            lambda x: x["source"] not in nodes_to_hide and x["target"] not in nodes_to_hide
+        )
+        memory["hidden_elements"] = hidden_elements
+    
     # -------- Handle node/edge weight sliders -------
     
     def node_range_condition(el, start, end):
         if el["id"] in nodes_to_keep:
             return True
+        if el["id"] in nodes_to_hide:
+            return False
         if node_freq_type in el:
             if el[node_freq_type] >= start and\
                el[node_freq_type] <= end:
@@ -1079,7 +1174,12 @@ def update_cytoscape_elements(resetbt, removebt, val,
         no_path_message,
         merge_disabled,
         open_merge_modal,
+        open_rename_modal,
         remove_disabled,
+        rename_disabled,
+        rename_input_value,
+        rename_invalid,
+        rename_error_message,
         node_marks,
         edge_marks,
     ]
@@ -1266,12 +1366,16 @@ def update_cytoscape_layout(layout, current_graph):
         Input('cluster_type', 'value'),
     ],
     [
-        State('cytoscape', 'stylesheet')
+        State('cytoscape', 'stylesheet'),
+        State("searchdropdown", "value"),
+        State('cytoscape', 'selectedNodeData'),
+        State('cytoscape', 'selectedEdgeData'),
     ])
 def generate_stylesheet(elements,
                         follower_color, node_shape,
                         showgraph, node_freq_type, edge_freq_type,
-                        cluster_type, original_stylesheet):
+                        cluster_type, original_stylesheet, searchvalue,
+                        selected_nodes, selected_edges):
     
     ctx = dash.callback_context
 
@@ -1285,27 +1389,6 @@ def generate_stylesheet(elements,
         for s in CYTOSCAPE_STYLE_STYLESHEET
         if "selected" not in s["selector"]
     ]
-
-    # Update selection styles to correspond to the follower
-    selection_styles = [
-        {
-            "selector": "node:selected",
-            "style": {
-                "border-width": "5px",
-                "border-color": follower_color['hex'],
-                "opacity": 0.8,
-                "text-opacity": 1,
-                'z-index': 9999
-            }
-        }, {
-            "selector": "edge:selected",
-            "style": {
-                "line-color": follower_color['hex'],
-                "opacity": 0.8,
-            }
-        }
-    ]
-    stylesheet += selection_styles
         
     if node_freq_type:
         stylesheet = [
@@ -1347,74 +1430,84 @@ def generate_stylesheet(elements,
                     "opacity": 1
                 }
             })
-        stylesheet.append({
-            "selector": '[type = "cluster"]',
-            "style": {
-                "opacity": 0.2,
-            },
-        })
+#         stylesheet.append({
+#             "selector": '[type = "cluster"]',
+#             "style": {
+#                 "opacity": 0.2,
+#             },
+#         })
         
     if edge_freq_type:
         stylesheet = [style for style in stylesheet if not (style["selector"] == 'edge' and 'width' in style["style"])]
         stylesheet.append({
             "selector": 'edge',
-            'style': {'width':'data(' + edge_freq_type + '_size)'}
+            'style': {
+                'width':'data(' + edge_freq_type + '_size)'
+            }
         })
 
-#     for focus_node in focus_nodes:
-#         if "edgesData" not in focus_node:
-#             print(focus_node)
-#         node_style = [
-#             {
-#                 "selector": "node:selected",
-#     #                 "selector": 'node[id = "{}"]'.format(focus_node['data']['id'] if "data" in focus_node else focus_node['id']),
-#                 "style": {
-#                     "border-width": "5px",
-#                     "border-color": follower_color['hex'],
-#                     "text-opacity": 1,
-#                     'z-index': 9999
-#                 }
-#             }
-#         ]
-#         for style in node_style:
-#             stylesheet.append(style)
-        
-        
-#         if "edgesData" in focus_node:
-#             for edge in focus_node['edgesData']:
-#                 if edge['source'] == focus_node['data']['id'] if "data" in focus_node else focus_node['id']:
-#                     stylesheet.append({
-#                         "selector": 'node[id = "{}"]'.format(edge['target']),
-#                         "style": {
-#                             'opacity': 0.9
-#                         }
-#                     })
-#                     stylesheet.append({
-#                         "selector": 'edge[id= "{}"]'.format(edge['id']),
-#                         "style": {
-#                             "mid-target-arrow-color": follower_color['hex'],
-#                             "line-color": follower_color['hex'],
-#                             'opacity': 0.9,
-#                             'z-index': 5000
-#                         }
-#                     })
-#                 if edge['target'] == focus_node['data']['id'] if "data" in focus_node else focus_node['id']:
-#                     stylesheet.append({
-#                         "selector": 'node[id = "{}"]'.format(edge['source']),
-#                         "style": {
-#                             'opacity': 0.9,
-#                             'z-index': 9999
-#                         }
-#                     })
-#                     stylesheet.append({
-#                         "selector": 'edge[id= "{}"]'.format(edge['id']),
-#                         "style": {
-#                             "mid-target-arrow-color": follower_color['hex'],
-#                             "line-color": follower_color['hex'],
-#                             'opacity': 1,
-#                             'z-index': 5000
-#                         }
-#                     })
+    highlight_color = "rgba({},{},{},1)".format(
+        follower_color['rgb']["r"], follower_color['rgb']["g"], follower_color['rgb']["b"])    
+
+    node_style = {
+        "selector": "node:selected",
+        "style": {
+            "border-width": "5px",
+            "border-color": highlight_color,
+            "text-opacity": 1,
+            'z-index': 9999
+        }
+    }
+
+    stylesheet.append(node_style)
+    
+    if searchvalue:
+        if selected_nodes is None or searchvalue not in [n["id"] for n in selected_nodes]:
+            r, g, b = adjust_color_lightness(
+                follower_color['rgb']["r"], follower_color['rgb']["g"], follower_color['rgb']["b"], 1.5)
+            stylesheet.append({
+                "selector": "node[id='{}']".format(searchvalue),
+                "style": {
+                    "border-width": "7px",
+                    "border-color": "rgb({},{},{})".format(r, g, b),
+                    'z-index': 9999
+                }
+            })
+    
+    # Highlight selected edges
+    if selected_edges:
+        for edge in selected_edges:
+            stylesheet += [{
+                "selector": 'edge[id= "{}"]'.format(edge['id']),
+                "style": {
+                    "mid-target-arrow-color": highlight_color,
+                    "line-color": highlight_color,
+                    'opacity': 1,
+                    'z-index': 5000
+                }   
+            }]
+
+    # Highlight incident edges
+    focused_nodes = (
+        [n["id"] for n in selected_nodes] if selected_nodes else []
+    ) + ([searchvalue] if searchvalue else [])
+
+    selected_edge_ids = [
+        e["id"] for e in selected_edges
+    ] if selected_edges else []
+    
+    for el in elements:
+        if "source" in el["data"] and el["data"]["id"] not in selected_edge_ids:
+            if el['data']['source'] in focused_nodes or el['data']['target'] in focused_nodes:
+                stylesheet.append({
+                    "selector": 'edge[id= "{}"]'.format(el['data']["id"]),
+                    "style": {
+                        "mid-target-arrow-color": highlight_color,
+                        "line-color": highlight_color,
+                        'opacity': 0.6,
+                        'z-index': 5000
+                    }
+                })
 
     return stylesheet
 
@@ -1443,6 +1536,50 @@ def toggle_modal(n1, n2, is_open):
     return is_open
 
 
+
+
+@visualization_app._app.callback(
+    Output("nodestohide", "options"),
+    [
+        Input("showgraph", "value"),
+        Input("nodestohide", "search_value")
+    ],
+    [
+        State("nodestohide", "value"),
+        State('cytoscape', 'elements'),
+        State('cluster_type', "value"),
+        State("clustersearch", "value"),
+        State("nodestokeep", "value"),
+        State("memory", "data")
+    ],
+)
+def update_hide_options(showgraph, search_value, value, elements,
+                        cluster_type, cluster_search, nodes_to_keep, data):
+    if not search_value:
+        raise PreventUpdate
+    return search(
+        elements + data["hidden_elements"], search_value, value, showgraph, nodes_to_keep)
+
+
+@visualization_app._app.callback(
+    Output("nodestohide", "value"),
+    [
+        Input("showgraph", "value"),
+        Input("clear-mask", "n_clicks"),
+        Input("bt-reset", "n_clicks")
+    ])
+def clear_nodes_to_hide(val, clear_mask, bt_reset):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    return []
+    
+
+
 @visualization_app._app.callback(
     Output("searchdropdown", "options"),
     [Input("searchdropdown", "search_value")],
@@ -1460,24 +1597,7 @@ def update_multi_options(search_value, value, elements, showgraph,
     if not search_value:
         raise PreventUpdate
     return search(
-        search_value, value, showgraph, [], cluster_type, cluster_search, nodes_to_keep)
-
-
-# @visualization_app._app.callback(
-#     Output("searchdropdown", "value"),
-#     [
-#         Input("memory", "data")
-#     ],
-#     [State("searchdropdown", "value")]
-# )
-# def clear_search_value(memory, search_value):
-#     values_to_remove = []
-    
-#     for v in search_value:
-#         if v in memory["merged_nodes"] or v in memory["removed_nodes"]:
-#             values_to_remove.append(v)
-    
-#     return [v for v in search_value if v not in values_to_remove]
+        elements, search_value, value, showgraph, [], cluster_type, cluster_search, nodes_to_keep)
 
 
 @visualization_app._app.callback(
@@ -1493,7 +1613,7 @@ def update_multi_options(search_value, value, elements, showgraph,
 def update_nodes_to_keep(search_value, value, elements, showgraph):
     if not search_value:
         raise PreventUpdate
-    return search(search_value, value, showgraph, [])
+    return search(elements, search_value, value, showgraph, [])
 
 
 @visualization_app._app.callback(
@@ -1557,6 +1677,7 @@ def update_cluster_search(current_graph, cluster_type, search_value, value):
     Output("searchpathto", "options"),
     [Input("searchpathto", "search_value")],
     [
+        State('cytoscape', "elements"),
         State("searchpathto", "value"),
         State('searchpathfrom', 'value'),
         State('showgraph', 'value'),
@@ -1565,20 +1686,21 @@ def update_cluster_search(current_graph, cluster_type, search_value, value):
         State("nodestokeep", "value")
     ]
 )
-def searchpathto(search_value, value, node_from, showgraph,
+def searchpathto(search_value, elements, value, node_from, showgraph,
                  cluster_type, cluster_search, nodes_to_keep):
     if not search_value:
         raise PreventUpdate    
 
     return search(
-        search_value, value, showgraph, [node_from],
+        elements, search_value, value, showgraph, [node_from],
         cluster_type, cluster_search, nodes_to_keep, global_scope=True)
 
 
 @visualization_app._app.callback(
     Output("searchnodetotraverse", "options"),
     [Input("searchnodetotraverse", "search_value")],
-    [
+    [   
+        State('cytoscape', "elements"),
         State("searchnodetotraverse", "value"),
         State('searchpathfrom', 'value'),
         State('searchpathto', 'value'),
@@ -1588,12 +1710,12 @@ def searchpathto(search_value, value, node_from, showgraph,
         State("nodestokeep", "value")
     ]
 )
-def searchpathtraverse(search_value, value, node_from, to, showgraph,
+def searchpathtraverse(search_value, elements, value, node_from, to, showgraph,
                        cluster_type, cluster_search, nodes_to_keep):
     if not search_value:
         raise PreventUpdate
     return search(
-        search_value, value, showgraph, [node_from, to],
+        elements, search_value, value, showgraph, [node_from, to],
         cluster_type, cluster_search, nodes_to_keep, global_scope=True)
 
 
@@ -1601,6 +1723,7 @@ def searchpathtraverse(search_value, value, node_from, to, showgraph,
     Output("searchpathfrom", "options"),
     [Input("searchpathfrom", "search_value")],
     [
+        State('cytoscape', "elements"),
         State("searchpathfrom", "value"),
         State('showgraph', 'value'),
         State('cluster_type', "value"),
@@ -1608,12 +1731,12 @@ def searchpathtraverse(search_value, value, node_from, to, showgraph,
         State("nodestokeep", "value")
     ],
 )
-def searchpathfrom(search_value, value, showgraph,
+def searchpathfrom(search_value, elements, value, showgraph,
                    cluster_type, cluster_search, nodes_to_keep):
     if not search_value:
         raise PreventUpdate
     return search(
-        search_value, value, showgraph, [],
+        elements, search_value, value, showgraph, [],
         cluster_type, cluster_search, nodes_to_keep, global_scope=True)
 
 
@@ -1715,10 +1838,10 @@ def generate_legend(cluster_type, cluster_search, elements):
     Output('merge-input', 'children'),
     [
         Input('merge-options', 'value'),
-        Input("searchdropdown", "value"),
+#         Input("searchdropdown", "value"),
         Input("cytoscape", "selectedNodeData")
     ])
-def update_merge_input(value, searched_entities, selected_nodes):
+def update_merge_input(value, selected_nodes):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
@@ -1728,7 +1851,7 @@ def update_merge_input(value, searched_entities, selected_nodes):
     if value == 1:
         nodes_to_merge = [
             el["id"] for el in (selected_nodes if selected_nodes else [])
-        ] + ([searched_entities] if searched_entities else [])
+        ]
         options = [
             {"label": n, "value": n} for n in nodes_to_merge
         ]
@@ -1746,45 +1869,63 @@ def update_merge_input(value, searched_entities, selected_nodes):
         Output("collapse-legend", "is_open"),
         Output("collapse-details", "is_open"),
         Output("collapse-edit", "is_open"),
+        Output("collapse-mask", "is_open"),
     ],
     [
         Input("toggle-legend", "n_clicks"),
         Input("toggle-details", "n_clicks"),
         Input("toggle-edit", "n_clicks"),
-        Input('cytoscape', 'tapNode'),
-        Input('cytoscape', 'tapEdge')
+        Input("toggle-mask", "n_clicks"),
+        Input("toggle-hide", "n_clicks"),
+#         Input('cytoscape', 'tapNode'),
+#         Input('cytoscape', 'tapEdge')
     ],
     [
         State("collapse-legend", "is_open"),
         State("collapse-details", "is_open"),
-        State("collapse-edit", "is_open")
+        State("collapse-edit", "is_open"),
+        State("collapse-mask", "is_open")
     ])
-def toggle_bottom_tabs(legend_b, details_b, edit_b, tap_node, tap_edge,
-                       legend_is_open, details_is_open, edit_is_open):
+def toggle_bottom_tabs(legend_b, details_b, edit_b, mask_b, hide_b, 
+#                        tap_node, tap_edge,
+                       legend_is_open, details_is_open, edit_is_open, mask_is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+       
+    if button_id == "toggle-hide":
+        legend_is_open = False
+        details_is_open = False
+        edit_is_open = False
+        mask_is_open = False
+
     if button_id == "toggle-legend":
         legend_is_open = not legend_is_open
         details_is_open = False
         edit_is_open = False
+        mask_is_open = False
     
     if button_id == "toggle-details" or button_id == "cytoscape":
         legend_is_open = False
-        if button_id == "cytoscape":
-            details_is_open = True
-        else:
-            details_is_open = not details_is_open
+        details_is_open = not details_is_open
         edit_is_open = False
+        mask_is_open = False
     
     if button_id == "toggle-edit":
         legend_is_open = False
         details_is_open = False
         edit_is_open = not edit_is_open
+        mask_is_open = False
 
-    return [legend_is_open, details_is_open, edit_is_open]
+    if button_id == "toggle-mask":
+        legend_is_open = False
+        details_is_open = False
+        edit_is_open = False
+        mask_is_open = not mask_is_open
+
+    return [legend_is_open, details_is_open, edit_is_open, mask_is_open]
 
 
 @visualization_app._app.callback(
