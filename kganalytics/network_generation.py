@@ -104,7 +104,7 @@ def mutual_information(occurrence_data, factor, total_instances,
     co_freq = cofrequence(occurrence_data, factor, s, t)
     s_freq = len(occurrence_data.loc[s][factor])
     t_freq = len(occurrence_data.loc[t][factor])
-    if co_freq > 0:
+    if co_freq > 0 and s_freq > 0 and t_freq > 0:
         if mitype is not None:
             if mitype == "expected":
                 mi = math.log2(
@@ -112,8 +112,11 @@ def mutual_information(occurrence_data, factor, total_instances,
                 ) * (co_freq / total_instances)
             elif mitype == "normalized":
                 alpha = - math.log2(co_freq / total_instances)
-                mi = math.log2(
-                    (total_instances * co_freq) / (s_freq * t_freq)) / alpha
+                if alpha != 0 and s_freq != 0 and t_freq != 0:
+                    mi = math.log2(
+                        (total_instances * co_freq) / (s_freq * t_freq)) / alpha
+                else:
+                    mi = 0
             elif mitype == "pmi2":
                 mi = math.log2((co_freq ** 2) / (s_freq * t_freq))
             elif mitype == "pmi3":
@@ -202,26 +205,29 @@ def generate_comention_network(occurrence_data,
     print("Generated {} edges                    ".format(
         len(all_edges)))
 
-    edge_list = pd.DataFrame(all_edges)
-    edge_list["distance_ppmi"] = 1 / edge_list["ppmi"]
-    edge_list["distance_npmi"] = 1 / edge_list["npmi"]
+    if len(all_edges) > 0:
+        edge_list = pd.DataFrame(all_edges)
+        edge_list["distance_ppmi"] = 1 / edge_list["ppmi"]
+        edge_list["distance_npmi"] = 1 / edge_list["npmi"]
 
-    print("Created a co-occurrence graph:")
-    print("\tnumber of nodes: ", len(nodes))
-    print("\tnumber of edges: ", edge_list.shape[0])
-    print("Saving the edges...")
-    if dump_path:
-        with open(dump_path, "wb") as f:
-            pickle.dump(edge_list, f)
+        print("Created a co-occurrence graph:")
+        print("\tnumber of nodes: ", len(nodes))
+        print("\tnumber of edges: ", edge_list.shape[0])
+        print("Saving the edges...")
+        if dump_path:
+            with open(dump_path, "wb") as f:
+                pickle.dump(edge_list, f)
 
-    print("Creating a graph object...")
-    graph = nx.from_pandas_edgelist(
-        edge_list, edge_attr=[
-            "frequency",
-            "ppmi",
-            "npmi",
-            "distance_ppmi",
-            "distance_npmi"
-        ])
+        print("Creating a graph object...")
+        graph = nx.from_pandas_edgelist(
+            edge_list, edge_attr=[
+                "frequency",
+                "ppmi",
+                "npmi",
+                "distance_ppmi",
+                "distance_npmi"
+            ])
 
-    return graph
+        return graph
+    else:
+        return None

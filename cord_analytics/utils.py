@@ -329,7 +329,8 @@ def merge_with_ontology_linking(occurence_data,
     return occurrence_data_linked
     
 def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occurrences=1,
-                                 n_most_frequent=None, factors=None, cores=None, graph_dump_prefix=None):
+                                n_most_frequent=None, keep=None, factors=None, cores=None, graph_dump_prefix=None,
+                                communities=True, remove_zero_mi=False):
     # Filter entities that occur only once (only in one paragraph, usually represent noisy terms)
     occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(lambda x: len(x) >= min_occurrences)]
     occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(lambda x: len(x))
@@ -345,7 +346,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
         
         if cores is None:
             cores = 8
-        graphs[f] = generate_comention_network(
+        graph = generate_comention_network(
             occurrence_data,
             f,
             counts[f],
@@ -354,17 +355,24 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
                 "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
                 if graph_dump_prefix else None
             ),
+            keep=keep,
             parallelize=True,
             cores=cores)
         
+        if graph is not None:
+            graphs[f] = graph
+        else:
+            return None, None
+        print()
         # Remove edges with zero mutual information
-        edges_to_remove = [
-            e
-            for e in graphs[f].edges()
-            if graphs[f].edges[e]["ppmi"] == 0
-        ]
-        for s, t in edges_to_remove:
-            graphs[f].remove_edge(s, t)
+        if remove_zero_mi:
+            edges_to_remove = [
+                e
+                for e in graphs[f].edges()
+                if graphs[f].edges[e]["ppmi"] == 0
+            ]
+            for s, t in edges_to_remove:
+                graphs[f].remove_edge(s, t)
 
         # Set entity types
         if type_data is not None:
@@ -384,7 +392,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             graphs[f],
             degree_weights=["frequency"],
             betweenness_weights=[],
-            community_weights=["frequency", "npmi"],
+            community_weights=["frequency", "npmi"] if communities else [],
             print_summary=True)
     
         # Compute a spanning tree
