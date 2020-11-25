@@ -88,22 +88,34 @@ global_button_group = dbc.FormGroup([
         )
     ], width=6)   
 ], row=True, style={"margin-left": "5pt"})
-            
+        
+    
 
-reset_button = dbc.InputGroup(
-    [dbc.Button(
-        html.Span([
-            html.I(className="fas fa-redo"),
-            " Reset graph"
-        ]),
-        color="secondary", className="mr-1", id='reset-elements-button', style={"float": "right", "margin": "2pt"}, disabled=False)]
+editing_mode_radio = dbc.FormGroup(
+    [
+        dbc.Label("Choose the editing mode"),
+        dbc.RadioItems(
+            options=[
+                {
+                    "label": "Editing (edit the graph object)",
+                    "value": 1
+                },
+                {
+                    "label": "Masking (edit the current view)",
+                     "value": 2
+                },
+            ],
+            value=1,
+            id="edit-mode",
+        ),
+    ]
 )
 
 edit_button_group = dbc.InputGroup([
     dbc.Button(
         html.Span([
             html.I(className="fas fa-minus"),
-            " Remove selection"
+            " Remove"
         ]),
         color="primary",
         className="mr-1",
@@ -113,13 +125,20 @@ edit_button_group = dbc.InputGroup([
     dbc.Button(
         html.Span([
             html.I(className="fas fa-compress-alt"),
-            " Merge selected nodes"
+            " Merge"
         ]), color="primary", className="mr-1", id='merge-button', style={"margin": "2pt"}, disabled=True),
     dbc.Button(
         html.Span([
             html.I(className="fas fa-edit"),
             " Rename"
         ]), color="primary", className="mr-1", id='rename-button', style={"margin": "2pt"}, disabled=True),
+    dbc.Button(
+        html.Span([
+            html.I(className="fas fa-redo"),
+            " Reset"
+        ]),
+        color="secondary", className="mr-1", id='reset-elements-button', style={"float": "right", "margin": "2pt"},
+        disabled=False),
     dbc.Modal(
         [
             dbc.ModalHeader("Merged label"),
@@ -432,28 +451,6 @@ nodes_to_hide_selector = dcc.Dropdown(
     options=[]
 )
 
-
-masking_card_content = dbc.FormGroup(
-    [
-        dbc.Label(
-            html.Span("Nodes to hide", id="nodestohide-label"), html_for="nodestohide"),
-        dbc.Tooltip(
-            "The selected nodes will be not visible in the current view.",
-            target="nodestohide-label",
-            placement="top",
-        ),
-        nodes_to_hide_selector,
-        dbc.Button(
-            "Clear", color="primary", className="mr-1", id='clear-mask',
-            style={"margin-top": "10pt"}),
-        dbc.Tooltip(
-            "Clear the list of hidden nodes.",
-            target="clear-mask",
-            placement="bottom",
-        )
-    ], style={"margin-top": "10pt"}
-)
-
 nodes_to_keep = dbc.FormGroup(
     [
         dbc.Label(
@@ -618,7 +615,11 @@ nested_path = dbc.FormGroup([
 search_path = dbc.InputGroup(
     [
         html.P("", id="noPathMessage", style={"color": "red", "margin-right": "10pt"}),
-        dbc.Button("Find Paths", color="primary",
+        dbc.Button(
+            html.Span([
+                html.I(className="fas fa-route"),
+                " Find Paths"
+            ]), color="primary",
                    className="mr-1", id='bt-path', style={"float": "right"}),
         dbc.Tooltip(
             "Find paths between selected entities",
@@ -709,8 +710,14 @@ layout  = html.Div([
         "removed_edges": [],
         "added_nodes": [],
         "added_edges": [],
-        "merged_nodes": {},
-        "hidden_elements": []
+        "filtered_elements": [],
+        "removed_elements": {},
+        "renamed_elements": {},
+        "merging_backup": {
+            "added_elements": [],
+            "removed_elements": {}
+        },
+        "paper_backup": {}
     }),
     visdcc.Run_js(id='javascript'),
     dbc.Row([]),
@@ -751,11 +758,6 @@ layout  = html.Div([
                 ),
                 dbc.Button(
                     html.Span([
-                        html.I(className="fas fa-eye-slash"), " Masking" 
-                    ]), id="toggle-mask", color="primary", className="mr-1"
-                ),
-                dbc.Button(
-                    html.Span([
                         html.I(className="fas fa-angle-down"), " Hide panel" 
                     ]), id="toggle-hide", color="light", className="mr-1"
                 ),
@@ -765,7 +767,7 @@ layout  = html.Div([
                             html.H6(
                                 "Legend (colored by Entity Type)",
                                 className="card-title",
-                                style={"margin-botton": "0pt"},
+                                style={"margin-bottom": "0pt"},
                                 id="legend-title"
                             )
                         ], style={"margin-botton": "0pt"}),
@@ -780,7 +782,7 @@ layout  = html.Div([
                             html.H6(
                                 "Details",
                                 className="card-title",
-                                style={"margin-botton": "0pt"}
+                                style={"margin-bottom": "0pt"}
                             )
                         ], style={"margin-botton": "0pt"}),
                         dbc.CardBody(
@@ -797,28 +799,19 @@ layout  = html.Div([
                             html.H6(
                                 "Edit graph",
                                 className="card-title",
-                                style={"margin-botton": "0pt"}
+                                style={"margin-bottom": "0pt"}
                             )
                         ], style={"margin-botton": "0pt"}),
-                        dbc.CardBody([edit_button_group, reset_button])
+                        dbc.CardBody([
+                            dbc.Row([
+                                dbc.Col([editing_mode_radio], width=5),
+                                dbc.Col([edit_button_group], width=7)
+                            ])
+                        ])
                     ], style={"height": "100%"}), 
                     style={"height": "150pt"},
                     id="collapse-edit"
                 ),
-                dbc.Collapse(
-                    dbc.Card([
-                        dbc.CardHeader([
-                            html.H6(
-                                "Masking",
-                                className="card-title",
-                                style={"margin-botton": "0pt"}
-                            )
-                        ], style={"margin-botton": "0pt"}),
-                        dbc.CardBody([masking_card_content])
-                    ], style={"height": "100%"}), 
-                    style={"height": "175pt"},
-                    id="collapse-mask"
-                )
             ], className="fixed-bottom", style={
                 "width": "45%", 
             })
@@ -832,7 +825,7 @@ layout  = html.Div([
                 color="primary",
                 style={
                     "margin": "10pt",
-                    "margin-left": "75%"
+                    "margin-left": "60%"
                 }
             ),
             dbc.Collapse(dbc.Tabs(id='tabs', children=[

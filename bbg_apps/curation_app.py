@@ -184,7 +184,7 @@ class CurationApp(object):
                 ),
                 daq.NumericInput(
                     id="topnentityslider",
-                    max=500,
+                    max=2000,
                     value=500,
                     className="mr-1"
                 )
