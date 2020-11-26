@@ -914,9 +914,9 @@ def update_cytoscape_elements(resetbt, removebt, val,
         else:
             elements, target_node, merging_data = merge_cyto_elements(elements, selected_nodes, new_name)
             
-            memory["merging_backup"]["removed_elements"].update(
-                merging_data["removed_elements"]
-            )
+            for k, v in merging_data["removed_elements"].items():
+                if k not in memory["merging_backup"]["added_elements"]:
+                    memory["merging_backup"]["removed_elements"][k] = v
 
             memory["merging_backup"]["added_elements"] += merging_data["added_elements"]
             
