@@ -435,11 +435,23 @@ filter_by_cluster = dbc.FormGroup(
 )
 
 
+cluster_layout_button = dbc.InputGroup([
+    dbc.Checklist(
+        options=[{"value": 1, "disabled": False}],
+        value=[],
+        id="groupedLayout",
+        switch=True,
+    ),
+    dbc.Label("Grouped Layout", html_for="groupedLayout"),
+])  
+
+
 cluster_selection_card = dbc.Card(
     dbc.CardBody([
         html.H6("Grouping", className="card-title"),
         cluster_group,
-        filter_by_cluster,  
+        filter_by_cluster, 
+        cluster_layout_button
     ]),
     style={"margin-bottom": "10pt"}
 )
@@ -480,17 +492,7 @@ form = dbc.Form([
 
 legend = dbc.FormGroup([
     html.Div(id="cluster_board", children=[])
-])
-        
-#         cluster_layout_button = dbc.InputGroup([
-#             dbc.Checklist(
-#                 options=[{"value": 1, "disabled": True}],
-#                 value=[],
-#                 id="groupedLayout",
-#                 switch=True,
-#             ),
-#             dbc.Label("Grouped Layout", html_for="groupedLayout"),
-#         ])        
+])      
 
 
 # ------ Path search form --------
@@ -521,6 +523,38 @@ path_to = dbc.FormGroup([
     ),
     dbc.Col(dcc.Dropdown(id="searchpathto"), width=9)],
     row=True)
+
+neighbor_control_group = html.Div([
+    dbc.FormGroup([
+        dbc.Col(
+            dbc.Button(
+                "Find top N neighbors", color="primary", className="mr-1",
+                id='bt-neighbors', style={"float": "right"}),
+            width=10
+        ),
+        dbc.Tooltip(
+            "Search for the neighbors with the highest mutual information score.",
+            target="bt-neighbors",
+            placement="top",
+        ),
+        dbc.Col(
+            daq.NumericInput(
+                id="neighborlimit",
+                min=1,  
+                max=100,
+                value=10,
+               className="mr-1"
+            ), width=2),
+        
+    ], row=True)
+])
+    
+neighbor_view_card = dbc.Card(
+    dbc.CardBody(
+        [], id="neighbors-card-body"
+    ),
+    style={"overflow-y": "scroll", "height": "150pt"}
+)
 
 top_n_paths = dbc.FormGroup([
     dbc.Label(
@@ -758,7 +792,12 @@ layout  = html.Div([
                 ),
                 dbc.Button(
                     html.Span([
-                        html.I(className="fas fa-angle-down"), " Hide panel" 
+                        html.I(className="fas fa-star-of-life"), " Neighbors" 
+                    ]), id="toggle-neighbors", color="primary", className="mr-1"
+                ),
+                dbc.Button(
+                    html.Span([
+                        html.I(className="fas fa-angle-down"), "" 
                     ]), id="toggle-hide", color="light", className="mr-1"
                 ),
                 dbc.Collapse(
@@ -811,9 +850,25 @@ layout  = html.Div([
                     ], style={"height": "100%"}), 
                     style={"height": "150pt"},
                     id="collapse-edit"
+                ), dbc.Collapse(
+                    dbc.Card([
+                        dbc.CardHeader([
+                            html.H6(
+                                "Neighbors view",
+                                className="card-title",
+                                style={"margin-bottom": "0pt"}
+                            )
+                        ], style={"margin-botton": "0pt"}),
+                        dbc.CardBody([
+                            neighbor_control_group,
+                            neighbor_view_card
+                        ])
+                    ], style={"height": "100%"}), 
+                    style={"height": "250pt"},
+                    id="collapse-neighbors"
                 ),
             ], className="fixed-bottom", style={
-                "width": "45%", 
+                "width": "55%", 
             })
         ], width=8),
         dbc.Col(html.Div(children=[

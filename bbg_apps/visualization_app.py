@@ -85,6 +85,14 @@ def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
     return nodes_to_include + [n for n in nodes_to_keep if n not in nodes_to_include]
 
 
+def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
+    """Build a subgraph with top n nodes."""
+    nodes_to_include = get_top_n_nodes(
+        graph_object, n, node_subset, nodes_to_keep)
+
+    return nx.Graph(graph_object.subgraph(nodes_to_include))
+
+
 def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
     """Build a spanning tree with default top n nodes."""
     nodes_to_include = get_top_n_nodes(
@@ -163,7 +171,7 @@ def generate_clusters(elements, cluster_type):
             "data": {
                 "id": v,
                 "type": "cluster",
-                cluster_type: k
+                cluster_type: str(k)
             }
         })
     return new_elements
@@ -313,27 +321,34 @@ class VisualizationApp(object):
     def _update_cyto_graph(self, graph_id, graph_object, top_n_entities=None, positions=None,
                            node_freq_type="degree_frequency", edge_freq_type="npmi", node_subset=None,
                            nodes_to_keep=None):
-        
-        if top_n_entities is None:
-            # compute the spanning tree on all the nodes
-            if "full_tree" in self._graphs[graph_id] and (
-                    node_subset is None or set(node_subset) == set(graph_object.nodes())):
-                tree = self._graphs[graph_id]["full_tree"]
+        if not self._graphs[graph_id]["full_graph_view"]:
+            if top_n_entities is None:
+                # compute the spanning tree on all the nodes
+                if "full_tree" in self._graphs[graph_id] and (
+                        node_subset is None or set(node_subset) == set(graph_object.nodes())):
+                    graph_view = self._graphs[graph_id]["full_tree"]
+                else:
+                    graph_view = top_n_spanning_tree(
+                        graph_object, len(graph_object.nodes()),
+                        node_subset=node_subset, nodes_to_keep=nodes_to_keep)
             else:
-                tree = top_n_spanning_tree(
-                    graph_object, len(graph_object.nodes()),
+                # compute the spanning tree on n nodes
+                graph_view = top_n_spanning_tree(
+                    graph_object, top_n_entities,
                     node_subset=node_subset, nodes_to_keep=nodes_to_keep)
         else:
-            # compute the spanning tree on n nodes
-            tree = top_n_spanning_tree(
-                graph_object, top_n_entities,
-                node_subset=node_subset, nodes_to_keep=nodes_to_keep)
+            if top_n_entities is None:
+                graph_view = graph_object
+            else:
+                graph_view = top_n_subgraph(
+                    graph_object, top_n_entities,
+                    node_subset=node_subset, nodes_to_keep=nodes_to_keep)
     
         if positions is None and top_n_entities is None:
             if "positions" in self._graphs[graph_id]:
                 positions = self._graphs[graph_id]["positions"]
             
-        cyto_repr = get_cytoscape_data(tree, positions=positions)
+        cyto_repr = get_cytoscape_data(graph_view, positions=positions)
         
         self._graphs[graph_id]["cytoscape"] = cyto_repr
         self._graphs[graph_id]["top_n"] = top_n_entities
@@ -343,7 +358,7 @@ class VisualizationApp(object):
         return cyto_repr
         
     def set_graph(self, graph_id, graph_object, tree_object=None,
-                  positions=None, default_top_n=None):
+                  positions=None, default_top_n=None, full_graph_view=False):
         # Generate a paper lookup table
         paper_lookup = generate_paper_lookup(graph_object)
 
@@ -355,6 +370,7 @@ class VisualizationApp(object):
             "nx_object": graph_object,
             "positions": positions,
             "paper_lookup": paper_lookup,
+            "full_graph_view": full_graph_view
         }
 
         if tree_object:
@@ -610,7 +626,6 @@ def setup_paths_tab(nestedpaths):
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
     if len(nestedpaths) > 0:
         # disable traverse and overlapping
         traverse_field_disable = True
@@ -645,6 +660,8 @@ def setup_paths_tab(nestedpaths):
         Output('nodefreqslider_content', 'marks'),
         Output('edgefreqslider_content', 'marks'),
         Output("edit-mode", "value"),
+        Output("bt-neighbors", "disabled"),
+        Output("neighbors-card-body", "children"),
 #         Output('javascript', 'run'),
     ],
     [
@@ -655,7 +672,7 @@ def setup_paths_tab(nestedpaths):
         Input('edgefreqslider_content', 'value'),
         Input("searchdropdown", "value"),
         Input('bt-path', 'n_clicks'),
-#         Input('groupedLayout', "value"),
+        Input('groupedLayout', "value"),
         Input('cluster_type', "value"),
         Input('top-n-button', "n_clicks"),
         Input('show-all-button', "n_clicks"),
@@ -671,6 +688,7 @@ def setup_paths_tab(nestedpaths):
         Input("rename-button", "n_clicks"),
         Input("rename-close", "n_clicks"),
         Input("rename-apply", "n_clicks"),
+        Input("bt-neighbors", "n_clicks"),
 #         Input('reset-zoom', "n_clicks"),
     ],
     [
@@ -693,24 +711,25 @@ def setup_paths_tab(nestedpaths):
         State("merge-label-input", "value"),
         State("recompute-spanning-tree", "value"),
         State("rename-input", "value"),
-        State("edit-mode", "value")
+        State("edit-mode", "value"),
+        State("neighborlimit", "value")
 #         State("recompute-spanning-tree-cluster", "value")
     ]
 )
 def update_cytoscape_elements(resetbt, removebt, val, 
                               nodefreqslider, edgefreqslider, 
                               searchvalues, pathbt, 
-                              # grouped_layout, 
+                              grouped_layout, 
                               cluster_type, top_n_buttton, show_all_button, clustersearch,
                               nodes_to_keep, selected_node_data, selected_edge_data, tappednode,
                               merge_button, close_merge_button, apply_merge_button, reset_graph_button, rename_button,
-                              rename_apply_button, rename_close_button,
+                              rename_apply_button, rename_close_button, bt_neighbors,
                               # states
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                               nestedpaths, pathdepth, top_n_slider_value, dropdown_layout,
                               open_merge_modal, open_rename_modal, memory, merge_label_value, recompute_spanning_tree,
-                              selected_rename_input, editing_mode):
+                              selected_rename_input, editing_mode, neighborlimit):
     zoom = 1
     
     # Get the event that trigerred the callback
@@ -727,6 +746,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "show-all-button",
         "bt-reset",
         "nodestokeep",
+        "groupedLayout"
     ]
     
     if editing_mode == 1:
@@ -767,6 +787,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "rename-close",
         "merge-button",
         "merge-close",
+        "bt-neighbors"
     ]
     
     if editing_mode == 2:
@@ -816,7 +837,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
     rename_input_value = ""
     rename_invalid = False
     rename_error_message = None
-
+    neighbor_bt_disabled = True
+    
     if len(selected_nodes) > 1:
         merge_disabled = False
     if len(selected_nodes) > 0:
@@ -824,18 +846,19 @@ def update_cytoscape_elements(resetbt, removebt, val,
     if len(selected_nodes) == 1:
         rename_disabled = False
         rename_input_value = selected_nodes[0]
+        neighbor_bt_disabled = False
             
     
     # -------- Handle grouped layout -------- 
 
-#     if button_id == "cluster_type":
-#         if len(grouped_layout) == 1:
-#             elements = generate_clusters(elements, cluster_type)
-#     if button_id == "groupedLayout":
-#         if len(grouped_layout) == 1:
-#             elements = generate_clusters(elements, cluster_type)
-#         else:
-#             elements = visualization_app._graphs[val]["cytoscape"]
+    if button_id == "cluster_type":
+        if len(grouped_layout) == 1:
+            elements = generate_clusters(elements, cluster_type)
+    if button_id == "groupedLayout":
+        if len(grouped_layout) == 1:
+            elements = generate_clusters(elements, cluster_type)
+        else:
+            elements = visualization_app._graphs[val]["cytoscape"]
 
     # -------- Handle remove selected nodes -------
 
@@ -1011,9 +1034,28 @@ def update_cytoscape_elements(resetbt, removebt, val,
             memory["merged_elements"] = {}
             memory["renamed_elements"] = {}
             
-        
+    # --------- Handle neighbor search -----
+    neighbor_card_content = [
+        html.H6("No neighbors to display", className="card-title")
+    ]
+    if button_id == "bt-neighbors":
+        graph = visualization_app._graphs[val]["nx_object"]
+        weights = {}
+        for n in graph.neighbors(selected_nodes[0]):
+             weights[n] = graph.edges[selected_nodes[0], n]["npmi"]
+        top_neighbors = top_n(weights, neighborlimit)
+
+        list_group = dbc.ListGroup([
+            dbc.ListGroupItem("{}. {} (NMPI {:.2f})".format(i + 1, n, weights[n]))
+             for i, n in enumerate(top_neighbors)
+        ])
+        neighbor_card_content = [
+            html.H6("Top neighbors of '{}' by NMPI".format(
+                selected_nodes[0]), className="card-title"),
+            list_group
+        ]
+
     # -------- Handle path search -------
-    
     no_path_message = ""
     if button_id == "bt-path" and pathbt is not None:
         memory["removed_nodes"] = []
@@ -1238,7 +1280,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     
     node_marks = visualization_app._graphs[val]["node_marks"] 
     edge_marks = visualization_app._graphs[val]["edge_marks"]
-
+    
     return [
         memory,
         visualization_app._current_layout,
@@ -1256,7 +1298,9 @@ def update_cytoscape_elements(resetbt, removebt, val,
         rename_error_message,
         node_marks,
         edge_marks,
-        output_editing_mode
+        output_editing_mode,
+        neighbor_bt_disabled,
+        neighbor_card_content
     ]
 
 
@@ -1275,6 +1319,12 @@ def update_cytoscape_elements(resetbt, removebt, val,
         State('memory', 'data')
     ])
 def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph, memory):  
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        button_id = 'No clicks yet'
+    else:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+            
     papers = []
     res = []
     modal_button = None
@@ -1398,26 +1448,19 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     Output('cytoscape', 'layout'),
     [
         Input('dropdown-layout', 'value'),
-#         Input("reset-zoom", "n_clicks"),
-#         Input("showgraph", "value"),
-#         Input("top-n-button", "n_clicks"),
-#         Input("show-all-button", "n_clicks"),
-#         Input("bt-reset", "n_clicks"),
-#         Input("bt-path", "n_clicks"),
+        Input('groupedLayout', "value"),
     ],
     [
         State("showgraph", "value"),
     ]
 )
-def update_cytoscape_layout(layout, current_graph):
-#     , b1, b2, b3, b4):
+def update_cytoscape_layout(layout, grouped, current_graph):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        
-
+    
     visualization_app._current_layout = layout
     
     if layout in LAYOUT_CONFIGS:
@@ -1440,6 +1483,7 @@ def update_cytoscape_layout(layout, current_graph):
         Input('node_freq_type', 'value'),
         Input('edge_freq_type', 'value'),
         Input('cluster_type', 'value'),
+        Input('groupedLayout', "value"),
     ],
     [
         State('cytoscape', 'stylesheet'),
@@ -1450,7 +1494,9 @@ def update_cytoscape_layout(layout, current_graph):
 def generate_stylesheet(elements,
                         follower_color, node_shape,
                         showgraph, node_freq_type, edge_freq_type,
-                        cluster_type, original_stylesheet, searchvalue,
+                        cluster_type, grouped, 
+                        # states
+                        original_stylesheet, searchvalue,
                         selected_nodes, selected_edges):
     
     ctx = dash.callback_context
@@ -1459,7 +1505,7 @@ def generate_stylesheet(elements,
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
+        
     stylesheet = [
         s
         for s in CYTOSCAPE_STYLE_STYLESHEET
@@ -1899,11 +1945,13 @@ def update_merge_input(value, selected_nodes):
         Output("collapse-legend", "is_open"),
         Output("collapse-details", "is_open"),
         Output("collapse-edit", "is_open"),
+        Output("collapse-neighbors", "is_open"),
     ],
     [
         Input("toggle-legend", "n_clicks"),
         Input("toggle-details", "n_clicks"),
         Input("toggle-edit", "n_clicks"),
+        Input("toggle-neighbors", "n_clicks"),        
         Input("toggle-hide", "n_clicks"),
 #         Input('cytoscape', 'tapNode'),
 #         Input('cytoscape', 'tapEdge')
@@ -1911,11 +1959,12 @@ def update_merge_input(value, selected_nodes):
     [
         State("collapse-legend", "is_open"),
         State("collapse-details", "is_open"),
-        State("collapse-edit", "is_open")
+        State("collapse-edit", "is_open"),
+        State("collapse-neighbors", "is_open")
     ])
-def toggle_bottom_tabs(legend_b, details_b, edit_b, hide_b, 
+def toggle_bottom_tabs(legend_b, details_b, edit_b, neighb_b, hide_b, 
 #                        tap_node, tap_edge,
-                       legend_is_open, details_is_open, edit_is_open):
+                       legend_is_open, details_is_open, edit_is_open, neighb_is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
@@ -1926,23 +1975,33 @@ def toggle_bottom_tabs(legend_b, details_b, edit_b, hide_b,
         legend_is_open = False
         details_is_open = False
         edit_is_open = False
+        neighb_is_open = False
 
     if button_id == "toggle-legend":
         legend_is_open = not legend_is_open
         details_is_open = False
         edit_is_open = False
+        neighb_is_open = False
     
     if button_id == "toggle-details" or button_id == "cytoscape":
         legend_is_open = False
         details_is_open = not details_is_open
         edit_is_open = False
+        neighb_is_open = False
     
     if button_id == "toggle-edit":
         legend_is_open = False
         details_is_open = False
         edit_is_open = not edit_is_open
+        neighb_is_open = False
+        
+    if button_id == "toggle-neighbors":
+        legend_is_open = False
+        details_is_open = False
+        edit_is_open = False
+        neighb_is_open = not neighb_is_open
 
-    return [legend_is_open, details_is_open, edit_is_open]
+    return [legend_is_open, details_is_open, edit_is_open, neighb_is_open]
 
 
 @visualization_app._app.callback(
