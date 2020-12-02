@@ -1,6 +1,7 @@
 import os
 import flask
 
+import json
 import time
 import math
 import numpy as np
@@ -62,6 +63,18 @@ def filter_nodes_by_attr(graph_object, key, values):
             if graph_object.nodes[n][key] in values:
                 result.append(n)
     return result
+
+
+def subgraph_from_clusters(graph_object, cluster_type, clustersearch, nodes_to_keep):
+    if cluster_type and clustersearch:
+        graph_object = nx.Graph(graph_object.subgraph(
+            nodes=[
+                n
+                for n in graph_object.nodes()
+                if graph_object.nodes[n][cluster_type] in clustersearch or n in nodes_to_keep
+            ]))
+    return graph_object
+
 
 def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
     """Get top N nodes by paper frequency."""
@@ -267,7 +280,7 @@ def generate_gml(elements, node_freq_type=None, edge_freq_type=None):
 
 class VisualizationApp(object):
     
-    def __init__(self):
+    def __init__(self, configs=None):
         self._app =  JupyterDash("allvis")
         self._app.add_bootstrap_links = True
         
@@ -284,10 +297,8 @@ class VisualizationApp(object):
         self._current_graph = None
         
         # ---- Create a layout from components ----------------
-        self.dropdown_items = components.dropdown_items
-        self.cluster_filter = components.cluster_filter
-        self.cyto = components.cyto
-        self._app.layout  = components.layout
+        self._configs = configs if configs is not None else {}
+        self._configure_layout(configs)
 
         self._app.config['suppress_callback_exceptions'] = True
         self._app.height = "800px"
@@ -299,6 +310,17 @@ class VisualizationApp(object):
         self._current_layout = components.DEFAULT_LAYOUT
         self._removed_nodes = set()
         self._removed_edges = set()
+        
+        self._is_initializing = False
+
+    def _configure_layout(self, configs=None):
+        if configs is None:
+            configs = {}
+
+        self.cyto, layout, self.dropdown_items, self.cluster_filter =\
+            components.generate_layout(self._graphs, configs)
+
+        self._app.layout  = layout
 
 
     def _update_weight_data(self, graph_id, cyto_repr,
@@ -356,6 +378,32 @@ class VisualizationApp(object):
         self._update_weight_data(
             graph_id, cyto_repr, node_freq_type=node_freq_type, edge_freq_type=edge_freq_type)
         return cyto_repr
+    
+    def _update_configs(self, elements, current_graph, nodes_to_keep, top_n_slider_value, node_freq_type, edge_freq_type,
+                        nodefreqslider, edgefreqslider, cluster_type, clustersearch,
+                        searchpathfrom, searchpathto, searchnodetotraverse, searchpathlimit,
+                        searchpathoverlap, nestedpaths, pathdepth):
+        self._configs["elements"] = elements
+        self._configs["current_graph"] = current_graph
+        self._configs["nodestokeep"] = nodes_to_keep
+        self._configs["top_n"] = top_n_slider_value
+        self._configs["node_weight"] = node_freq_type
+        self._configs["edge_weight"] = edge_freq_type
+        self._configs["nodefreqslider"] = nodefreqslider
+        self._configs["edgefreqslider"] = edgefreqslider
+        self._configs["cluster_type"] = cluster_type
+        self._configs["clustersearch"] = clustersearch
+        self._configs["searchpathfrom"] = searchpathfrom
+        self._configs["searchpathto"] = searchpathto
+        self._configs["searchnodetotraverse"] = searchnodetotraverse
+        self._configs["searchpathlimit"] = searchpathlimit
+        self._configs["searchpathoverlap"] = searchpathoverlap
+        self._configs["nestedpaths"] = nestedpaths
+        self._configs["pathdepth"] = pathdepth
+
+    def save_configs(self, path):
+        with open(path, "w+") as f:
+            json.dump(self._configs, f)
         
     def set_graph(self, graph_id, graph_object, tree_object=None,
                   positions=None, default_top_n=None, full_graph_view=False):
@@ -662,7 +710,7 @@ def setup_paths_tab(nestedpaths):
         Output("edit-mode", "value"),
         Output("bt-neighbors", "disabled"),
         Output("neighbors-card-body", "children"),
-#         Output('javascript', 'run'),
+        Output("bt-expand-edge", "disabled")
     ],
     [
         Input('bt-reset', 'n_clicks'),
@@ -689,7 +737,7 @@ def setup_paths_tab(nestedpaths):
         Input("rename-close", "n_clicks"),
         Input("rename-apply", "n_clicks"),
         Input("bt-neighbors", "n_clicks"),
-#         Input('reset-zoom', "n_clicks"),
+        Input("bt-expand-edge", "n_clicks"),
     ],
     [
         State('node_freq_type', 'value'),
@@ -712,8 +760,8 @@ def setup_paths_tab(nestedpaths):
         State("recompute-spanning-tree", "value"),
         State("rename-input", "value"),
         State("edit-mode", "value"),
-        State("neighborlimit", "value")
-#         State("recompute-spanning-tree-cluster", "value")
+        State("neighborlimit", "value"),
+        State("expand-edge-n", "value"),
     ]
 )
 def update_cytoscape_elements(resetbt, removebt, val, 
@@ -723,13 +771,13 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               cluster_type, top_n_buttton, show_all_button, clustersearch,
                               nodes_to_keep, selected_node_data, selected_edge_data, tappednode,
                               merge_button, close_merge_button, apply_merge_button, reset_graph_button, rename_button,
-                              rename_apply_button, rename_close_button, bt_neighbors,
+                              rename_apply_button, rename_close_button, bt_neighbors, bt_expand,
                               # states
                               node_freq_type, edge_freq_type, cytoelements, zoom, searchpathfrom,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                               nestedpaths, pathdepth, top_n_slider_value, dropdown_layout,
                               open_merge_modal, open_rename_modal, memory, merge_label_value, recompute_spanning_tree,
-                              selected_rename_input, editing_mode, neighborlimit):
+                              selected_rename_input, editing_mode, neighborlimit, edge_expansion_limit):
     zoom = 1
     
     # Get the event that trigerred the callback
@@ -738,7 +786,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+        
     full_graph_events = [
         "showgraph",
         "clustersearch",
@@ -787,7 +835,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
         "rename-close",
         "merge-button",
         "merge-close",
-        "bt-neighbors"
+        "bt-neighbors",
+        "bt-expand-edge"
     ]
     
     if editing_mode == 2:
@@ -803,20 +852,33 @@ def update_cytoscape_elements(resetbt, removebt, val,
         memory["removed_elements"] =  {} 
         memory["renamed_elements"] =  {} 
         memory["merged_elements"] =  {}
-        if len(recompute_spanning_tree) > 0:
-            elements = visualization_app._update_cyto_graph(
-                val, visualization_app._graphs[val]["nx_object"],
-                visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
-                node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
+        if button_id == "clustersearch" and visualization_app._is_initializing:
+            # If app is in the initialization stage, then we fix some of the parameters from the loaded configs
+            configs = visualization_app._configs
+            visualization_app._is_initializing = False
+            elements = configs["elements"] if "elements" in configs else []
+            if "current_graph" in configs and "nodefreqslider" in configs:
+                visualization_app._graphs[configs["current_graph"]]["current_node_value"] = configs["nodefreqslider"]
+            if "current_graph" in configs and "edgefreqslider" in configs:
+                visualization_app._graphs[configs["current_graph"]]["current_edge_value"] = configs["edgefreqslider"]
         else:
-            elements, hidden_elements = filter_elements(
-                elements,
-                node_condition=lambda x: (cluster_type in x and x[cluster_type] in clustersearch) or x["id"] in nodes_to_keep 
-            )
-            memory["filtered_elements"] = hidden_elements
+            if len(recompute_spanning_tree) > 0:
+                elements = visualization_app._update_cyto_graph(
+                    val, visualization_app._graphs[val]["nx_object"],
+                    visualization_app._graphs[val]["top_n"],
+                    node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
+                    node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
+            else:
+                elements, hidden_elements = filter_elements(
+                    elements,
+                    node_condition=lambda x: (cluster_type in x and x[cluster_type] in clustersearch) or x["id"] in nodes_to_keep 
+                )
+                memory["filtered_elements"] = hidden_elements
 
     # -------- Handle node/edge selection -------- 
+    
+    if selected_edge_data is None:
+        selected_edge_data = []
     
     # Mark selected nodes and edges
     selected_nodes = [
@@ -828,9 +890,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
     else:
         searchvalues = [searchvalues]
 
-#     selected_elements  = set()
-
-#     selected_nodes = set(searchvalues + selected_nodes)
     merge_disabled = True
     remove_disabled = True
     rename_disabled = True
@@ -838,15 +897,18 @@ def update_cytoscape_elements(resetbt, removebt, val,
     rename_invalid = False
     rename_error_message = None
     neighbor_bt_disabled = True
+    expand_edge_disabled = True
     
     if len(selected_nodes) > 1:
         merge_disabled = False
-    if len(selected_nodes) > 0:
+    if len(selected_nodes) > 0 or len(selected_edge_data) > 0:
         remove_disabled = False
     if len(selected_nodes) == 1:
         rename_disabled = False
         rename_input_value = selected_nodes[0]
         neighbor_bt_disabled = False
+    if len(selected_edge_data) == 1:
+        expand_edge_disabled = False
             
     
     # -------- Handle grouped layout -------- 
@@ -1072,15 +1134,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
             target = searchpathto
             
             # create a subgraph given the selected clusters 
-            graph_object = visualization_app._graphs[val]["nx_object"]
-
-            if cluster_type and clustersearch:
-                graph_object = nx.Graph(graph_object.subgraph(
-                    nodes=[
-                        n
-                        for n in graph_object.nodes()
-                        if graph_object.nodes[n][cluster_type] in clustersearch or n in nodes_to_keep
-                    ]))
+            
+            graph_object = subgraph_from_clusters(
+                visualization_app._graphs[val]["nx_object"], 
+                cluster_type, clustersearch, nodes_to_keep)
                 
             try:
                 if nestedpaths and pathdepth:
@@ -1119,8 +1176,43 @@ def update_cytoscape_elements(resetbt, removebt, val,
             else:
                 visualization_app._current_layout = "cose-bilkent"
     
-    # -------- Handle 'display a spanning tree on top N nodes' -------
+    # -------- Handle edge expansion --------------
+    if button_id == "bt-expand-edge" and edge_expansion_limit:
+        source = selected_edge_data[0]["source"]
+        target = selected_edge_data[0]["target"]
+        
+        graph_object = subgraph_from_clusters(
+            visualization_app._graphs[val]["nx_object"], 
+            cluster_type, clustersearch, nodes_to_keep)
+        
+        paths = top_n_paths(
+            graph_object, source, target,
+            edge_expansion_limit, distance="distance_npmi", strategy="naive", pretty_print=False)
 
+        path_graph = graph_from_paths(
+            paths, visualization_app._graphs[val]["nx_object"])
+        new_elements = get_cytoscape_data(path_graph)
+        
+        existing_nodes = [
+            el["data"]["id"] for el in elements if "source" not in el["data"]
+        ]
+        
+        existing_edges = [
+            (el["data"]["source"], el["data"]["target"]) for el in elements if "source" in el["data"]
+        ]
+        
+        for el in new_elements:
+            if "source" not in el["data"]:
+                if el["data"]["id"] not in existing_nodes:
+                    elements.append(el)
+            else:
+                if (el["data"]["source"], el["data"]["target"]) not in existing_edges and\
+                   (el["data"]["target"], el["data"]["source"]) not in existing_edges:
+                    elements.append(el)
+
+        visualization_app._current_layout = "klay"
+
+    # -------- Handle 'display a spanning tree on top N nodes' -------
     message = (
         "Displaying top {} most frequent entities (out of {})".format(
             visualization_app._graphs[val]["top_n"], total_number_of_entities)
@@ -1281,6 +1373,13 @@ def update_cytoscape_elements(resetbt, removebt, val,
     node_marks = visualization_app._graphs[val]["node_marks"] 
     edge_marks = visualization_app._graphs[val]["edge_marks"]
     
+    # ------- Update configs ---------
+    visualization_app._update_configs(
+        elements, val, nodes_to_keep, top_n_slider_value, node_freq_type, edge_freq_type,
+        nodefreqslider, edgefreqslider, cluster_type, clustersearch,
+        searchpathfrom, searchpathto, searchnodetotraverse, searchpathlimit,
+        searchpathoverlap, nestedpaths, pathdepth)
+    
     return [
         memory,
         visualization_app._current_layout,
@@ -1300,7 +1399,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
         edge_marks,
         output_editing_mode,
         neighbor_bt_disabled,
-        neighbor_card_content
+        neighbor_card_content,
+        expand_edge_disabled
     ]
 
 
@@ -1712,11 +1812,15 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    types = get_all_clusters(val, cluster_type)
+        
+    if button_id == 'No clicks yet' and "clustersearch" in visualization_app._configs:
+        types = visualization_app._configs["clustersearch"]
+        visualization_app._is_initializing = True
+    else:
+        types = get_all_clusters(val, cluster_type)
     
     l = ""
-    for l, v in components.cluster_type:
+    for l, v in components.cluster_types:
         if v == cluster_type:
             cluster_label = l
     if button_id == "bt-reset":
