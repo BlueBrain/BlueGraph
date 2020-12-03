@@ -75,6 +75,7 @@ def generate_layout(graphs, configs):
     edgefreqslider = configs["edgefreqslider"] if "edgefreqslider" in configs else [0, 100000]
     cluster_type = configs["cluster_type"] if "cluster_type" in configs else "entity_type"
     clustersearch = configs["clustersearch"] if "clustersearch" in configs else []
+    current_layout = configs["current_layout"] if "current_layout" in configs else DEFAULT_LAYOUT
 
     # Read-out old path search configs
     searchpathfrom = configs["searchpathfrom"] if "searchpathfrom" in configs else None
@@ -748,7 +749,7 @@ def generate_layout(graphs, configs):
                         'value': val
                     } for val in graph_layout_options.keys()
                 ],
-                value=DEFAULT_LAYOUT,
+                value=current_layout,
                 clearable=False
             ), width=9)
         ],

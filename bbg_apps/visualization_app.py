@@ -403,6 +403,7 @@ class VisualizationApp(object):
         self._configs["searchpathoverlap"] = searchpathoverlap
         self._configs["nestedpaths"] = nestedpaths
         self._configs["pathdepth"] = pathdepth
+        self._configs["current_layout"] = self._current_layout
 
     def get_configs(self):
         return self._configs
@@ -875,7 +876,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
         if button_id == "clustersearch" and visualization_app._is_initializing:
             # If app is in the initialization stage, then we fix some of the parameters from the loaded configs
             configs = visualization_app._configs
-            visualization_app._is_initializing = False
             elements = configs["elements"] if "elements" in configs else []
             if "current_graph" in configs and "nodefreqslider" in configs:
                 visualization_app._graphs[configs["current_graph"]]["current_node_value"] = configs["nodefreqslider"]
@@ -1409,17 +1409,22 @@ def update_cytoscape_elements(resetbt, removebt, val,
     elements = new_elements
 
     # -------- Automatically switch the layout -------
-        
-    if button_id in full_graph_events:
-        if visualization_app._graphs[val]["top_n"] is None and\
-           visualization_app._graphs[val]["positions"] is not None:
-            visualization_app._current_layout = "preset"
-        else:
-            visualization_app._current_layout = components.DEFAULT_LAYOUT
-    else:
-        if button_id == "bt-path":
-            visualization_app._current_layout = "klay"
     
+    if visualization_app._is_initializing:
+        visualization_app._current_layout = visualization_app._configs[
+            "current_layout"]
+        visualization_app._is_initializing = False
+    else:
+        if button_id in full_graph_events:
+            if visualization_app._graphs[val]["top_n"] is None and\
+               visualization_app._graphs[val]["positions"] is not None:
+                visualization_app._current_layout = "preset"
+            else:
+                visualization_app._current_layout = components.DEFAULT_LAYOUT
+        else:
+            if button_id == "bt-path":
+                visualization_app._current_layout = "klay"
+
     node_marks = visualization_app._graphs[val]["node_marks"] 
     edge_marks = visualization_app._graphs[val]["edge_marks"]
     

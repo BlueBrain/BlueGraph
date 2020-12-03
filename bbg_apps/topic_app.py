@@ -1,3 +1,4 @@
+import ast
 import jwt
 
 import ipywidgets
@@ -22,7 +23,7 @@ class TopicWidget(object):
 
         self.table_extractions = None
         self.curated_table_extractions = None
-        self.nodes_to_keep = None
+        self.curation_meta_data = None
         self.loaded_graphs = None
         self.visualization_configs = None
         self.edit_history = None
@@ -272,7 +273,17 @@ class TopicWidget(object):
             # Read extracted and curated table
             if "table_extractions" in r.name:
                 if "curated" in r.name:
-                    self.curated_table_extractions = pd.read_csv(f"/tmp/{r.name}")
+                    self.curated_table_extractions = pd.read_csv(f"/tmp/{r.name}", index_col="entity")
+                    collection_columns = [
+                        "aggregated_entities", "raw_entity_types", "paragraph", "paper", "section", "taxonomy"
+                    ]
+                    for c in collection_columns:
+                        try:
+                            self.curated_table_extractions[c] = self.curated_table_extractions[c].apply(
+                                ast.literal_eval)
+                        except:
+                            print(c)
+                    
                     message += f"Loaded curated table '{r.name}' ({len(self.curated_table_extractions)} entities)\n"
                 else:
                     self.table_extractions = pd.read_csv(f"/tmp/{r.name}")
@@ -324,7 +335,7 @@ class TopicWidget(object):
             self.curation_meta_data,
             self.loaded_graphs,
             self.visualization_configs,
-            self._topic_resource.id
+            self._topic_resource.id if self._topic_resource else None
         )
     
     def display(self):

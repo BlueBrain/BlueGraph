@@ -634,7 +634,7 @@ CORD_ATTRS_RESOLVER = {
 
 
 def list_papers(mysql_engine, papers, limit=200):
-    META_DATA = sqlalchemy.MetaData(bind=bbs_mysql_engine, reflect=True)
+    META_DATA = sqlalchemy.MetaData(bind=mysql_engine, reflect=True)
     articles = META_DATA.tables["articles"]
     clauses = or_( *[articles.c.article_id == x for x in papers[:limit]] )
     s = select([
