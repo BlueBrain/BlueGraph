@@ -1,6 +1,5 @@
 import os
 import flask
-import pickle
 
 import json
 import time
@@ -405,9 +404,8 @@ class VisualizationApp(object):
         self._configs["nestedpaths"] = nestedpaths
         self._configs["pathdepth"] = pathdepth
 
-    def save_configs(self, path):
-        with open(path, "w+") as f:
-            json.dump(self._configs, f)
+    def get_configs(self):
+        return self._configs
         
     def set_graph(self, graph_id, graph_object, tree_object=None,
                   positions=None, default_top_n=None, full_graph_view=False):
@@ -466,7 +464,7 @@ class VisualizationApp(object):
     def set_entity_definitons(self, definition_dict):
         self._entity_definitions = definition_dict
         
-    def save_graphs(self, graph_list, path):
+    def export_graphs(self, graph_list):
         graphs = {}
         for g in graph_list:
             if g in self._graphs:
@@ -475,12 +473,10 @@ class VisualizationApp(object):
                 if "full_tree" in self._graphs[g]:
                     graphs[g]["tree"] = self._graphs[g]["full_tree"]
 
-        with open(path, "wb") as f:
-            pickle.dump(graphs, f)
+        return graphs
             
-    def save_edit_history(self, path):
-        with open(path, "w") as f:
-            json.dump(self._edit_history, f)
+    def get_edit_history(self):
+        return self._edit_history
 
         
 visualization_app = VisualizationApp()
