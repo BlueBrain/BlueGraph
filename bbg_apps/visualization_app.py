@@ -1,5 +1,6 @@
 import os
 import flask
+import pickle
 
 import json
 import time
@@ -313,10 +314,13 @@ class VisualizationApp(object):
         
         self._is_initializing = False
 
+        self._edit_history = {}
+
     def _configure_layout(self, configs=None):
         if configs is None:
             configs = {}
-
+        
+        self._configs = configs
         self.cyto, layout, self.dropdown_items, self.cluster_filter =\
             components.generate_layout(self._graphs, configs)
 
@@ -461,6 +465,22 @@ class VisualizationApp(object):
 
     def set_entity_definitons(self, definition_dict):
         self._entity_definitions = definition_dict
+        
+    def save_graphs(self, graph_list, path):
+        graphs = {}
+        for g in graph_list:
+            if g in self._graphs:
+                graphs[g] = {}
+                graphs[g]["graph"] = self._graphs[g]["nx_object"]
+                if "full_tree" in self._graphs[g]:
+                    graphs[g]["tree"] = self._graphs[g]["full_tree"]
+
+        with open(path, "wb") as f:
+            pickle.dump(graphs, f)
+            
+    def save_edit_history(self, path):
+        with open(path, "w") as f:
+            json.dump(self._edit_history, f)
 
         
 visualization_app = VisualizationApp()
@@ -762,6 +782,9 @@ def setup_paths_tab(nestedpaths):
         State("edit-mode", "value"),
         State("neighborlimit", "value"),
         State("expand-edge-n", "value"),
+        State("graph-view-tab", "className"),
+        State("layout-tab", "className"),
+        State("path-finder-tab", "className"),
     ]
 )
 def update_cytoscape_elements(resetbt, removebt, val, 
@@ -777,9 +800,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
                               searchpathto, searchnodetotraverse, searchpathlimit, searchpathoverlap,
                               nestedpaths, pathdepth, top_n_slider_value, dropdown_layout,
                               open_merge_modal, open_rename_modal, memory, merge_label_value, recompute_spanning_tree,
-                              selected_rename_input, editing_mode, neighborlimit, edge_expansion_limit):
+                              selected_rename_input, editing_mode, neighborlimit, edge_expansion_limit,
+                              graph_view_tab, layout_tab, path_tab):
     zoom = 1
-    
+
     # Get the event that trigerred the callback
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -952,6 +976,16 @@ def update_cytoscape_elements(resetbt, removebt, val,
             for edge in edges_to_remove.values():
                 if (edge["data"]["source"], edge["data"]["target"]) in visualization_app._graphs[val]["nx_object"].edges():
                     visualization_app._graphs[val]["nx_object"].remove_edge(edge["data"]["source"], edge["data"]["target"])
+            
+            if val not in visualization_app._edit_history:
+                visualization_app._edit_history[val] = []
+            visualization_app._edit_history[val].append(
+                {
+                    "type": "remove",
+                    "nodes": list(nodes_to_remove.keys()),
+                    "edges": list(edges_to_remove.keys())
+                }
+            )
 
             elements = visualization_app._update_cyto_graph(
                 val, visualization_app._graphs[val]["nx_object"], visualization_app._graphs[val]["top_n"],
@@ -995,6 +1029,16 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
                 nodes_to_keep=nodes_to_keep)
 
+            if val not in visualization_app._edit_history:
+                visualization_app._edit_history[val] = []
+            visualization_app._edit_history[val].append(
+                {
+                    "type": "merge",
+                    "target": new_name,
+                    "merged_nodes": list(selected_nodes)
+                }
+            )
+            
             visualization_app._graphs[val]["paper_lookup"][new_name] = new_graph.nodes[new_name]["paper"]
         else:
             elements, target_node, merging_data = merge_cyto_elements(elements, selected_nodes, new_name)
@@ -1048,7 +1092,17 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 visualization_app._graphs[val]["paper_lookup"][rename_input_value] = visualization_app._graphs[
                     val]["paper_lookup"][selected_nodes[0]]
                 visualization_app._entity_definitions[rename_input_value] =\
-                    visualization_app._entity_definitions[selected_nodes[0]]    
+                    visualization_app._entity_definitions[selected_nodes[0]]
+                
+                if val not in visualization_app._edit_history:
+                    visualization_app._edit_history[val] = []
+                visualization_app._edit_history[val].append(
+                    {
+                        "type": "rename",
+                        "original_node": selected_nodes[0],
+                        "new_name": rename_input_value
+                    }
+                )
             else:
                 memory["renamed_elements"].update({selected_nodes[0]: rename_input_value})
 
@@ -1812,7 +1866,7 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        
+    
     if button_id == 'No clicks yet' and "clustersearch" in visualization_app._configs:
         types = visualization_app._configs["clustersearch"]
         visualization_app._is_initializing = True

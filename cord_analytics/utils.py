@@ -6,6 +6,10 @@ import pandas as pd
 import networkx as nx
 import numpy as np
 
+import sqlalchemy
+from sqlalchemy.sql import select
+from sqlalchemy.sql import and_, or_, not_
+
 from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
@@ -627,3 +631,25 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
+
+
+def list_papers(mysql_engine, papers, limit=200):
+    META_DATA = sqlalchemy.MetaData(bind=bbs_mysql_engine, reflect=True)
+    articles = META_DATA.tables["articles"]
+    clauses = or_( *[articles.c.article_id == x for x in papers[:limit]] )
+    s = select([
+        articles.c.title,
+        articles.c.authors,
+        articles.c.abstract,
+        articles.c.doi,
+        articles.c.url,
+        articles.c.journal,
+        articles.c.pmcid,
+        articles.c.pubmed_id,
+        articles.c.publish_time
+    ]).where(clauses)
+    result = mysql_engine.execute(s)
+    results = []
+    for row in result:
+        results.append(row)
+    return results

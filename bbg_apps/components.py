@@ -942,6 +942,7 @@ def generate_layout(graphs, configs):
                 ),
                 dbc.Collapse(dbc.Tabs(id='tabs', children=[
                     dbc.Tab(
+                        id="graph-view-tab",
                         label='Graph view',
                         label_style={
                             "color": "#00AEF9", "border-radius":"4px",
@@ -949,12 +950,14 @@ def generate_layout(graphs, configs):
                         },
                         children=[dbc.Card(dbc.CardBody([form]))]),
                     dbc.Tab(
+                        id="layout-tab",
                         label='Layout', label_style={
                             "color": "#00AEF9", "border-radius":"4px",
                             "background-color": "white"
                         },
                         children=[dbc.Card(dbc.CardBody([conf_form]))]),
                     dbc.Tab(
+                        id="path-finder-tab",
                         label='Path finder', label_style={
                             "color": "#00AEF9", "border-radius":"4px",
                             "background-color": "white"
