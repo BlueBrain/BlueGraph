@@ -1478,7 +1478,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
     if not ctx.triggered:
         button_id = 'No clicks yet'
     else:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        button_id = ctx.triggered[0]['prop_id'].split('.')[1]
             
     papers = []
     res = []
@@ -1487,7 +1487,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         
     paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
 
-    if datanode:
+    if button_id == "tapNode" and datanode:
         definition = ""
         if "definition" in datanode['data']:
             definition = str(datanode["data"]["definition"])
@@ -1520,7 +1520,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         for el in visualization_app._graphs[showgraph]["cytoscape"]
     }
         
-    if dataedge and statedataedge:
+    if button_id == "tapEdge" and dataedge:
         label = str(dataedge['style']['label'])
         papers = list(set(paper_lookup[dataedge['data']['source']]).intersection(
             set(paper_lookup[dataedge['data']['target']])))
