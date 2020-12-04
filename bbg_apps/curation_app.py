@@ -269,6 +269,7 @@ class CurationApp(object):
                                 page_current=0,
                                 page_size=10,
                                 sort_by=[],
+                                editable=True
                         )
                     ])
                 )
@@ -404,38 +405,40 @@ def get_freq(row, operator, filter_value, term_filters):
     return eval(operator)(row.paper_frequency, int(filter_value)) or str(row['entity']).lower() in term_filters
 
 
-@curation_app._app.callback([
-               Output('datatable-upload-container', 'data'),
-               Output('datatable-upload-container', 'columns'),
-               Output('datatable-upload-container', 'editable'),
-               Output('datatable-upload-container', 'row_deletable'),
-               Output('datatable-upload-container', 'page_count')],
-              [Input('datatable-upload-container', 'page_size'),
-               Input('datatable-upload-container', 'page_current'),
-               Input('datatable-upload-container','data_timestamp'),
-               Input('datatable-upload', 'contents'),
-               Input('entityfreqslider', 'value'),
-               Input('dropdown-freq-filter', 'value'),
-               Input('datatable-upload-container', 'sort_by'),
-               Input('datatable-upload-container', 'filter_query'),
-               Input("term_filters", "value")],
-              [State("datatable-upload-container", "data"),
-               State("datatable-upload-container", "columns"),
-               State('datatable-upload', 'filename'),
-               State('datatable-upload-container', 'derived_viewport_data'),
-#                State("term_filters", "value")
-              ])
+@curation_app._app.callback(
+    [
+        Output('datatable-upload-container', 'data'),
+        Output('datatable-upload-container', 'columns'),
+        Output('datatable-upload-container', 'editable'),
+        Output('datatable-upload-container', 'row_deletable'),
+        Output('datatable-upload-container', 'page_count')
+    ],
+    [
+        Input('datatable-upload-container', 'page_size'),
+        Input('datatable-upload-container', 'page_current'),
+        Input('datatable-upload-container','data_timestamp'),
+        Input('datatable-upload', 'contents'),
+        Input('entityfreqslider', 'value'),
+        Input('dropdown-freq-filter', 'value'),
+        Input('datatable-upload-container', 'sort_by'),
+        Input('datatable-upload-container', 'filter_query'),
+        Input("term_filters", "value"),
+    ],
+    [
+        State("datatable-upload-container", "data"),
+        State("datatable-upload-container", "columns"),
+        State('datatable-upload', 'filename'),
+        State('datatable-upload-container', 'derived_viewport_data'),
+    ])
 def update_output(page_size, page_current, ts, upload, entityfreq,
                   freqoperator, sort_by, filter_query, term_filters,
-                  data, columns, filename, derived_viewport_data, 
-#                   term_filters
-                 ):
+                  data, columns, filename, derived_viewport_data):
     try:
         ctx = dash.callback_context
         if not ctx.triggered:
             button_id = 'No clicks yet'
         else:
-            button_id = ctx.triggered[0]['prop_id'].split('.')[0]       
+            button_id = ctx.triggered[0]['prop_id'].split('.')[0]   
             
         if term_filters is not None:
             term_filters = [str(term_filter_value).lower() for term_filter_value in term_filters]
@@ -476,11 +479,41 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
             curation_app._original_linked_table = None
             curation_app._curated_table = curation_app._original_table.copy()
         elif derived_viewport_data:
-            removed = [row for row in derived_viewport_data if row not in data and str(row["entity"]).lower() not in term_filters]
-            for row in removed:
+            named_data_rows = {
+                row["entity"]: row for row in data
+            }
+            # Removed
+            removed = []
+            renamed = {}
+            retyped = {}
+            for row in derived_viewport_data:
+                if row["entity"] not in named_data_rows.keys() and str(row["entity"]).lower() not in term_filters:
+                    # Was it renamed? find a record with the same aggregated_entities
+                    found = False
+                    for e, data_row in named_data_rows.items():
+                        if data_row["aggregated_entities"] == row["aggregated_entities"]:
+                            renamed[row["entity"]] = e
+                            if row["entity_type"] != data_row["entity_type"]:
+                                retyped[e] = data_row["entity_type"]
+                            found = True
+                            break
+                    if not found:
+                        removed.append(row["entity"])
+                else:
+                    if row["entity_type"] != named_data_rows[row["entity"]]["entity_type"]:
+                        retyped[row["entity"]] = named_data_rows[row["entity"]]["entity_type"]
+            # Apply removals
+            for el in removed:
                 curation_app._curated_table = curation_app._curated_table[
-                    curation_app._curated_table.entity.str.lower() != str(row["entity"]).lower()]
+                    curation_app._curated_table.entity.str.lower() != str(el).lower()]
+            # Apply relabeling
+            for k, v in renamed.items():
+                curation_app._curated_table.loc[curation_app._curated_table["entity"] == k, "entity"] = v
 
+            # Apply retyping
+            for k, v in retyped.items():
+                curation_app._curated_table.loc[curation_app._curated_table["entity"] == k, "entity_type"] = v
+            
         if (button_id == "entityfreqslider" or button_id=="dropdown-freq-filter")  and 'paper_frequency' in curation_app._curated_table:
             row_filtered = []  
             if curation_app._original_linked_table is None:
@@ -495,7 +528,7 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
                     curation_app._original_linked_table.apply(lambda row: get_freq(row, freqoperator, entityfreq, term_filters), axis=1)]
     
         result = curation_app._curated_table
-        
+
         # Filter by properties
         dff = result
         if filter_query:
@@ -540,12 +573,15 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
      Input('datatable-upload-container', 'data')],)
 def display_graph(dts, rows):
     df = curation_app._curated_table.copy()
+    
     if (df.empty or len(df.columns) < 1):
         scatter = {'data': [{'x': [], 'y': []}]}
     else:
         scatter = px.scatter(
-            df, x=df.entity, y=df.paper_frequency, color=df.entity_type.apply(lambda x: ",".join(x) if isinstance(x,list) else x))
+            df, x=df.entity, y=df.paper_frequency,
+            color=df.entity_type.apply(lambda x: ",".join(x) if isinstance(x,list) else x))
     return [scatter]
+
 
 @curation_app._app.callback(
     Output("top_n_frequent_entity", "children"),
