@@ -23,6 +23,7 @@ import dash_html_components as html
 import dash_daq as daq
 
 from bbg_apps.utils import save_run
+from bbg_apps.resources import TWO_LETTER_ENTITIES
 
 
 OPERATORS = [
@@ -168,6 +169,17 @@ class CurationApp(object):
                 )
             ]
         )
+        
+        remove_short_entities = dbc.FormGroup(
+            [
+                dbc.Button("Remove 2-letter entities", color="primary", className="mr-1",id='remove_2_letter'),
+                dbc.Tooltip( 
+                    "Click to remove entities that have less than two letters (entities 'pH', 'Ca', 'Hg', 'O2', 'Na', 'Mg' are preserved)",
+                    target="remove_2_letter",
+                    placement="bottom",
+                )
+            ]
+        )
 
         top_n_frequent_entity = dbc.FormGroup(
             [
@@ -195,6 +207,7 @@ class CurationApp(object):
         form_table = dbc.Form(
             [
                 link_ontology,
+                remove_short_entities,
                 dropdown,
                 buttons,
                 top_n_frequent_entity,
@@ -423,6 +436,7 @@ def get_freq(row, operator, filter_value, term_filters):
         Input('datatable-upload-container', 'sort_by'),
         Input('datatable-upload-container', 'filter_query'),
         Input("term_filters", "value"),
+        Input("remove_2_letter", "n_clicks")
     ],
     [
         State("datatable-upload-container", "data"),
@@ -431,7 +445,7 @@ def get_freq(row, operator, filter_value, term_filters):
         State('datatable-upload-container', 'derived_viewport_data'),
     ])
 def update_output(page_size, page_current, ts, upload, entityfreq,
-                  freqoperator, sort_by, filter_query, term_filters,
+                  freqoperator, sort_by, filter_query, term_filters, remove_2_letter,
                   data, columns, filename, derived_viewport_data):
     try:
         ctx = dash.callback_context
@@ -526,7 +540,17 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
             else:
                 curation_app._curated_table = curation_app._original_linked_table[
                     curation_app._original_linked_table.apply(lambda row: get_freq(row, freqoperator, entityfreq, term_filters), axis=1)]
-    
+                
+        if button_id == "remove_2_letter":
+            if curation_app._original_linked_table is None:
+                curation_app._original_table = curation_app._original_table[
+                    curation_app._original_table.entity.apply(lambda x: len(x) > 2 or x in TWO_LETTER_ENTITIES)]
+                curation_app._curated_table = curation_app._original_table.copy()
+            else:
+                curation_app._original_linked_table = curation_app._original_linked_table[
+                    curation_app._original_linked_table.entity.apply(lambda x: len(x) > 2 or x in TWO_LETTER_ENTITIES)]
+                curation_app._curated_table = curation_app._original_linked_table.copy()
+
         result = curation_app._curated_table
 
         # Filter by properties

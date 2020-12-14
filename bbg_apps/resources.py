@@ -1,3 +1,8 @@
+
+TWO_LETTER_ENTITIES = [
+    "ph", "ca", "hg", "o2", "na", "mg"
+]
+
 MIN_NODE_SIZE = 10
 MAX_NODE_SIZE = 40
 

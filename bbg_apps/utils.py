@@ -30,6 +30,11 @@ def save_run(app, initial_port, mode="jupyterlab", debug=False, inline_exception
             
 ATTRS_RESOLVER = CORD_ATTRS_RESOLVER.copy()
 
+def min_with_inf(x):
+    x = [el for el in x if el is not None]
+    return min(x) if len(x) > 0 else None
+
+
 ATTRS_RESOLVER.update({
     "paper_frequency": sum,
     "paper_frequency_size": max,
@@ -40,7 +45,11 @@ ATTRS_RESOLVER.update({
     "pagerank_frequency_font_size": max, 
     "frequency_size": max,
     "ppmi_size": max,
-    "npmi_size": max
+    "npmi_size": max,
+    "frequency": sum,
+    "distance_ppmi": min_with_inf,
+    "distance_npmi": min_with_inf,
+    "distance_frequency": min_with_inf
 })
 
 

@@ -461,6 +461,9 @@ class VisualizationApp(object):
 
     def set_list_papers_callback(self, func):
         self._list_papers_callback = func
+        
+    def set_aggregated_entities_callback(self, func):
+        self._aggregated_entities_callback = func
 
     def set_entity_definitons(self, definition_dict):
         self._entity_definitions = definition_dict
@@ -1510,7 +1513,13 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             )
         ])
         label = "'" + label + "' mentioned in " + frequency + " papers "
-        modal_button = dbc.Button(label, id="open-body-scroll",color="primary")
+        modal_buttons = [
+            dbc.Button(label, id="open-body-scroll",color="primary"),
+            dbc.Button(
+                "Inspect linked raw entites", id="show-aggregated-entities",
+                color="primary", style={"margin-left": "20pt"})
+        ]
+        
         
         papers = paper_lookup[datanode['data']['id']]
 
@@ -1530,8 +1539,9 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
         npmi = dataedge["data"]["npmi"]
         label = mention_label if str(dataedge['style']['label']) == "" else str(dataedge['style']['label']) 
         npmi_message = html.P("Normalized pointwise mutual information: {:.2f}".format(npmi), id="edgeDesc")
-        modal_button = dbc.Button(
-            label, id="open-body-scroll", color="primary")
+        modal_buttons = [
+            dbc.Button(label, id="open-body-scroll", color="primary")
+        ]
 
     papers_in_kg = None
     if len(papers) > 0:
@@ -1570,9 +1580,12 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             cards = html.P(error_message, id="paperErrorMessage", style={"color": "red"})
             
         modal = html.Div(
+            [npmi_message] +
+            modal_buttons +
             [
-                npmi_message,
-                modal_button,
+                html.Div(
+                    id="aggregated-entity-stats",
+                    style={"height": "35pt", "margin-bottom": "10pt"}),
                 dbc.Modal([
                         dbc.ModalHeader("{} {}".format(
                             label,
@@ -2170,3 +2183,31 @@ def toggle_bottom_tabs(legend_b, details_b, edit_b, neighb_b, hide_b,
 def input_triggers_spinner(value):
     time.sleep(1)
     return []
+
+
+
+@visualization_app._app.callback(
+    Output("aggregated-entity-stats", "children"),
+    [
+        Input("show-aggregated-entities", "n_clicks")
+    ],
+    [
+        State('cytoscape', 'tapNode')
+    ]
+)
+def compute_aggregated_stats(button_clicked, tapped_node):
+    if button_clicked:
+        res = visualization_app._aggregated_entities_callback(
+            tapped_node["data"]["id"])
+        list_group = dbc.ListGroup([
+            dbc.ListGroupItem("{}. {} ({})".format(i + 1, k, v))
+             for i, (k, v) in enumerate(res.items())
+        ])
+        entities_card_content = [
+            html.H6("Top raw entities linked to '{}' (by paper frequency)".format(
+                tapped_node["data"]["id"]), className="card-title", style={"margin-top": "15pt"}),
+            list_group
+        ]
+        return entities_card_content
+    else:
+        return []

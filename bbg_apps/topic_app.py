@@ -1,5 +1,6 @@
 import ast
 import jwt
+import os
 
 import ipywidgets
 from IPython.display import display, HTML
@@ -13,6 +14,19 @@ import tempfile
 
 from kgforge.core import Resource
 from kgforge.specializations.resources import Dataset
+
+
+import math
+
+def convert_size(size_bytes):
+    # taken from an answer https://stackoverflow.com/questions/5194057/better-way-to-convert-file-sizes-in-python
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return "%s %s" % (s, size_name[i])
 
 
 class TopicWidget(object):
@@ -365,42 +379,52 @@ class DataSaverWidget(object):
 
         self.tempdir = tempfile.TemporaryDirectory(prefix=temp_prefix)
         self.temp_prefix = self.tempdir.name
-
-        # Temporally save the extracted entities csv file locally
-        table_extractions_filename = "{}/table_extractions_{}.csv".format(self.temp_prefix, timestr)
-        table_extractions.to_csv(table_extractions_filename)
-
-        # Temporally save the curated list of extracted entities csv file locally
-        curated_table_extractions_filename = "{}/curated_table_extractions_{}.csv".format(self.temp_prefix, timestr)
-        curated_table_extractions.to_csv(curated_table_extractions_filename)
-
-        # Temporally save the curated list of extracted entities csv file locally
-        curation_meta_data_filename = "{}/curation_meta_data_{}.json".format(self.temp_prefix, timestr)
-        with open(curation_meta_data_filename, "w") as f:
-            json.dump(curation_meta_data, f)
-
-        # Save graph objects produced by the app
-        graphs_filename = "{}/graphs_{}.pkl".format(self.temp_prefix, timestr)
-        with open(graphs_filename, "wb") as f:
-            pickle.dump(exported_graphs, f)
-
-        # Save app configs 
-        config_filename = "{}/visualization_session_{}.json".format(self.temp_prefix, timestr)
-        with open(config_filename, "w+") as f:
-            json.dump(visualization_configs, f)
-
-        # Save manual edits
-        edit_history_filename = "{}/edit_history_{}.json".format(self.temp_prefix, timestr)
-        with open(edit_history_filename, "w") as f:
-            json.dump(edit_history, f)
-        
+    
         self.dataset = Dataset(self.forge, name="A dataset", about=topic_resource_id)
-        self.dataset.add_distribution(table_extractions_filename, content_type="application/csv")
-        self.dataset.add_distribution(curated_table_extractions_filename, content_type="application/csv")
-        self.dataset.add_distribution(graphs_filename, content_type="application/octet-stream")
-        self.dataset.add_distribution(config_filename, content_type="application/json")
-        self.dataset.add_distribution(edit_history_filename, content_type="application/json")
-        self.dataset.add_distribution(curation_meta_data_filename, content_type="application/json")
+        
+        # Temporally save the extracted entities csv file locally
+        if table_extractions is not None:
+            table_extractions_filename = "{}/table_extractions_{}.csv".format(self.temp_prefix, timestr)
+            table_extractions.to_csv(table_extractions_filename)
+            print("Extracted table file: ", convert_size(os.path.getsize(table_extractions_filename)))
+            self.dataset.add_distribution(table_extractions_filename, content_type="application/csv")
+
+        # Temporally save the curated list of extracted entities csv file locally
+        if curated_table_extractions is not None:
+            curated_table_extractions_filename = "{}/curated_table_extractions_{}.csv".format(self.temp_prefix, timestr)
+            curated_table_extractions.to_csv(curated_table_extractions_filename)
+            print("Curated table file: ", convert_size(os.path.getsize(curated_table_extractions_filename)))
+            self.dataset.add_distribution(curated_table_extractions_filename, content_type="application/csv")
+
+            # Temporally save the curated list of extracted entities csv file locally
+            curation_meta_data_filename = "{}/curation_meta_data_{}.json".format(self.temp_prefix, timestr)
+            with open(curation_meta_data_filename, "w") as f:
+                json.dump(curation_meta_data, f)
+            print("Curation meta-data filename file: ", convert_size(os.path.getsize(curation_meta_data_filename)))
+            self.dataset.add_distribution(curation_meta_data_filename, content_type="application/json")
+
+        if exported_graphs is not None:
+            # Save graph objects produced by the app
+            graphs_filename = "{}/graphs_{}.pkl".format(self.temp_prefix, timestr)
+            with open(graphs_filename, "wb") as f:
+                pickle.dump(exported_graphs, f)
+            print("Graph file: ", convert_size(os.path.getsize(graphs_filename)))
+            self.dataset.add_distribution(graphs_filename, content_type="application/octet-stream")
+
+            # Save app configs 
+            config_filename = "{}/visualization_session_{}.json".format(self.temp_prefix, timestr)
+            with open(config_filename, "w+") as f:
+                json.dump(visualization_configs, f)
+            print("Visualization session file: ", convert_size(os.path.getsize(config_filename)))
+
+            # Save manual edits
+            edit_history_filename = "{}/edit_history_{}.json".format(self.temp_prefix, timestr)
+            with open(edit_history_filename, "w") as f:
+                json.dump(edit_history, f)
+                
+            self.dataset.add_distribution(config_filename, content_type="application/json")
+            self.dataset.add_distribution(edit_history_filename, content_type="application/json")
+
         self.dataset.add_contribution(self.agent)
         self.dataset.contribution.hadRole= "Scientists"
         

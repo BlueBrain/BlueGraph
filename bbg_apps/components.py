@@ -10,6 +10,7 @@ import dash_cytoscape as cyto_module
 from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
                                 CYTOSCAPE_STYLE_STYLESHEET)
 
+
 DEFAULT_LAYOUT = "cose-bilkent"
 
 node_frequency_type = [
