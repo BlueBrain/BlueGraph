@@ -1585,7 +1585,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge, showgraph
             [
                 html.Div(
                     id="aggregated-entity-stats",
-                    style={"height": "35pt", "margin-bottom": "10pt"}),
+                    style={"min-height": "35pt", "margin-bottom": "10pt"}),
                 dbc.Modal([
                         dbc.ModalHeader("{} {}".format(
                             label,
