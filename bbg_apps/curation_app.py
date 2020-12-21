@@ -49,7 +49,6 @@ SUPPORTED_JUPYTER_DASH_MODE = ["jupyterlab", "inline","external"]
 
 DEFAULT_ENTITY_FREQUENCY = 1
 
-# -------------- Utils ------------------
 
 def split_filter_part(filter_part):
     for operator_type in OPERATORS:

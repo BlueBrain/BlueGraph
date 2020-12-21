@@ -3,19 +3,11 @@ import networkx as nx
 
 import community as community_louvain
 
-from kganalytics.utils import top_n
-
-
-def keys_by_value(d, val):
-    result = []
-    for k, v in d.items():
-        if v == val:
-            result.append(k)
-    return result
+from kganalytics.utils import top_n, keys_by_value
 
 
 def compute_degree_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute degree centralities and save as node attrs."""
+    """Compute degree centralities and add as node attrs."""
     degree_centrality = {}
     for w in weights:
         degree_centrality[w] = dict(graph.degree(weight=w))
@@ -31,7 +23,7 @@ def compute_degree_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def compute_pagerank_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute PageRank centralities and save as node attrs."""
+    """Compute PageRank centralities and add as node attrs."""
     pagerank_centrality = {}
     for w in weights:
         pagerank_centrality[w] = nx.pagerank(graph, weight=w)
@@ -47,7 +39,7 @@ def compute_pagerank_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def compute_betweenness_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute PageRank centralities and save as node attrs."""
+    """Compute PageRank centralities and add as node attrs."""
     betweenness_centrality = {}
     for w in weights:
         betweenness_centrality[w] = nx.betweenness_centrality(graph, weight=w)
@@ -64,7 +56,7 @@ def compute_betweenness_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def detect_communities(graph, weight="frequency", set_attr=None):
-    """Detect communities."""
+    """Detect node communities using Louvain algo."""
     print("Detecting communities...")
     partition = community_louvain.best_partition(
         graph, weight=weight)
@@ -82,7 +74,7 @@ def detect_communities(graph, weight="frequency", set_attr=None):
 def show_top_members(graph, partition, n):
     """Pretty-print top community members."""
     print("Top important community nodes: ")
-    print("---------------------------------------------------------------------")
+    print("------------------------------------------------------------------")
     communitites = set(partition.values())
     for i, c in enumerate(communitites):
         members = keys_by_value(partition, c)

@@ -5,24 +5,15 @@ import pandas as pd
 import networkx as nx
 
 
-def save_nodes(graph, path):
-    """Save graph nodes as a pickled pandas.DataFrame."""
-    df = pd.DataFrame(index=graph.nodes())
-    # We assume that the graphs are homogeneous
-    first_node = list(graph.nodes())[0]
-    attrs = graph.nodes[first_node].keys()
-    for a in attrs:
-        df[a] = pd.Series(
-            nx.get_node_attributes(graph, a))
-
-    with open(path, "wb") as f:
-        pickle.dump(df, f)
-
-
 def save_to_gephi(graph, prefix, node_attr_mapping,
                   edge_attr_mapping, edge_filter=None):
-    """Save the graph for Gephi import."""
-    # Gephi asks for node ids to be numerical
+    """Save the graph for Gephi import.
+
+    Saves the graph as two `.csv` files one with nodes (`<prefix>_nodes.csv`)
+    and one with edges (`<prefix>_edges.csv`). Node IDs are replaced by
+    interger identifiers (Gephi asks for node IDs to be numerical) and
+    entity names are added as the node property 'Label'.
+    """
     nodes_to_indices = {
         n: i + 1
         for i, n in enumerate(graph.nodes()) if n in graph.nodes()
@@ -77,7 +68,59 @@ def save_to_gephi(graph, prefix, node_attr_mapping,
         f.write(node_header + node_repr)
 
 
+def save_nodes(graph, path):
+    """Save graph nodes as a pickled pandas.DataFrame."""
+    df = pd.DataFrame(index=graph.nodes())
+    # We assume that the graphs are homogeneous
+    # (attribute keys are the same across all the nodes)
+    first_node = list(graph.nodes())[0]
+    attrs = graph.nodes[first_node].keys()
+    for a in attrs:
+        df[a] = pd.Series(
+            nx.get_node_attributes(graph, a))
+
+    with open(path, "wb") as f:
+        pickle.dump(df, f)
+
+
+def save_network(network, prefix):
+    """Save networkx object into pickled node/edge tables.
+
+    Saves the graph as two `.pkl` files one with nodes (`<prefix>_node_list.pkl`)
+    and one with edges (`<prefix>_edge_list.pkl`).
+
+    Parameters
+    ----------
+    network : nx.Graph
+        NetworkX graph to serialize
+
+    """
+    edgelist = nx.to_pandas_edgelist(network)
+    edgelist.to_pickle("{}_edge_list.pkl".format(prefix))
+    save_nodes(network, "{}_node_list.pkl".format(prefix))
+
+
 def load_network(edge_path, node_path, edge_attr=None):
+    """Load a graph from provided pickled dataframes with edges an nodes.
+
+    Parameters
+    ----------
+    edge_path : str
+        Path to the `.pkl` file with pickled pandas.Dataframe
+        containing the edge list
+    node_path : str
+        Path to the `.pkl` file with pickled pandas.Dataframe
+        containing the edge list
+    edge_attr : iterable, optional
+        Set of edge attributes to import. By default, tries to import
+        the attributes "frequency", "ppmi", "npmi", "distance_ppmi",
+        "distance_npmi".
+
+    Returns
+    -------
+    network : nx.Graph
+        Loaded NetworkX graph
+    """
     if edge_attr is None:
         edge_attr = [
             "frequency", "ppmi", "npmi", "distance_ppmi", "distance_npmi"
@@ -92,10 +135,3 @@ def load_network(edge_path, node_path, edge_attr=None):
         node_list = pickle.load(f)
     nx.set_node_attributes(network, node_list.to_dict("index"))
     return network
-
-
-def save_network(graph_object, prefix):
-    """Save networkx object into pickle files containing node/edge tables."""
-    edgelist = nx.to_pandas_edgelist(graph_object)
-    edgelist.to_pickle("{}_edge_list.pkl".format(prefix))
-    save_nodes(graph_object, "{}_node_list.pkl".format(prefix))

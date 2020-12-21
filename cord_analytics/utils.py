@@ -4,30 +4,19 @@ import pickle
 
 import pandas as pd
 import networkx as nx
-import numpy as np
 
 from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from kganalytics.network_generation import generate_comention_network
-from kganalytics.data_preparation import (mentions_to_occurrence,
-                                        is_experiment_related,
-                                        dummy_clean_up,
-                                        is_not_single_letter)
-from kganalytics.metrics import (compute_degree_centrality,
-                               compute_pagerank_centrality,
-                               compute_betweenness_centrality,
-                               detect_communities,
-                               compute_all_metrics)
+from kganalytics.metrics import compute_all_metrics
 
 from kganalytics.export import (save_nodes,
                                 save_to_gephi,
                                 save_network)
-from kganalytics.paths import (minimum_spanning_tree,
-                             top_n_paths,
-                             top_n_tripaths,
-                             single_shortest_path)
+
+from kganalytics.paths import minimum_spanning_tree
 
 
 NON_ASCII_REPLACE = {
@@ -42,12 +31,13 @@ NON_ASCII_REPLACE = {
     "ó": "o"
 }
 
+
 def dummy_clean_up(s):
-    """Dummy clean-up to remove some errors from NER."""
+    """Dummy clean-up to remove errors in entities from NER."""
     s = str(s).lower()
     result = s.strip().strip("\"").strip("\'")\
         .strip("&").strip("#").replace(".", "").replace("- ", "-")
-    
+
     # cleaning-up non-ascii symbols
     for s in result:
         try:
@@ -99,17 +89,59 @@ def is_experiment_related(title):
     return False
 
 
+def mentions_to_occurrence(raw_data,
+                           term_column="entity",
+                           factor_columns=[],
+                           term_cleanup=None,
+                           term_filter=None,
+                           mention_filter=None,
+                           filter_methods=False,
+                           aggregation_function=None,
+                           dump_prefix=None):
+    """Convert a raw mentions data into occurrence data."""
+    print("Cleaning up the entities...")
+
+    # Entiti
+    if term_cleanup is not None:
+        raw_data[term_column] = raw_data[term_column].apply(term_cleanup)
+
+    if term_filter is not None:
+        raw_data = raw_data[term_filter(raw_data[term_column])]
+
+    if mention_filter is not None:
+        raw_data = raw_data[mention_filter(raw_data)]
+
+    factor_counts = {}
+    for factor_column in factor_columns:
+        factor_counts[factor_column] = len(raw_data[factor_column].unique())
+
+    print("Aggregating occurrences of entities....")
+    if aggregation_function is None:
+        aggregation_function = set
+
+    occurence_data = raw_data.groupby(term_column).aggregate(
+        lambda x: aggregation_function(x))
+
+    if dump_prefix is not None:
+        print("Saving the occurrence data....")
+        with open("{}occurrence_data.pkl".format(dump_prefix), "wb") as f:
+            pickle.dump(occurence_data, f)
+
+        with open("{}counts.pkl".format(dump_prefix), "wb") as f:
+            pickle.dump(factor_counts, f)
+
+    return occurence_data, factor_counts
+
+
 def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None, include_nodes=None):
     if include_nodes is None:
         include_nodes = []
-    
+
     if types_to_exclude is None:
         types_to_exclude = []
 
     def has_needed_type(n):
-#         print(n)
         n_types = type_data[n]
-#         print(n_types)
         include_found = False
         exclude_found = False
         for t in n_types:
@@ -118,7 +150,7 @@ def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None,
             if t in types_to_exclude:
                 exclude_found = True
         return include_found and not exclude_found
-    
+
     nodes = [
         n
         for n in graph.nodes()
@@ -152,9 +184,9 @@ def graph_from_paths(paths, source_graph=None):
 
 def label_paths(graph, paths, label):
     path_group = dict()
-    
+
     labeled_nodes = list()
-    
+
     nodes = set()
     edges = set()
     for p in paths:
@@ -162,7 +194,7 @@ def label_paths(graph, paths, label):
         for i in range(1, len(p)):
             nodes.add(p[i])
             edges.add((p[i - 1], p[i]))
-    
+
     for n in graph.nodes():
         if n in nodes:
             path_group[n] = 1
@@ -187,16 +219,16 @@ def aggregate_cord_entities(x, factors):
     }
     for f in factors:
         result[f] = set(x[f])
-    
+
     return result
 
 
 def prepare_occurrence_data(mentions_df=None,
-                 mentions_path=None,
-                 occurrence_data_path=None,
-                 factors=None,
-                 factor_counts_path=None):
-    """Prepare mentions data for the co-occurrence analysis."""    
+                            mentions_path=None,
+                            occurrence_data_path=None,
+                            factors=None,
+                            factor_counts_path=None):
+    """Prepare mentions data for the co-occurrence analysis."""
     if factors is None:
         # use all factors
         factors = ["paper", "section", "paragraph"]
@@ -211,7 +243,7 @@ def prepare_occurrence_data(mentions_df=None,
             mentions = pd.read_csv(f)
     elif mentions_df is not None:
         mentions = mentions_df
-    
+
     if mentions is not None:
         mentions = mentions[["entity", "entity_type", "paper_id"]]
         mentions["paper"] = mentions["paper_id"].apply(
