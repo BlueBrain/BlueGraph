@@ -2,7 +2,7 @@
 build/
 dist/
 kganalytics/examples/data/gephi*
-kganalytics/examples/data/paper*
-kganalytics/examples/data/example*
 *.ipynb_checkpoints/
 *.DS_Store
+*_edge_list.pkl
+*_node_list.pkl
