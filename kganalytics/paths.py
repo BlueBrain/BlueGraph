@@ -349,3 +349,13 @@ def graph_from_paths(paths, source_graph=None):
             nx.set_edge_attributes(
                 graph, {e: source_graph.edges[e][k] for e in edges}, k)
     return graph
+
+
+def top_neighbors(graph, node, n, weight):
+    """Get top n neighbours of the specified node by weight."""
+    neigbours = {}
+    for neighbor in graph.neighbors(node):
+        neigbours[neighbor] = graph.edges[node, neighbor][weight]
+    return {
+        el: neigbours[el] for el in top_n(neigbours, n)
+    }

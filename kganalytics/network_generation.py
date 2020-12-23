@@ -145,15 +145,15 @@ def schedule_scanning(task_queue, indices, n_workers):
     task_queue.join_thread()
 
 
-def generate_comention_network(occurrence_data,
-                               factor_column,
-                               factor_count,
-                               n_most_frequent=None,
-                               limit=None,
-                               parallelize=False,
-                               cores=None,
-                               dump_path=None,
-                               keep=None):
+def generate_cooccurrence_network(occurrence_data,
+                                  factor_column,
+                                  factor_count,
+                                  n_most_frequent=None,
+                                  limit=None,
+                                  parallelize=False,
+                                  cores=None,
+                                  dump_path=None,
+                                  keep=None):
     """Generate a co-occurrence network.
 
     Every unique pair of terms is examined for co-occurrence: if they co-occur
