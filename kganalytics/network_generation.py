@@ -264,26 +264,29 @@ def generate_cooccurrence_network(occurrence_data,
     print("Generated {} edges                    ".format(
         len(all_edges)))
 
-    edge_list = pd.DataFrame(all_edges)
-    edge_list["distance_ppmi"] = 1 / edge_list["ppmi"]
-    edge_list["distance_npmi"] = 1 / edge_list["npmi"]
+    if len(all_edges) > 0:
+        edge_list = pd.DataFrame(all_edges)
+        edge_list["distance_ppmi"] = 1 / edge_list["ppmi"]
+        edge_list["distance_npmi"] = 1 / edge_list["npmi"]
 
-    print("Created a co-occurrence graph:")
-    print("\tnumber of nodes: ", len(nodes))
-    print("\tnumber of edges: ", edge_list.shape[0])
-    print("Saving the edges...")
-    if dump_path:
-        with open(dump_path, "wb") as f:
-            pickle.dump(edge_list, f)
+        print("Created a co-occurrence graph:")
+        print("\tnumber of nodes: ", len(nodes))
+        print("\tnumber of edges: ", edge_list.shape[0])
+        print("Saving the edges...")
+        if dump_path:
+            with open(dump_path, "wb") as f:
+                pickle.dump(edge_list, f)
 
-    print("Creating a graph object...")
-    graph = nx.from_pandas_edgelist(
-        edge_list, edge_attr=[
-            "frequency",
-            "ppmi",
-            "npmi",
-            "distance_ppmi",
-            "distance_npmi"
-        ])
+        print("Creating a graph object...")
+        graph = nx.from_pandas_edgelist(
+            edge_list, edge_attr=[
+                "frequency",
+                "ppmi",
+                "npmi",
+                "distance_ppmi",
+                "distance_npmi"
+            ])
 
-    return graph
+        return graph
+    else:
+        return None
