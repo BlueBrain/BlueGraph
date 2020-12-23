@@ -1,15 +1,11 @@
-import os
-import flask
-
-import json
 import time
 import math
 import numpy as np
 import networkx as nx
 
+from colorsys import rgb_to_hls, hls_to_rgb
+
 import copy
-from operator import ge, gt, lt, le, eq, ne
-from collections import OrderedDict
 
 from jupyter_dash import JupyterDash
 
@@ -20,10 +16,7 @@ import dash_html_components as html
 
 from dash.dependencies import Input, Output, State
 
-from bbg_apps.curation_app import DROPDOWN_FILTER_LIST
-from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
-                                CYTOSCAPE_STYLE_STYLESHEET,
-                                DEFAULT_TYPES,
+from bbg_apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
                                 MIN_NODE_SIZE,
                                 MAX_NODE_SIZE,
                                 MIN_FONT_SIZE,
@@ -39,16 +32,16 @@ from dash.exceptions import PreventUpdate
 from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths,
                                minimum_spanning_tree, graph_from_paths)
 from kganalytics.utils import (top_n, merge_nodes)
-from cord_analytics.utils import (build_cytoscape_data, generate_paper_lookup, CORD_ATTRS_RESOLVER)
 
-from colorsys import rgb_to_hls, hls_to_rgb
-from bbg_apps.utils import save_run, merge_cyto_elements
+from cord_19.utils import (build_cytoscape_data, generate_paper_lookup,
+                           CORD_ATTRS_RESOLVER)
+from cord_19.apps.app_utils import save_run, merge_cyto_elements
 
 
 def adjust_color_lightness(r, g, b, factor):
-    h, l, s = rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-    l = max(min(l * factor, 1.0), 0.0)
-    r, g, b = hls_to_rgb(h, l, s)
+    h, _l, s = rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    _l = max(min(_l * factor, 1.0), 0.0)
+    r, g, b = hls_to_rgb(h, _l, s)
     return int(r * 255), int(g * 255), int(b * 255)
 
 

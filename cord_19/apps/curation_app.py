@@ -1,8 +1,5 @@
-import math
 import traceback
 import pandas as pd
-
-from operator import ge, gt, lt, le, eq, ne
 
 import dash
 from jupyter_dash import JupyterDash
@@ -17,13 +14,10 @@ from dash.exceptions import PreventUpdate
 import plotly.express as px
 
 
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
 import dash_daq as daq
 
-from bbg_apps.utils import save_run
-from bbg_apps.resources import TWO_LETTER_ENTITIES
+from cord_19.apps.app_utils import save_run
+from cord_19.apps.resources import TWO_LETTER_ENTITIES
 
 
 OPERATORS = [
@@ -48,7 +42,7 @@ DROPDOWN_FILTER_LIST = [
 ]
 
 
-SUPPORTED_JUPYTER_DASH_MODE = ["jupyterlab", "inline","external"]
+SUPPORTED_JUPYTER_DASH_MODE = ["jupyterlab", "inline", "external"]
 
 DEFAULT_ENTITY_FREQUENCY = 1
 

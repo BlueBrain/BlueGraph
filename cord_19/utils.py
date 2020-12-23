@@ -1,4 +1,4 @@
-"""Small module for data preparation and network generation for COVID-19 paper."""
+"""Module containing utils for COVID-19 network generation and analysis."""
 import operator
 import pickle
 
@@ -7,7 +7,7 @@ import networkx as nx
 
 import sqlalchemy
 from sqlalchemy.sql import select
-from sqlalchemy.sql import and_, or_, not_
+from sqlalchemy.sql import or_
 
 from collections import Counter
 
@@ -36,8 +36,8 @@ NON_ASCII_REPLACE = {
 }
 
 
-def dummy_clean_up(s):
-    """Dummy clean-up to remove errors in entities from NER."""
+def clean_up_entity(s):
+    """Clean-up entity by removing common errors from NER."""
     s = str(s).lower()
     result = s.strip().strip("\"").strip("\'")\
         .strip("&").strip("#").replace(".", "").replace("- ", "-")
@@ -56,9 +56,9 @@ def dummy_clean_up(s):
     return result
 
 
-def is_not_single_letter(entities):
-    """Check if a term is not a single letter."""
-    return entities.apply(lambda x: len(x) > 1)
+def has_min_length(entities, length):
+    """Check if a term has the min required length."""
+    return entities.apply(lambda x: len(x) > length - 1)
 
 
 def is_experiment_related(title):
@@ -95,17 +95,32 @@ def is_experiment_related(title):
 
 def mentions_to_occurrence(raw_data,
                            term_column="entity",
-                           factor_columns=[],
+                           factor_columns=None,
                            term_cleanup=None,
                            term_filter=None,
                            mention_filter=None,
                            filter_methods=False,
                            aggregation_function=None,
                            dump_prefix=None):
-    """Convert a raw mentions data into occurrence data."""
+    """Convert a raw mentions data into occurrence data.
+
+    Parameters
+    ----------
+    raw_data : pandas.DataFrame
+    term_column : str
+    factor_columns : collection of str
+    term_cleanup : func, optional
+    term_filter : func, optional
+    mention_filter : func, optional
+    filter_methods : pandas.DataFrame
+    aggregation_function
+    dump_prefix : str, optional
+    """
     print("Cleaning up the entities...")
 
-    # Entiti
+    if factor_columns is None:
+        factor_columns = []
+
     if term_cleanup is not None:
         raw_data[term_column] = raw_data[term_column].apply(term_cleanup)
 
@@ -137,7 +152,8 @@ def mentions_to_occurrence(raw_data,
     return occurence_data, factor_counts
 
 
-def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None, include_nodes=None):
+def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None,
+                      include_nodes=None):
     if include_nodes is None:
         include_nodes = []
 
@@ -251,7 +267,7 @@ def prepare_occurrence_data(mentions_df=None,
     if mentions is not None:
         mentions = mentions[["entity", "entity_type", "paper_id"]]
         mentions["paper"] = mentions["paper_id"].apply(
-        lambda x: x.split(":")[0])
+            lambda x: x.split(":")[0])
         mentions["section"] = mentions["paper_id"].apply(
             lambda x: ":".join([x.split(":")[0], x.split(":")[1]]))
         mentions = mentions.rename(columns={"paper_id": "paragraph"})
@@ -259,8 +275,8 @@ def prepare_occurrence_data(mentions_df=None,
             mentions,
             term_column="entity",
             factor_columns=factors,
-            term_cleanup=dummy_clean_up,
-            term_filter=is_not_single_letter,
+            term_cleanup=clean_up_entity,
+            term_filter=lambda x: has_min_length(x, 3),
             aggregation_function=lambda x: aggregate_cord_entities(x, factors),
             mention_filter=lambda data: ~data["section"].apply(is_experiment_related))
 
@@ -309,14 +325,15 @@ def merge_with_ontology_linking(occurence_data,
     elif linking_df is not None:
         linking = linking_df
 
-
     if linking is not None:
         linking = linking.rename(columns={"mention": "entity"})
         linking["concept"] = linking["concept"].apply(lambda x: x.lower())
-        linking["entity"] = linking["entity"].apply(lambda x: x.lower()) # The provided occcurence_data is expected to be lower cased and the merge is performed on the 'entity' column and not the column one.
-        
+        linking["entity"] = linking["entity"].apply(lambda x: x.lower())
+        # The provided occcurence_data is expected to be lower cased and
+        # the merge is performed on the 'entity' column and not the column one.
+
         print("Merging the occurrence data with the ontology linking...")
-    
+
         # Merge occurrence data with the linking data
         occurence_data = occurence_data.reset_index()
         merged_data = occurence_data.merge(
@@ -361,17 +378,27 @@ def merge_with_ontology_linking(occurence_data,
             occurrence_data_linked = pickle.load(f)
     else:
         raise ValueError(
-            "Neither linking data nor pre-computed linked occurrence data has been specified")
+            "Neither linking data nor pre-computed linked occurrence "
+            "data has been specified"
+        )
     return occurrence_data_linked
-    
-def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occurrences=1,
-                                n_most_frequent=None, keep=None, factors=None, cores=None, graph_dump_prefix=None,
+
+
+def generate_comention_analysis(occurrence_data, counts, type_data=None,
+                                min_occurrences=1, n_most_frequent=None,
+                                keep=None, factors=None, cores=None,
+                                graph_dump_prefix=None,
                                 communities=True, remove_zero_mi=False):
-    # Filter entities that occur only once (only in one paragraph, usually represent noisy terms)
-    occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(lambda x: len(x) >= min_occurrences)]
-    occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(lambda x: len(x))
-    occurrence_data["section_frequency"] = occurrence_data["section"].apply(lambda x: len(x))
-    occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(lambda x: len(x))
+    # Filter entities that occur only once (only in one paragraph, usually
+    # represent noisy terms)
+    occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
+        lambda x: len(x) >= min_occurrences)]
+    occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(
+        lambda x: len(x))
+    occurrence_data["section_frequency"] = occurrence_data["section"].apply(
+        lambda x: len(x))
+    occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(
+        lambda x: len(x))
 
     graphs = {}
     trees = {}
@@ -379,7 +406,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
         print("-------------------------------")
         print("Factor: {}".format(f))
         print("-------------------------------")
-        
+
         if cores is None:
             cores = 8
         graph = generate_comention_network(
@@ -394,12 +421,13 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             keep=keep,
             parallelize=True,
             cores=cores)
-        
+
         if graph is not None:
             graphs[f] = graph
         else:
             return None, None
         print()
+
         # Remove edges with zero mutual information
         if remove_zero_mi:
             edges_to_remove = [
@@ -417,20 +445,20 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
                 graphs[f],
                 type_dict,
                 "entity_type")
-            
+
         # Set factors as attrs
         nx.set_node_attributes(
             graphs[f],
             occurrence_data["paper"].apply(lambda x: list(x)).to_dict(),
             "paper")
-            
+
         compute_all_metrics(
             graphs[f],
             degree_weights=["frequency"],
             betweenness_weights=[],
             community_weights=["frequency", "npmi"] if communities else [],
             print_summary=True)
-    
+
         # Compute a spanning tree
         print("Computing the minimum spanning tree...")
         trees[f] = minimum_spanning_tree(graphs[f], weight="distance_npmi")
@@ -438,17 +466,17 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             trees[f],
             type_dict,
             "entity_type")
-        
+
         if graph_dump_prefix:
             save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
-        
+
         if graph_dump_prefix:
             save_nodes(
                 graphs[f],
                 "{}_{}_node_list.pkl".format(graph_dump_prefix, f))
 
     return graphs, trees
-    
+
 
 def generate_full_analysis(mentions_df=None, mentions_path=None,
                            occurrence_data_path=None, factor_counts_path=None,
@@ -458,7 +486,7 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
                            n_most_frequent=None, min_occurrences=None,
                            graph_dump_prefix=None, gephi_dump_prefix=None,
                            factors=None, cores=None):
-    
+
     if factors is None:
         factors = ["paper", "section", "paragraph"]
 
@@ -470,7 +498,7 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
         factors=factors,
         factor_counts_path=factor_counts_path)
 
-#     # Ontology linking
+    # Ontology linking
     occurrence_data_linked = merge_with_ontology_linking(
         occurrence_data,
         factor_columns=factors,
@@ -478,7 +506,6 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
         linking_path=linking_path,
         linked_occurrence_data_path=linked_occurrence_data_path)
 
-    
     # Peform type mapping according to the provided dictionary
     if type_data_path:
         type_data = pd.read_pickle(type_data_path)
@@ -487,7 +514,7 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
             occurrence_data_linked, type_mapping)
         if type_data_path:
             type_data.to_pickle(type_data_path)
-  
+
     graphs, trees = generate_comention_analysis(
         occurrence_data_linked, counts,
         min_occurrences=min_occurrences,
@@ -496,7 +523,7 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
         graph_dump_prefix=graph_dump_prefix,
         factors=factors,
         cores=cores)
-    
+
     for f in factors:
         if gephi_dump_prefix:
             node_attr_mapping = {
@@ -506,19 +533,19 @@ def generate_full_analysis(mentions_df=None, mentions_path=None,
             if type_data is not None:
                 node_attr_mapping["entity_type"] = "Type"
 
-            edge_attr_mapping={
+            edge_attr_mapping = {
                 "npmi": "Weight"
             }
 
             save_to_gephi(
                 graphs[f],
-                "{}_graph_{}".format(gephi_dump_prefix, f), 
+                "{}_graph_{}".format(gephi_dump_prefix, f),
                 node_attr_mapping=node_attr_mapping,
                 edge_attr_mapping=edge_attr_mapping)
 
             save_to_gephi(
                 trees[f],
-                "{}_tree_{}".format(gephi_dump_prefix, f), 
+                "{}_tree_{}".format(gephi_dump_prefix, f),
                 node_attr_mapping=node_attr_mapping,
                 edge_attr_mapping=edge_attr_mapping)
 
@@ -535,7 +562,7 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
             else:
                 counts[t] = 1
         return max(counts.items(), key=operator.itemgetter(1))[0]
-    
+
     def assign_mapped_type(x):
         types = [el for _, el in x.taxonomy]
         result_type = None
@@ -557,38 +584,48 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
             if include_found and not exclude_found:
                 result_type = target_type
                 break
-    
+
         if result_type is None:
             result_type = assign_raw_type(x.raw_entity_types)
 
-        return result_type      
+        return result_type
 
     type_data = pd.DataFrame(index=occurrence_data.index, columns=["type"])
-    
+
     known_taxonomy = occurrence_data[occurrence_data["taxonomy"].notna()]
-    type_data.loc[known_taxonomy.index, "type"] = known_taxonomy.apply(assign_mapped_type, axis=1)
-    
+    type_data.loc[known_taxonomy.index, "type"] = known_taxonomy.apply(
+        assign_mapped_type, axis=1)
+
     unknown_taxonomy = occurrence_data[occurrence_data["taxonomy"].isna()]
-    type_data.loc[unknown_taxonomy.index, "type"] = unknown_taxonomy["raw_entity_types"].apply(assign_raw_type)
+    type_data.loc[unknown_taxonomy.index, "type"] = unknown_taxonomy[
+        "raw_entity_types"].apply(assign_raw_type)
     return type_data
 
 
 def generate_curation_table(filtered_table_extractions):
-    filtered_table_extractions, counts = prepare_occurrence_data(filtered_table_extractions)
+    filtered_table_extractions, counts = prepare_occurrence_data(
+        filtered_table_extractions)
     filtered_table_extractions = filtered_table_extractions.reset_index()
-    filtered_table_extractions["paper_frequency"] = filtered_table_extractions["paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
-    filtered_table_extractions["paper"] = filtered_table_extractions["paper"].transform(lambda x:  list(x))
-    filtered_table_extractions["paragraph"] = filtered_table_extractions["paragraph"].transform(lambda x:  list(x))
-    filtered_table_extractions["section"] = filtered_table_extractions["section"].transform(lambda x:  list(x))
-    filtered_table_extractions = filtered_table_extractions.rename(columns={"entity_type": "raw_entity_types"})
-    filtered_table_extractions["entity_type"] = filtered_table_extractions["raw_entity_types"].transform(
-        lambda x:  ", ".join(list(set(x))))
+    filtered_table_extractions["paper_frequency"] = filtered_table_extractions[
+        "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
+    filtered_table_extractions["paper"] = filtered_table_extractions[
+        "paper"].transform(lambda x:  list(x))
+    filtered_table_extractions["paragraph"] = filtered_table_extractions[
+        "paragraph"].transform(lambda x:  list(x))
+    filtered_table_extractions["section"] = filtered_table_extractions[
+        "section"].transform(lambda x:  list(x))
+    filtered_table_extractions = filtered_table_extractions.rename(
+        columns={"entity_type": "raw_entity_types"})
+    filtered_table_extractions["entity_type"] = filtered_table_extractions[
+        "raw_entity_types"].transform(
+            lambda x:  ", ".join(list(set(x))))
     return filtered_table_extractions, counts
 
 
 def link_ontology(linking, type_mapping, curated_table):
     curated_table = curated_table.drop(columns=["entity_type"])
-    curated_table = curated_table.rename(columns={"raw_entity_types": "entity_type"})
+    curated_table = curated_table.rename(columns={
+        "raw_entity_types": "entity_type"})
     linked_table = merge_with_ontology_linking(
         curated_table,
         factor_columns=["paper", "section", "paragraph"],
@@ -599,13 +636,15 @@ def link_ontology(linking, type_mapping, curated_table):
     linked_table["paper"] = linked_table["paper"].apply(lambda x: list(x))
     linked_table["section"] = linked_table["section"].apply(lambda x: list(x))
     linked_table["paragraph"] = linked_table["paragraph"].apply(lambda x: list(x))
-    
+
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(
         linked_table.rename(
-            columns={"entity_type": "raw_entity_types"}).set_index("entity"), type_mapping)
-    linked_table = linked_table.merge(types, on="entity", how="left").rename(columns={"type": "entity_type"})
-    linked_table["entity_type_label"] = linked_table["entity_type"] 
+            columns={"entity_type": "raw_entity_types"}).set_index("entity"),
+        type_mapping)
+    linked_table = linked_table.merge(types, on="entity", how="left").rename(
+        columns={"type": "entity_type"})
+    linked_table["entity_type_label"] = linked_table["entity_type"]
     return linked_table
 
 
@@ -619,16 +658,17 @@ def generate_paper_lookup(graph):
 
 def build_cytoscape_data(graph, positions=None):
     elements = cytoscape_data(graph)
-    
+
     if positions is not None:
         for el in elements["elements"]['nodes']:
             if el["data"]["id"] in positions:
                 el["position"] = positions[el["data"]["id"]]
-    
+
     elements = elements["elements"]['nodes'] + elements["elements"]['edges']
     for element in elements:
         element["data"]["id"] = (
-            str(element["data"]["source"] + '_' + element["data"]["target"]).replace(" ","_")
+            str(element["data"]["source"] + '_' + element[
+                "data"]["target"]).replace(" ", "_")
             if "source" in element["data"]
             else element["data"]["id"]
         )
@@ -668,7 +708,7 @@ CORD_ATTRS_RESOLVER = {
 def list_papers(mysql_engine, papers, limit=200):
     META_DATA = sqlalchemy.MetaData(bind=mysql_engine, reflect=True)
     articles = META_DATA.tables["articles"]
-    clauses = or_( *[articles.c.article_id == x for x in papers[:limit]] )
+    clauses = or_(*[articles.c.article_id == x for x in papers[:limit]])
     s = select([
         articles.c.title,
         articles.c.authors,

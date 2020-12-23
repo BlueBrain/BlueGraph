@@ -7,8 +7,8 @@ from dash_extensions import Download
 import visdcc
 
 import dash_cytoscape as cyto_module
-from bbg_apps.resources import (VISUALIZATION_CONTENT_STYLE,
-                                CYTOSCAPE_STYLE_STYLESHEET)
+from cord_19.apps.resources import (VISUALIZATION_CONTENT_STYLE,
+                                    CYTOSCAPE_STYLE_STYLESHEET)
 
 
 DEFAULT_LAYOUT = "cose-bilkent"

@@ -18,6 +18,7 @@ from kgforge.specializations.resources import Dataset
 
 import math
 
+
 def convert_size(size_bytes):
     # taken from an answer https://stackoverflow.com/questions/5194057/better-way-to-convert-file-sizes-in-python
     if size_bytes == 0:
