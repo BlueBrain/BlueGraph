@@ -22,6 +22,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_daq as daq
 
+from bbg_apps.utils import save_run
+from bbg_apps.resources import TWO_LETTER_ENTITIES
+
 
 OPERATORS = [
     ['ge ', '>='],
@@ -86,7 +89,7 @@ class CurationApp(object):
     
     def __init__(self):
         self._app = JupyterDash('Extracted Entities Curation App')
-        self._default_terms_to_include = None
+        self._terms_to_include = None
         self._table_columns = None
         self._original_table = None
         self._curated_table = None
@@ -166,6 +169,17 @@ class CurationApp(object):
                 )
             ]
         )
+        
+        remove_short_entities = dbc.FormGroup(
+            [
+                dbc.Button("Remove 2-letter entities", color="primary", className="mr-1",id='remove_2_letter'),
+                dbc.Tooltip( 
+                    "Click to remove entities that have less than two letters (entities 'pH', 'Ca', 'Hg', 'O2', 'Na', 'Mg' are preserved)",
+                    target="remove_2_letter",
+                    placement="bottom",
+                )
+            ]
+        )
 
         top_n_frequent_entity = dbc.FormGroup(
             [
@@ -182,7 +196,7 @@ class CurationApp(object):
                 ),
                 daq.NumericInput(
                     id="topnentityslider",
-                    max=500,
+                    max=2000,
                     value=500,
                     className="mr-1"
                 )
@@ -192,18 +206,19 @@ class CurationApp(object):
 
         form_table = dbc.Form(
             [
-                buttons,
-                dropdown,
-                reset,
                 link_ontology,
-                top_n_frequent_entity
+                remove_short_entities,
+                dropdown,
+                buttons,
+                top_n_frequent_entity,
+                reset,
             ],
             inline=True)
 
         self.dropdown = dcc.Dropdown(
                 id="term_filters",
                 multi=True,
-                value=self._default_terms_to_include,
+                value=self._terms_to_include,
                 style={
                      "width":"80%"
                 },
@@ -214,7 +229,11 @@ class CurationApp(object):
                 dbc.InputGroupAddon("Keep", addon_type="prepend"),
                 self.dropdown
             ],
-            className="mb-1"
+            className="mb-1",
+            style={
+                "margin-top": "10pt",
+                "margin-bottom": "10pt !important"
+            }
         )
         
         self._app.layout = html.Div([
@@ -222,45 +241,50 @@ class CurationApp(object):
             dbc.Row(dbc.Col(term_filters)),
             dbc.Row(
                 dbc.Col(
-                    dash_table.DataTable(
-                        id='datatable-upload-container',
-                        data=pd.DataFrame().to_dict('records'),
-                        columns=self._table_columns,
-                        style_cell={
-                            'whiteSpace': 'normal'
-                        },
-                        style_data_conditional=[{
-                            'if': {'row_index': 'odd'},
-                            'backgroundColor': 'rgb(248, 248, 248)'
-                        }],
-                        style_header={
-                            'backgroundColor': 'rgb(230, 230, 230)',
-                            'fontWeight': 'bold'
-                        },
-                        style_table={
-                            'padding-left': '11pt',
-                            'padding-right': '20pt',
-                            'padding-top': '5pt',
-                        },
-                        css=[{
-                            'selector': 'dash-fixed-content',
-                            'rule': 'height: 100%;'
-                        }],
-                        sort_action="custom", #native
-                        sort_mode="multi",
-                        column_selectable="multi",
-                        filter_action="custom",
-                        filter_query='',
-                        selected_columns=[],
-                        page_action="custom", #native
-                        export_format='csv',
-                        export_headers='display',
-                        merge_duplicate_headers=True,
-                        selected_rows=[],
-                        page_current=0,
-                        page_size=10,
-                        sort_by=[],
-                    )
+                    dcc.Loading(
+                        id="loading", type="default",
+                        children=[
+                            dash_table.DataTable(
+                                id='datatable-upload-container',
+                                data=pd.DataFrame().to_dict('records'),
+                                columns=self._table_columns,
+                                style_cell={
+                                    'whiteSpace': 'normal'
+                                },
+                                style_data_conditional=[{
+                                    'if': {'row_index': 'odd'},
+                                    'backgroundColor': 'rgb(248, 248, 248)'
+                                }],
+                                style_header={
+                                    'backgroundColor': 'rgb(230, 230, 230)',
+                                    'fontWeight': 'bold'
+                                },
+                                style_table={
+                                    'padding-left': '11pt',
+                                    'padding-right': '20pt',
+                                    'padding-top': '5pt',
+                                },
+                                css=[{
+                                    'selector': 'dash-fixed-content',
+                                    'rule': 'height: 100%;'
+                                }],
+                                sort_action="custom", #native
+                                sort_mode="multi",
+                                column_selectable="multi",
+                                filter_action="custom",
+                                filter_query='',
+                                selected_columns=[],
+                                page_action="custom", #native
+                                export_format='csv',
+                                export_headers='display',
+                                merge_duplicate_headers=True,
+                                selected_rows=[],
+                                page_current=0,
+                                page_size=10,
+                                sort_by=[],
+                                editable=True
+                        )
+                    ])
                 )
             ),
             dbc.Row(dbc.Col(dcc.Graph(id='datatable-upload-Scatter')))
@@ -268,11 +292,13 @@ class CurationApp(object):
 
 
     def set_default_terms_to_include(self, terms):
-        self._default_terms_to_include = terms
-        self.dropdown.value=self._default_terms_to_include
+        self._terms_to_include = terms
+        self.dropdown.value = self._terms_to_include
 
     def set_table(self, table):
+        self._linked = False
         self._original_table = table
+        self._original_linked_table = None
         self._curated_table = table.copy()
         columns = [
             {
@@ -293,22 +319,16 @@ class CurationApp(object):
     def set_ontology_linking_callback(self, func):
         self._ontology_linking_callback = func
         
-    def run(self, port, mode="jupyterlab"):
-        if mode not in SUPPORTED_JUPYTER_DASH_MODE:
-            raise Exception("Please provide one of the following mode value: "+str(SUPPORTED_JUPYTER_DASH_MODE))
-        try:
-            self._app.run_server(mode=mode, width="100%", port=port)
-        except OSError as ose:
-            print(f"Opening port number {port} failed: {str(ose)}. Trying port number {port+1} ...")
-            try:
-                self._app.run_server(mode=mode, width="100%", port=port + 1)
-            except Exception as e:
-                print(e)
+    def run(self, port, mode="jupyterlab", debug=False, inline_exceptions=False):
+        save_run(self, port, mode=mode, debug=debug, inline_exceptions=inline_exceptions)
 
     def get_curated_table(self):
         table = self._curated_table.copy()
         table = table.set_index("entity")
         return table
+    
+    def get_terms_to_include(self):
+        return self._terms_to_include
 
 
 curation_app = CurationApp()
@@ -357,8 +377,12 @@ def update_filter(search_value, click_link_ontology, values):
                 res.append( {"label": value, "value": value})
     
     if search_value is not None:
-        result_df = curation_app._original_table[
-            curation_app._original_table["entity"].str.contains(str(search_value))]
+        if curation_app._original_linked_table is None:
+            result_df = curation_app._original_table[
+                curation_app._original_table["entity"].str.contains(str(search_value))]
+        else:
+            result_df = curation_app._original_linked_table[
+                curation_app._original_linked_table["entity"].str.contains(str(search_value))]
         result_df = result_df["entity"].unique()
         if result_df is not None:
             for result in result_df:
@@ -368,10 +392,13 @@ def update_filter(search_value, click_link_ontology, values):
 
 @curation_app._app.callback([Output('entityfreqslider', 'value'),
                         Output('dropdown-freq-filter', 'value')],
-                       [Input('table-reset', 'n_clicks')],
+                       [
+                           Input('table-reset', 'n_clicks'),
+                           Input('link_ontology', 'n_clicks'),
+                       ],
                        [State('entityfreqslider', 'value'),
                         State('dropdown-freq-filter', 'value')])
-def reset(reset, entityfreq,freqoperator):
+def reset(reset, link, entityfreq, freqoperator):
     ctx = dash.callback_context
     if not ctx.triggered:
         button_id = 'No clicks yet'
@@ -380,69 +407,152 @@ def reset(reset, entityfreq,freqoperator):
                 
     if button_id == "table-reset" or button_id == "No clicks yet":
         curation_app._curated_table = curation_app._original_table.copy()
-        return [DEFAULT_ENTITY_FREQUENCY, "ge"]
+        curation_app._original_linked_table = None
+        curation_app._linked = False
+    elif button_id == "link_ontology":
+        curation_app._linked = True
+
+    return [DEFAULT_ENTITY_FREQUENCY, "ge"]
 
 def get_freq(row, operator, filter_value, term_filters):
     return eval(operator)(row.paper_frequency, int(filter_value)) or str(row['entity']).lower() in term_filters
 
 
-@curation_app._app.callback([
-               Output('datatable-upload-container', 'data'),
-               Output('datatable-upload-container', 'columns'),
-               Output('datatable-upload-container', 'editable'),
-               Output('datatable-upload-container', 'row_deletable'),
-               Output('datatable-upload-container', 'page_count')],
-              [Input('datatable-upload-container', 'page_size'),
-               Input('datatable-upload-container', 'page_current'),
-               Input('datatable-upload-container','data_timestamp'),
-               Input('datatable-upload', 'contents'),
-               Input('entityfreqslider', 'value'),
-               Input('dropdown-freq-filter', 'value'),
-               Input('datatable-upload-container', 'sort_by'),
-               Input('datatable-upload-container', 'filter_query'),
-               Input('link_ontology', 'n_clicks')],
-              [State("datatable-upload-container", "data"),
-               State("datatable-upload-container", "columns"),
-               State('datatable-upload', 'filename'),
-               State('datatable-upload-container', 'derived_viewport_data'),
-               State("term_filters", "value")
-              ])
+@curation_app._app.callback(
+    [
+        Output('datatable-upload-container', 'data'),
+        Output('datatable-upload-container', 'columns'),
+        Output('datatable-upload-container', 'editable'),
+        Output('datatable-upload-container', 'row_deletable'),
+        Output('datatable-upload-container', 'page_count')
+    ],
+    [
+        Input('datatable-upload-container', 'page_size'),
+        Input('datatable-upload-container', 'page_current'),
+        Input('datatable-upload-container','data_timestamp'),
+        Input('datatable-upload', 'contents'),
+        Input('entityfreqslider', 'value'),
+        Input('dropdown-freq-filter', 'value'),
+        Input('datatable-upload-container', 'sort_by'),
+        Input('datatable-upload-container', 'filter_query'),
+        Input("term_filters", "value"),
+        Input("remove_2_letter", "n_clicks")
+    ],
+    [
+        State("datatable-upload-container", "data"),
+        State("datatable-upload-container", "columns"),
+        State('datatable-upload', 'filename'),
+        State('datatable-upload-container', 'derived_viewport_data'),
+    ])
 def update_output(page_size, page_current, ts, upload, entityfreq,
-                  freqoperator, sort_by, filter_query, click_link_ontology, data,
-                  columns, filename, derived_viewport_data, 
-                  term_filters):
+                  freqoperator, sort_by, filter_query, term_filters, remove_2_letter,
+                  data, columns, filename, derived_viewport_data):
     try:
         ctx = dash.callback_context
         if not ctx.triggered:
             button_id = 'No clicks yet'
         else:
-            button_id = ctx.triggered[0]['prop_id'].split('.')[0]       
+            button_id = ctx.triggered[0]['prop_id'].split('.')[0]   
             
         if term_filters is not None:
-            term_filters = [str(term_filter_value).lower() for term_filter_value in term_filters ]
+            term_filters = [str(term_filter_value).lower() for term_filter_value in term_filters]
+            if button_id == "term_filters":
+                
+                terms_to_add = [
+                    t for t in term_filters
+                    if t not in curation_app._terms_to_include and\
+                    t not in curation_app._curated_table.entity
+                ]
+                
+                terms_to_remove = [
+                    t for t in curation_app._terms_to_include
+                    if t not in term_filters
+                ]
+
+                curation_app._terms_to_include = term_filters
+
+                if curation_app._original_linked_table is None:
+                    new_terms = curation_app._original_table[
+                        curation_app._original_table.entity.isin(terms_to_add)]
+                else:
+                    new_terms = curation_app._original_linked_table[
+                        curation_app._original_linked_table.entity.isin(terms_to_add)]
+                curation_app._curated_table = pd.concat([
+                    curation_app._curated_table[
+                        ~curation_app._curated_table.entity.isin(terms_to_remove)],
+                    new_terms
+                ])
+
         else:
             term_filters = []
 
         if upload is not None:
+            curation_app._original_linked_table = None
             curation_app._curated_table = parse_contents(upload, filename).copy()            
         elif button_id == "table-reset":
+            curation_app._original_linked_table = None
             curation_app._curated_table = curation_app._original_table.copy()
         elif derived_viewport_data:
-            removed = [row for row in derived_viewport_data if row not in data and str(row["entity"]).lower() not in term_filters]
-            for row in removed:
-                curation_app._curated_table = curation_app._curated_table[curation_app._curated_table.entity.str.lower() != str(row["entity"]).lower()]
-#                 curation_app._original_table = curation_app._original_table[curation_app._original_table.entity.str.lower() != str(row["entity"]).lower()]
+            named_data_rows = {
+                row["entity"]: row for row in data
+            }
+            # Removed
+            removed = []
+            renamed = {}
+            retyped = {}
+            for row in derived_viewport_data:
+                if row["entity"] not in named_data_rows.keys() and str(row["entity"]).lower() not in term_filters:
+                    # Was it renamed? find a record with the same aggregated_entities
+                    found = False
+                    for e, data_row in named_data_rows.items():
+                        if data_row["aggregated_entities"] == row["aggregated_entities"]:
+                            renamed[row["entity"]] = e
+                            if row["entity_type"] != data_row["entity_type"]:
+                                retyped[e] = data_row["entity_type"]
+                            found = True
+                            break
+                    if not found:
+                        removed.append(row["entity"])
+                else:
+                    if row["entity_type"] != named_data_rows[row["entity"]]["entity_type"]:
+                        retyped[row["entity"]] = named_data_rows[row["entity"]]["entity_type"]
+            # Apply removals
+            for el in removed:
+                curation_app._curated_table = curation_app._curated_table[
+                    curation_app._curated_table.entity.str.lower() != str(el).lower()]
+            # Apply relabeling
+            for k, v in renamed.items():
+                curation_app._curated_table.loc[curation_app._curated_table["entity"] == k, "entity"] = v
 
-        if button_id == "link_ontology":
-            curation_app._curated_table = curation_app._ontology_linking_callback(curation_app._curated_table)
-
+            # Apply retyping
+            for k, v in retyped.items():
+                curation_app._curated_table.loc[curation_app._curated_table["entity"] == k, "entity_type"] = v
+            
         if (button_id == "entityfreqslider" or button_id=="dropdown-freq-filter")  and 'paper_frequency' in curation_app._curated_table:
             row_filtered = []  
-            curation_app._curated_table = curation_app._original_table[
-                curation_app._original_table.apply(lambda row: get_freq(row, freqoperator, entityfreq, term_filters), axis=1)]
-    
+            if curation_app._original_linked_table is None:
+                if curation_app._linked:
+                    curation_app._original_linked_table = curation_app._ontology_linking_callback(curation_app._original_table)
+                    curation_app._curated_table = curation_app._original_linked_table.copy()
+                else:
+                    curation_app._curated_table = curation_app._original_table[
+                        curation_app._original_table.apply(lambda row: get_freq(row, freqoperator, entityfreq, term_filters), axis=1)]
+            else:
+                curation_app._curated_table = curation_app._original_linked_table[
+                    curation_app._original_linked_table.apply(lambda row: get_freq(row, freqoperator, entityfreq, term_filters), axis=1)]
+                
+        if button_id == "remove_2_letter":
+            if curation_app._original_linked_table is None:
+                curation_app._original_table = curation_app._original_table[
+                    curation_app._original_table.entity.apply(lambda x: len(x) > 2 or x in TWO_LETTER_ENTITIES)]
+                curation_app._curated_table = curation_app._original_table.copy()
+            else:
+                curation_app._original_linked_table = curation_app._original_linked_table[
+                    curation_app._original_linked_table.entity.apply(lambda x: len(x) > 2 or x in TWO_LETTER_ENTITIES)]
+                curation_app._curated_table = curation_app._original_linked_table.copy()
+
         result = curation_app._curated_table
-        
+
         # Filter by properties
         dff = result
         if filter_query:
@@ -487,12 +597,15 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
      Input('datatable-upload-container', 'data')],)
 def display_graph(dts, rows):
     df = curation_app._curated_table.copy()
+    
     if (df.empty or len(df.columns) < 1):
         scatter = {'data': [{'x': [], 'y': []}]}
     else:
         scatter = px.scatter(
-            df, x=df.entity, y=df.paper_frequency, color=df.entity_type.apply(lambda x: ",".join(x) if isinstance(x,list) else x))
+            df, x=df.entity, y=df.paper_frequency,
+            color=df.entity_type.apply(lambda x: ",".join(x) if isinstance(x,list) else x))
     return [scatter]
+
 
 @curation_app._app.callback(
     Output("top_n_frequent_entity", "children"),

@@ -6,6 +6,10 @@ import pandas as pd
 import networkx as nx
 import numpy as np
 
+import sqlalchemy
+from sqlalchemy.sql import select
+from sqlalchemy.sql import and_, or_, not_
+
 from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
@@ -329,7 +333,8 @@ def merge_with_ontology_linking(occurence_data,
     return occurrence_data_linked
     
 def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occurrences=1,
-                                 n_most_frequent=None, factors=None, cores=None, graph_dump_prefix=None):
+                                n_most_frequent=None, keep=None, factors=None, cores=None, graph_dump_prefix=None,
+                                communities=True, remove_zero_mi=False):
     # Filter entities that occur only once (only in one paragraph, usually represent noisy terms)
     occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(lambda x: len(x) >= min_occurrences)]
     occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(lambda x: len(x))
@@ -345,24 +350,33 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
         
         if cores is None:
             cores = 8
-        graphs[f] = generate_comention_network(
+        graph = generate_comention_network(
             occurrence_data,
             f,
             counts[f],
             n_most_frequent=n_most_frequent,
-            dump_path="{}_{}_edge_list.pkl".format(
-                graph_dump_prefix, f),
+            dump_path=(
+                "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
+                if graph_dump_prefix else None
+            ),
+            keep=keep,
             parallelize=True,
             cores=cores)
         
+        if graph is not None:
+            graphs[f] = graph
+        else:
+            return None, None
+        print()
         # Remove edges with zero mutual information
-        edges_to_remove = [
-            e
-            for e in graphs[f].edges()
-            if graphs[f].edges[e]["ppmi"] == 0
-        ]
-        for s, t in edges_to_remove:
-            graphs[f].remove_edge(s, t)
+        if remove_zero_mi:
+            edges_to_remove = [
+                e
+                for e in graphs[f].edges()
+                if graphs[f].edges[e]["ppmi"] == 0
+            ]
+            for s, t in edges_to_remove:
+                graphs[f].remove_edge(s, t)
 
         # Set entity types
         if type_data is not None:
@@ -382,7 +396,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             graphs[f],
             degree_weights=["frequency"],
             betweenness_weights=[],
-            community_weights=["frequency", "npmi"],
+            community_weights=["frequency", "npmi"] if communities else [],
             print_summary=True)
     
         # Compute a spanning tree
@@ -393,7 +407,8 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None, min_occ
             type_dict,
             "entity_type")
         
-        save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
+        if graph_dump_prefix:
+            save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
         
         if graph_dump_prefix:
             save_nodes(
@@ -550,8 +565,8 @@ def link_ontology(linking, type_mapping, curated_table):
     linked_table = linked_table.reset_index()
     linked_table["paper_frequency"] = linked_table["paper"].apply(lambda x: len(x))
     linked_table["paper"] = linked_table["paper"].apply(lambda x: list(x))
-    linked_table["section"] = linked_table["paper"].apply(lambda x: list(x))
-    linked_table["paragraph"] = linked_table["paper"].apply(lambda x: list(x))
+    linked_table["section"] = linked_table["section"].apply(lambda x: list(x))
+    linked_table["paragraph"] = linked_table["paragraph"].apply(lambda x: list(x))
     
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(
@@ -616,3 +631,25 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
+
+
+def list_papers(mysql_engine, papers, limit=200):
+    META_DATA = sqlalchemy.MetaData(bind=mysql_engine, reflect=True)
+    articles = META_DATA.tables["articles"]
+    clauses = or_( *[articles.c.article_id == x for x in papers[:limit]] )
+    s = select([
+        articles.c.title,
+        articles.c.authors,
+        articles.c.abstract,
+        articles.c.doi,
+        articles.c.url,
+        articles.c.journal,
+        articles.c.pmcid,
+        articles.c.pubmed_id,
+        articles.c.publish_time
+    ]).where(clauses)
+    result = mysql_engine.execute(s)
+    results = []
+    for row in result:
+        results.append(row)
+    return results
