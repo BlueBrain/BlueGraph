@@ -2,7 +2,7 @@
 import copy
 
 from kganalytics.utils import merge_attrs
-from cord_analytics.utils import CORD_ATTRS_RESOLVER
+from cord_19.utils import CORD_ATTRS_RESOLVER
 
 
 SUPPORTED_JUPYTER_DASH_MODE = ["jupyterlab", "inline", "external"]

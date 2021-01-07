@@ -1,19 +1,16 @@
 """Module containing utils for COVID-19 network generation and analysis."""
+import ast
 import operator
 import pickle
 
 import pandas as pd
 import networkx as nx
 
-import sqlalchemy
-from sqlalchemy.sql import select
-from sqlalchemy.sql import or_
-
 from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
-from kganalytics.network_generation import generate_comention_network
+from kganalytics.network_generation import generate_cooccurrence_network
 from kganalytics.metrics import compute_all_metrics
 
 from kganalytics.export import (save_nodes,
@@ -99,22 +96,52 @@ def mentions_to_occurrence(raw_data,
                            term_cleanup=None,
                            term_filter=None,
                            mention_filter=None,
-                           filter_methods=False,
                            aggregation_function=None,
                            dump_prefix=None):
     """Convert a raw mentions data into occurrence data.
 
+    This function converts entity mentions into a dataframe
+    indexed by unique entities. Each row contains aggregated data
+    for different occurrence factors (sets of factor instances where
+    the given term occurrs, e.g. sets of papers/section/paragraphs where the
+    give term was mentioned).
+
     Parameters
     ----------
     raw_data : pandas.DataFrame
+        Dataframe containing occurrence data with the following columns:
+        one column for terms, one or more columns for occurrence factors (
+        e.g. paper/section or paragraph of a term occurrence).
     term_column : str
+        Name of the column with terms
     factor_columns : collection of str
+        Set of column names containing occurrence factors (e.g.
+        "paper"/"section"/"paragraph").
     term_cleanup : func, optional
+        A clean-up function to be applied to every term
     term_filter : func, optional
+        A filter function to apply to terms (e.g. include
+        terms only with 2 or more symbols)
     mention_filter : func, optional
-    filter_methods : pandas.DataFrame
-    aggregation_function
+        A filter function to apply to occurrence factors (e.g. filter out
+        all the occurrences in sections called "Methods")
+    aggregation_function : func, optional
+        Function to be applied to aggregated occurrence factors. By default,
+        the constructor of `set`.
     dump_prefix : str, optional
+        Prefix to use for dumping the resulting occurrence dataset.
+
+    Returns
+    -------
+    occurence_data : pd.DataFrame
+        Dataframe indexed by distinct terms containing aggregated occurrences
+        of terms as columns (e.g. for each terms, sets of papers/sections/
+        paragraphs) where the term occurs.
+    factor_counts : dict
+        Dictionary whose keys are factor column names (
+        e.g. "paper"/"section"/"paragraph") and whose values are counts of
+        unique factor instances (e.g. total number of papers/sections/
+        paragraphs in the dataset)
     """
     print("Cleaning up the entities...")
 
@@ -152,88 +179,14 @@ def mentions_to_occurrence(raw_data,
     return occurence_data, factor_counts
 
 
-def subgraph_by_types(graph, type_data, types_to_include, types_to_exclude=None,
-                      include_nodes=None):
-    if include_nodes is None:
-        include_nodes = []
-
-    if types_to_exclude is None:
-        types_to_exclude = []
-
-    def has_needed_type(n):
-        n_types = type_data[n]
-        include_found = False
-        exclude_found = False
-        for t in n_types:
-            if t in types_to_include:
-                include_found = True
-            if t in types_to_exclude:
-                exclude_found = True
-        return include_found and not exclude_found
-
-    nodes = [
-        n
-        for n in graph.nodes()
-        if has_needed_type(n) or n in include_nodes
-    ]
-    return nx.Graph(graph.subgraph(nodes))
-
-
-def graph_from_paths(paths, source_graph=None):
-    nodes = set()
-    edges = set()
-    for p in paths:
-        for i in range(1, len(p)):
-            nodes.add(p[i - 1])
-            edges.add((p[i - 1], p[i]))
-    graph = nx.Graph()
-    graph.add_nodes_from(nodes)
-    graph.add_edges_from(edges)
-    if source_graph is not None:
-        # Graph are asumed to be hemogeneous
-        attrs = source_graph.nodes[list(nodes)[0]].keys()
-        for k in attrs:
-            nx.set_node_attributes(
-                graph, {n: source_graph.nodes[n][k] for n in nodes}, k)
-        edge_attrs = source_graph.edges[list(edges)[0]].keys()
-        for k in edge_attrs:
-            nx.set_edge_attributes(
-                graph, {e: source_graph.edges[e][k] for e in edges}, k)
-    return graph
-
-
-def label_paths(graph, paths, label):
-    path_group = dict()
-
-    labeled_nodes = list()
-
-    nodes = set()
-    edges = set()
-    for p in paths:
-        nodes.add(p[0])
-        for i in range(1, len(p)):
-            nodes.add(p[i])
-            edges.add((p[i - 1], p[i]))
-
-    for n in graph.nodes():
-        if n in nodes:
-            path_group[n] = 1
-            labeled_nodes.append(n)
-        else:
-            path_group[n] = 0
-    nx.set_node_attributes(graph, path_group, label)
-
-    path_group = dict()
-    for e in graph.edges():
-        if e in edges:
-            path_group[e] = 1
-        else:
-            path_group[e] = 0
-    nx.set_edge_attributes(graph, path_group, label)
-    return labeled_nodes
-
-
 def aggregate_cord_entities(x, factors):
+    """Aggregate a collection of entity mentions.
+
+    Entity types are aggregated as lists (to preserve the multiplicity,
+    e.g. how many times a given entity was recognized as a particular type).
+    The rest of the input occurrence factors are aggregated as sets
+    (e.g. sets of unique papers/sections/paragraphs).
+    """
     result = {
         "entity_type": list(x.entity_type)
     }
@@ -248,7 +201,15 @@ def prepare_occurrence_data(mentions_df=None,
                             occurrence_data_path=None,
                             factors=None,
                             factor_counts_path=None):
-    """Prepare mentions data for the co-occurrence analysis."""
+    """Prepare mentions data for the co-occurrence analysis.
+
+    mentions_df : pd.DataFrame, optional
+    mentions_path : str, optional
+    occurrence_data_path : str, optional
+    factors : list of str, optional
+    factor_counts_path : str, optional
+
+    """
     if factors is None:
         # use all factors
         factors = ["paper", "section", "paragraph"]
@@ -265,12 +226,12 @@ def prepare_occurrence_data(mentions_df=None,
         mentions = mentions_df
 
     if mentions is not None:
-        mentions = mentions[["entity", "entity_type", "paper_id"]]
-        mentions["paper"] = mentions["paper_id"].apply(
+        mentions = mentions[["entity", "entity_type", "occurrence"]]
+        mentions["paper"] = mentions["occurrence"].apply(
             lambda x: x.split(":")[0])
-        mentions["section"] = mentions["paper_id"].apply(
+        mentions["section"] = mentions["occurrence"].apply(
             lambda x: ":".join([x.split(":")[0], x.split(":")[1]]))
-        mentions = mentions.rename(columns={"paper_id": "paragraph"})
+        mentions = mentions.rename(columns={"occurrence": "paragraph"})
         occurrence_data, counts = mentions_to_occurrence(
             mentions,
             term_column="entity",
@@ -278,29 +239,53 @@ def prepare_occurrence_data(mentions_df=None,
             term_cleanup=clean_up_entity,
             term_filter=lambda x: has_min_length(x, 3),
             aggregation_function=lambda x: aggregate_cord_entities(x, factors),
-            mention_filter=lambda data: ~data["section"].apply(is_experiment_related))
+            mention_filter=lambda data: ~data["section"].apply(
+                is_experiment_related))
 
-        # Filter entities that occur only once (only in one paragraph, usually represent noisy terms)
-        occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(lambda x: len(x) > 1)]
+        # Filter entities that occur only once (only in one paragraph,
+        # usually represent noisy terms)
+        occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
+            lambda x: len(x) > 1)]
         if occurrence_data_path:
             print("Saving pre-calculated occurrence data....")
             with open(occurrence_data_path, "wb") as f:
                 pickle.dump(occurrence_data, f)
         if factor_counts_path:
             with open(factor_counts_path, "wb") as f:
-                pickle.dump(counts, f) 
+                pickle.dump(counts, f)
+
     elif occurrence_data_path is not None:
         with open(occurrence_data_path, "rb") as f:
             occurrence_data = pickle.load(f)
     else:
-#         raise ValueError("Neither mention nor occurrence data have been provided")
         occurrence_data = None
         counts = None
-    
+
     if counts is None and factor_counts_path:
-         with open(factor_counts_path, "rb") as f:
+        with open(factor_counts_path, "rb") as f:
             counts = pickle.load(f)
     return occurrence_data, counts
+
+
+def generate_curation_table(data):
+
+    data, counts = prepare_occurrence_data(
+        data)
+    data = data.reset_index()
+    data["paper_frequency"] = data[
+        "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
+    data["paper"] = data[
+        "paper"].transform(lambda x:  list(x))
+    data["paragraph"] = data[
+        "paragraph"].transform(lambda x:  list(x))
+    data["section"] = data[
+        "section"].transform(lambda x:  list(x))
+    data = data.rename(
+        columns={"entity_type": "raw_entity_types"})
+    data["entity_type"] = data[
+        "raw_entity_types"].transform(
+            lambda x:  ", ".join(list(set(x))))
+    return data, counts
 
 
 def merge_with_ontology_linking(occurence_data,
@@ -349,7 +334,7 @@ def merge_with_ontology_linking(occurence_data,
                 return list(x)
             elif x.name in factors:
                 return set(sum(x, []))
-            elif x.name in ["uid", "definition", "_subclassof_label", "_type_label"]:
+            elif x.name in ["uid", "definition", "taxonomy", "semantic_type"]:
                 return list(x)[0]
             return sum(x, [])
 
@@ -362,8 +347,8 @@ def merge_with_ontology_linking(occurence_data,
                 "concept": "entity",
                 "entity": "aggregated_entities",
                 "entity_type": "raw_entity_types",
-                "_type_label": "semantic_type",
-                "_subclassof_label": "taxonomy"
+                # "_type_label": "semantic_type",
+                # "_subclassof_label": "taxonomy"
             })
         occurrence_data_linked = occurrence_data_linked.set_index("entity")
 
@@ -371,7 +356,7 @@ def merge_with_ontology_linking(occurence_data,
             with open(linked_occurrence_data_path, "wb") as f:
                 print("Saving pre-calculated linked occurrence data....")
                 pickle.dump(occurrence_data_linked, f)
-        return occurrence_data_linked 
+        return occurrence_data_linked
     elif linked_occurrence_data_path:
         print("Loading linked occurrence data...")
         with open(linked_occurrence_data_path, "rb") as f:
@@ -409,7 +394,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None,
 
         if cores is None:
             cores = 8
-        graph = generate_comention_network(
+        graph = generate_cooccurrence_network(
             occurrence_data,
             f,
             counts[f],
@@ -564,7 +549,12 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
         return max(counts.items(), key=operator.itemgetter(1))[0]
 
     def assign_mapped_type(x):
-        types = [el for _, el in x.taxonomy]
+        taxonomy = (
+            ast.literal_eval(x.taxonomy)
+            if isinstance(x.taxonomy, str)
+            else x.taxonomy
+        )
+        types = [el for _, el in taxonomy]
         result_type = None
 
         for target_type, taxonomy_classes in mapping.items():
@@ -600,26 +590,6 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
     type_data.loc[unknown_taxonomy.index, "type"] = unknown_taxonomy[
         "raw_entity_types"].apply(assign_raw_type)
     return type_data
-
-
-def generate_curation_table(filtered_table_extractions):
-    filtered_table_extractions, counts = prepare_occurrence_data(
-        filtered_table_extractions)
-    filtered_table_extractions = filtered_table_extractions.reset_index()
-    filtered_table_extractions["paper_frequency"] = filtered_table_extractions[
-        "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
-    filtered_table_extractions["paper"] = filtered_table_extractions[
-        "paper"].transform(lambda x:  list(x))
-    filtered_table_extractions["paragraph"] = filtered_table_extractions[
-        "paragraph"].transform(lambda x:  list(x))
-    filtered_table_extractions["section"] = filtered_table_extractions[
-        "section"].transform(lambda x:  list(x))
-    filtered_table_extractions = filtered_table_extractions.rename(
-        columns={"entity_type": "raw_entity_types"})
-    filtered_table_extractions["entity_type"] = filtered_table_extractions[
-        "raw_entity_types"].transform(
-            lambda x:  ", ".join(list(set(x))))
-    return filtered_table_extractions, counts
 
 
 def link_ontology(linking, type_mapping, curated_table):
@@ -703,25 +673,3 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
-
-
-def list_papers(mysql_engine, papers, limit=200):
-    META_DATA = sqlalchemy.MetaData(bind=mysql_engine, reflect=True)
-    articles = META_DATA.tables["articles"]
-    clauses = or_(*[articles.c.article_id == x for x in papers[:limit]])
-    s = select([
-        articles.c.title,
-        articles.c.authors,
-        articles.c.abstract,
-        articles.c.doi,
-        articles.c.url,
-        articles.c.journal,
-        articles.c.pmcid,
-        articles.c.pubmed_id,
-        articles.c.publish_time
-    ]).where(clauses)
-    result = mysql_engine.execute(s)
-    results = []
-    for row in result:
-        results.append(row)
-    return results
