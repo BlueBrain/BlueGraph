@@ -268,9 +268,7 @@ def prepare_occurrence_data(mentions_df=None,
 
 
 def generate_curation_table(data):
-
-    data, counts = prepare_occurrence_data(
-        data)
+    data, counts = prepare_occurrence_data(data)
     data = data.reset_index()
     data["paper_frequency"] = data[
         "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
@@ -280,10 +278,9 @@ def generate_curation_table(data):
         "paragraph"].transform(lambda x:  list(x))
     data["section"] = data[
         "section"].transform(lambda x:  list(x))
-    data = data.rename(
-        columns={"entity_type": "raw_entity_types"})
+    data["raw_frequency"] = data["entity_type"].apply(len)
     data["entity_type"] = data[
-        "raw_entity_types"].transform(
+        "entity_type"].transform(
             lambda x:  ", ".join(list(set(x))))
     return data, counts
 
@@ -321,6 +318,8 @@ def merge_with_ontology_linking(occurence_data,
 
         # Merge occurrence data with the linking data
         occurence_data = occurence_data.reset_index()
+        occurence_data["raw_types"] = occurence_data.apply(
+            lambda x: [x.entity_type] * x.raw_frequency, axis=1)
         merged_data = occurence_data.merge(
             linking, on="entity", how="left")
         merged_data.loc[
@@ -345,10 +344,7 @@ def merge_with_ontology_linking(occurence_data,
         occurrence_data_linked = occurrence_data_linked.rename(
             columns={
                 "concept": "entity",
-                "entity": "aggregated_entities",
-                "entity_type": "raw_entity_types",
-                # "_type_label": "semantic_type",
-                # "_subclassof_label": "taxonomy"
+                "entity": "aggregated_entities"
             })
         occurrence_data_linked = occurrence_data_linked.set_index("entity")
 
@@ -543,7 +539,7 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
         counts = {}
         for t in x:
             if t in counts:
-                counts[t] +=1
+                counts[t] += 1
             else:
                 counts[t] = 1
         return max(counts.items(), key=operator.itemgetter(1))[0]
@@ -576,7 +572,7 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
                 break
 
         if result_type is None:
-            result_type = assign_raw_type(x.raw_entity_types)
+            result_type = assign_raw_type(x.raw_types)
 
         return result_type
 
@@ -588,14 +584,11 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
 
     unknown_taxonomy = occurrence_data[occurrence_data["taxonomy"].isna()]
     type_data.loc[unknown_taxonomy.index, "type"] = unknown_taxonomy[
-        "raw_entity_types"].apply(assign_raw_type)
+        "raw_types"].apply(assign_raw_type)
     return type_data
 
 
 def link_ontology(linking, type_mapping, curated_table):
-    curated_table = curated_table.drop(columns=["entity_type"])
-    curated_table = curated_table.rename(columns={
-        "raw_entity_types": "entity_type"})
     linked_table = merge_with_ontology_linking(
         curated_table,
         factor_columns=["paper", "section", "paragraph"],
@@ -609,8 +602,7 @@ def link_ontology(linking, type_mapping, curated_table):
 
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(
-        linked_table.rename(
-            columns={"entity_type": "raw_entity_types"}).set_index("entity"),
+        linked_table.set_index("entity"),
         type_mapping)
     linked_table = linked_table.merge(types, on="entity", how="left").rename(
         columns={"type": "entity_type"})

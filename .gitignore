@@ -7,3 +7,4 @@ kganalytics/notebooks/data/gephi*
 *_edge_list.pkl
 *_node_list.pkl
 cord_19/examples/data/NCIT_ontology_linking.csv
+cord_19/examples/data/NCIT_ontology_linking_3000_papers.csv
