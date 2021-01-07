@@ -1,7 +1,7 @@
 *.egg-info/
 build/
 dist/
-kganalytics/examples/data/gephi*
+kganalytics/notebooks/data/gephi*
 *.ipynb_checkpoints/
 *.DS_Store
 *_edge_list.pkl
