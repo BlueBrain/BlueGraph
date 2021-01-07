@@ -6,3 +6,4 @@ kganalytics/examples/data/gephi*
 *.DS_Store
 *_edge_list.pkl
 *_node_list.pkl
+cord_19/examples/data/NCIT_ontology_linking.csv
