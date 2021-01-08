@@ -9,7 +9,7 @@ About
 The `kganalytics` package
 **********************
 
-The `cord_19` package
+The `cord19kg` package
 **********************
 
 
