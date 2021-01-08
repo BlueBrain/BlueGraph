@@ -7,11 +7,16 @@ setup(
     version="0.0.1",
     packages=[
         "kganalytics",
-        "cord_19",
-        "cord_19.apps"
+        "cord19kg",
+        "cord19kg.apps"
     ],
     package_data={
-        'cord_19.apps': ['assets/*'],
+        'cord19kg.apps': [
+            'assets/*',
+            'assets/fontawesome-5.15.1-web/',
+            'assets/fontawesome-5.15.1-web/css/*',
+            'assets/fontawesome-5.15.1-web/webfonts/*'
+        ],
     },
     python_requires=">=3.6",
     install_requires=[
@@ -21,6 +26,8 @@ setup(
         "python-louvain",
         "jupyter_dash",
         "dash_bootstrap_components",
-        "dash_daq"
+        "dash_daq",
+        "dash_extensions",
+        "dash_cytoscape"
     ],
 )
