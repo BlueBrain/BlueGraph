@@ -6,5 +6,6 @@ kganalytics/notebooks/data/gephi*
 *.DS_Store
 *_edge_list.pkl
 *_node_list.pkl
-cord_19/examples/data/NCIT_ontology_linking.csv
-cord_19/examples/data/NCIT_ontology_linking_3000_papers.csv
+cord19kg/examples/data/Glucose_risk_3000_papers.csv
+cord19kg/examples/data/NCIT_ontology_linking.csv
+cord19kg/examples/data/NCIT_ontology_linking_3000_papers.csv
