@@ -110,7 +110,7 @@ def compute_all_metrics(graph, degree_weights,
     if betweenness_weights is None:
         betweenness_weights = degree_weights
 
-    if print_summary:
+    if print_summary and len(betweenness_weights) > 0:
         print("Computing betweenness centrality statistics....")
 
     compute_betweenness_centrality(
@@ -119,5 +119,6 @@ def compute_all_metrics(graph, degree_weights,
     if community_weights is None:
         community_weights = degree_weights
     for w in community_weights:
+        print(f"Using the '{w}' weight...")
         detect_communities(
             graph, weight=w, set_attr="community_{}".format(w))
