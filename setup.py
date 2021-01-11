@@ -31,6 +31,7 @@ setup(
         "dash_cytoscape",
         "nexusforge",
         "nexus-sdk",
-        "pyjwt==1.7"
+        "pyjwt==1.7.1",
+        "ipywidgets"
     ],
 )
