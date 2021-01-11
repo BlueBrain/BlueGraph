@@ -29,6 +29,12 @@ The `cord19kg` package
 Installation
 ############
 
+It is recommended to use a virtual environment such as `venv <https://docs.python.org/3.6/library/venv.html>`_  or _`conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
+
+Development version can be installed using:
+
+::
+  pip install git+https://github.com/BlueBrain/BlueBrainGraph.git
 
 Getting started
 ###############
