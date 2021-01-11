@@ -7,7 +7,7 @@ Graph analytics toolkit
 About
 #########################
 
-This repository contains a set of tools for performing various graph analytics tasks. The current implementation is based on the `NetworkX` library.
+This repository contains a set of packages that bring together various graph analytics tools. The current implementation is based on the `NetworkX` library.
 
 The `kganalytics` package
 *************************
@@ -25,6 +25,11 @@ The package gathers a set of tools that allow
 The `cord19kg` package
 **********************
 
+The package contains a set of tools for interactive exploration and analysis of the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset using the co-occurrence analysis of the extracted named entities. It includes data preparation and curation helpers, tools for generation and analysis of co-occurrence networks. Moreover, it provides several mini-applications (based on `JupyterDash <https://github.com/plotly/jupyter-dash>`_ and `ipywidgets <https://ipywidgets.readthedocs.io/en/stable/>`_) for Jupyter notebooks allowing the user to interactively perform:
+
+- entity curation;
+- network visualization and analysis;
+- dataset saving/loading from `Nexus <https://bluebrainnexus.io/>`_.
 
 Installation
 ############
