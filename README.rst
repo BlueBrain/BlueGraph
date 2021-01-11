@@ -34,6 +34,7 @@ It is recommended to use a virtual environment such as `venv <https://docs.pytho
 Development version can be installed using:
 
 ::
+
   pip install git+https://github.com/BlueBrain/BlueBrainGraph.git
 
 Getting started
