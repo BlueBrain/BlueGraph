@@ -9,3 +9,4 @@ kganalytics/notebooks/data/gephi*
 cord19kg/examples/data/Glucose_risk_3000_papers.csv
 cord19kg/examples/data/NCIT_ontology_linking.csv
 cord19kg/examples/data/NCIT_ontology_linking_3000_papers.csv
+cord19kg/examples/config/forge-config.yml

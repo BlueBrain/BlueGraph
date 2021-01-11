@@ -28,6 +28,9 @@ setup(
         "dash_bootstrap_components",
         "dash_daq",
         "dash_extensions",
-        "dash_cytoscape"
+        "dash_cytoscape",
+        "nexusforge",
+        "nexus-sdk",
+        "pyjwt==1.7"
     ],
 )
