@@ -45,7 +45,7 @@ Development version can be installed using:
 Getting started
 ###############
 
-To get started and get familiar with the ideas behind the co-occurrence analysis and graph analytics, in general, the `kganalytics` package provides two example notebooks for `literature exploration <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/kganalytics/notebooks/Literature%20exploration.ipynb>`_ and `NASA dataset keywords exploration <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/kganalytics/notebooks/NASA%20dataset%20keywords.ipynb>`_.
+To get started and get familiar with the ideas behind the co-occurrence analysis and graph analytics, in general, the `kganalytics`_ package provides two example notebooks for `literature exploration <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/kganalytics/notebooks/Literature%20exploration.ipynb>`_ and `NASA dataset keywords exploration <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/kganalytics/notebooks/NASA%20dataset%20keywords.ipynb>`_.
 
 `examples <https://github.com/BlueBrain/BlueBrainGraph/tree/refactoring/cord19kg/examples>`_
 
