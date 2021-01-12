@@ -1,8 +1,6 @@
 Contributing
 ============
 
-Please add ? as a reviewer if your Pull Request modifies `core`.
-
 Setup
 
 .. code-block:: shell
