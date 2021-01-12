@@ -1,3 +1,17 @@
+#
+# Blue Brain Graph is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Blue Brain Graph is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+
 """Module containing utils for COVID-19 network generation and analysis."""
 import ast
 import operator
@@ -14,7 +28,6 @@ from kganalytics.network_generation import generate_cooccurrence_network
 from kganalytics.metrics import compute_all_metrics
 
 from kganalytics.export import (save_nodes,
-                                save_to_gephi,
                                 save_network)
 
 from kganalytics.paths import minimum_spanning_tree
@@ -199,21 +212,44 @@ def aggregate_cord_entities(x, factors):
 def prepare_occurrence_data(mentions_df=None,
                             mentions_path=None,
                             occurrence_data_path=None,
-                            factors=None,
                             factor_counts_path=None):
-    """Prepare mentions data for the co-occurrence analysis.
+    """Prepare mentions data for the co-occurrence analysis and dump.
 
+    This function converts CORD-19 entity mentions into a dataframe
+    indexed by unique entities. Each row contains aggregated data
+    for different occurrence factors (sets of factor instances where
+    the given term occurrs, e.g. sets of papers/section/paragraphs where the
+    give term was mentioned).
+
+    Parameters
+    ----------
     mentions_df : pd.DataFrame, optional
+        Dataframe containing occurrence data with the following columns:
+        `entity`, `entity_type`, `occurrence` (occurrence in a paragraph
+        identified with a string of format
+        <paper_id>:<section_id>:<paragraph_id>). If not specified, the
+        `mentions_path` argument will be used to load the mentions file.
     mentions_path : str, optional
+        Path to a pickle file containing occurrence data of the shape
+        described above.
     occurrence_data_path : str, optional
-    factors : list of str, optional
+        Path to write the resulting aggregated occurrence data.
     factor_counts_path : str, optional
+        Path to write the dictorary containing counts of different occurrence
+        factors (papers, sections, paragraphs).
 
+    Returns
+    ------_
+    occurence_data : pd.DataFrame
+        Dataframe indexed by distinct terms containing aggregated occurrences
+        of terms as columns (e.g. for each terms, sets of papers/sections/
+        paragraphs) where the term occurs.
+    counts : dict
+        Dictionary whose keys are factor column names (
+        i.e. "paper"/"section"/"paragraph") and whose values are counts of
+        unique factor instances (e.g. total number of papers/sections/
+        paragraphs in the dataset)
     """
-    if factors is None:
-        # use all factors
-        factors = ["paper", "section", "paragraph"]
-
     mentions = None
     if mentions_path:
         # Read raw mentions and transform them to the occurrence data
@@ -232,6 +268,9 @@ def prepare_occurrence_data(mentions_df=None,
         mentions["section"] = mentions["occurrence"].apply(
             lambda x: ":".join([x.split(":")[0], x.split(":")[1]]))
         mentions = mentions.rename(columns={"occurrence": "paragraph"})
+
+        factors = ["paper", "section", "paragraph"]
+
         occurrence_data, counts = mentions_to_occurrence(
             mentions,
             term_column="entity",
@@ -268,23 +307,51 @@ def prepare_occurrence_data(mentions_df=None,
 
 
 def generate_curation_table(data):
-    data, counts = prepare_occurrence_data(data)
-    data = data.reset_index()
-    data["paper_frequency"] = data[
+    """Generate curation table from the raw co-occurrence data
+
+    This function converts CORD-19 entity mentions into a dataframe
+    indexed by unique entities. Each row contains aggregated data
+    for different occurrence factors, i.e. papers/section/paragraphs,
+    where the given term was mentioned).
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Dataframe containing occurrence data with the following columns:
+        `entity`, `entity_type`, `occurrence` (occurrence in a paragraph
+        identified with a string of format
+        <paper_id>:<section_id>:<paragraph_id>).
+
+    Returns
+    -------
+    result_data : pd.DataFrame
+        Dataframe indexed by distinct terms containing aggregated occurrences
+        of terms as columns (e.g. for each terms, sets of papers/sections/
+        paragraphs) where the term occurs.
+    counts : dict
+        Dictionary whose keys are factor column names (
+        i.e. "paper"/"section"/"paragraph") and whose values are counts of
+        unique factor instances (e.g. total number of papers/sections/
+        paragraphs in the dataset)
+    """
+    result_data, counts = prepare_occurrence_data(data)
+
+    result_data = result_data.reset_index()
+    result_data["paper_frequency"] = result_data[
         "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
-    data["paper"] = data[
+    result_data["paper"] = result_data[
         "paper"].transform(lambda x:  list(x))
-    data["paragraph"] = data[
+    result_data["paragraph"] = result_data[
         "paragraph"].transform(lambda x:  list(x))
-    data["section"] = data[
+    result_data["section"] = result_data[
         "section"].transform(lambda x:  list(x))
-    data["raw_entity_types"] = data[
+    result_data["raw_entity_types"] = result_data[
         "entity_type"].transform(list)
-    data["raw_frequency"] = data["entity_type"].apply(len)
-    data["entity_type"] = data[
+    result_data["raw_frequency"] = result_data["entity_type"].apply(len)
+    result_data["entity_type"] = result_data[
         "entity_type"].transform(
             lambda x:  ", ".join(list(set(x))))
-    return data, counts
+    return result_data, counts
 
 
 def merge_with_ontology_linking(occurence_data,
@@ -365,11 +432,73 @@ def merge_with_ontology_linking(occurence_data,
     return occurrence_data_linked
 
 
-def generate_comention_analysis(occurrence_data, counts, type_data=None,
-                                min_occurrences=1, n_most_frequent=None,
-                                keep=None, factors=None, cores=None,
-                                graph_dump_prefix=None,
-                                communities=True, remove_zero_mi=False):
+def generate_cooccurrence_analysis(occurrence_data, factor_counts,
+                                   type_data=None, min_occurrences=1,
+                                   n_most_frequent=None, keep=None,
+                                   factors=None, cores=None,
+                                   graph_dump_prefix=None,
+                                   communities=True, remove_zero_mi=False):
+    """Generate co-occurrence analysis.
+
+    This utility executes the entire pipeline of the co-occurrence analysis:
+    it generates co-occurrence networks based on the input factors, yields
+    various co-occurrence statistics (frequency, mutual-information-based
+    scores) as edge attributes, computes various node centrality
+    measures, node communities (and attaches them to the node attributes of
+    the generated networks). Finally, it computes minimum spanning trees
+    given the mutual-information-based distance scores (1 / NPMI). The function
+    allows to dump the resulting graph objects using a pickle representation.
+
+    Parameters
+    ----------
+    occurrence_data : pd.DataFrame
+        Input occurrence data table. Rows represent unique entities (indexed
+        by entity names), columns contain sets of aggregated occurrence factors
+        (e.g. sets of papers/sections/paragraphs where the given term occurs).
+    factor_counts : dict
+        Dictionary whose keys are factor column names (
+        i.e. "paper"/"section"/"paragraph") and whose values are counts of
+        unique factor instances (e.g. total number of papers/sections/
+        paragraphs in the dataset)
+    type_data : pd.DataFrame, optional
+        Table containing node types (these types are saved as node attributes)
+    min_occurrences : int, optional
+        Minimum co-occurrence frequency to consider (add as an edge to the co-
+        occurrence network). By default every non-zero co-occurrence frequency
+        yields an edge in the resulting network.
+    n_most_frequent : int, optional
+        Number of most frequent entitites to include in the co-occurrence
+        network. By default is not set, therefore, all the terms from the
+        occurrence table are included.
+    keep : iterable
+        Collection of entities to keep even if they are not included in N most
+        frequent entities.
+    factors : iterable, optional
+        Set of factors to use for constructing co-occurrence networks
+        (a network per factor is produced).
+    cores : int, optional
+        Number of cores to use during the parallel network generation.
+    graph_dump_prefix : str
+        Path prefix for dumping the generated networks (the edge
+        list, edge attributes, node list and node attributes are saved).
+    communities : bool, optional
+        Flag indicating whether the community detection should be included
+        in the analysis. By default True.
+    remove_zero_mi : bool, optional
+        Flag indicating whether edges with zero mutual-information scores
+        (PPMI and NPMI) should be removed from the network (helps to sparsify
+        the network, however may result in isolated nodes of high occurrence
+        frequency).
+
+    Returns
+    -------
+    graphs : dict of nx.DiGraph
+        Dictionary whose keys are factor names and whose values are
+        generated co-occurrence networks.
+    trees : dict of nx.DiGraph
+        Dictionary whose keys are factor names and whose values are
+        minimum spanning trees of generated co-occurrence networks.
+    """
     # Filter entities that occur only once (only in one paragraph, usually
     # represent noisy terms)
     occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
@@ -393,7 +522,7 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None,
         graph = generate_cooccurrence_network(
             occurrence_data,
             f,
-            counts[f],
+            factor_counts[f],
             n_most_frequent=n_most_frequent,
             dump_path=(
                 "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
@@ -459,80 +588,6 @@ def generate_comention_analysis(occurrence_data, counts, type_data=None,
     return graphs, trees
 
 
-def generate_full_analysis(mentions_df=None, mentions_path=None,
-                           occurrence_data_path=None, factor_counts_path=None,
-                           linking_df=None, linking_path=None,
-                           linked_occurrence_data_path=None,
-                           type_mapping=None, type_data_path=None,
-                           n_most_frequent=None, min_occurrences=None,
-                           graph_dump_prefix=None, gephi_dump_prefix=None,
-                           factors=None, cores=None):
-
-    if factors is None:
-        factors = ["paper", "section", "paragraph"]
-
-    # Converting mention data into occurrences
-    occurrence_data, counts = prepare_occurrence_data(
-        mentions_df=mentions_df,
-        mentions_path=mentions_path,
-        occurrence_data_path=occurrence_data_path,
-        factors=factors,
-        factor_counts_path=factor_counts_path)
-
-    # Ontology linking
-    occurrence_data_linked = merge_with_ontology_linking(
-        occurrence_data,
-        factor_columns=factors,
-        linking_df=linking_df,
-        linking_path=linking_path,
-        linked_occurrence_data_path=linked_occurrence_data_path)
-
-    # Peform type mapping according to the provided dictionary
-    if type_data_path:
-        type_data = pd.read_pickle(type_data_path)
-    elif type_mapping is not None:
-        type_data = resolve_taxonomy_to_types(
-            occurrence_data_linked, type_mapping)
-        if type_data_path:
-            type_data.to_pickle(type_data_path)
-
-    graphs, trees = generate_comention_analysis(
-        occurrence_data_linked, counts,
-        min_occurrences=min_occurrences,
-        type_data=type_data,
-        n_most_frequent=n_most_frequent,
-        graph_dump_prefix=graph_dump_prefix,
-        factors=factors,
-        cores=cores)
-
-    for f in factors:
-        if gephi_dump_prefix:
-            node_attr_mapping = {
-                "degree_frequency": "Degree",
-                "community_npmi": "Community",
-            }
-            if type_data is not None:
-                node_attr_mapping["entity_type"] = "Type"
-
-            edge_attr_mapping = {
-                "npmi": "Weight"
-            }
-
-            save_to_gephi(
-                graphs[f],
-                "{}_graph_{}".format(gephi_dump_prefix, f),
-                node_attr_mapping=node_attr_mapping,
-                edge_attr_mapping=edge_attr_mapping)
-
-            save_to_gephi(
-                trees[f],
-                "{}_tree_{}".format(gephi_dump_prefix, f),
-                node_attr_mapping=node_attr_mapping,
-                edge_attr_mapping=edge_attr_mapping)
-
-    return graphs, trees
-
-
 def assign_raw_type(x):
     counts = {}
     for t in x:
@@ -545,7 +600,35 @@ def assign_raw_type(x):
 
 
 def resolve_taxonomy_to_types(occurrence_data, mapping):
+    """Assign entity types from hierarchies of NCIT classes.
 
+    This function assigns a unique entity type to every entity
+    using the ontology linking data (hierarchy, or taxonomy,
+    of NCIT classes) according to the input type mapping. If
+    a term was not linked, i.e. does not have such a taxonomy
+    attached, raw entity types from the NER model are using (
+    a unique entity type is chosen by the majority vote).
+
+    Parameters
+    ----------
+    occurrence_data : pd.DataFrame
+        Input occurrence data table. Rows represent unique entities (indexed
+        by entity names), columns contain the following columns: `taxonomy`
+        list containing a hierarchy of NCIT ontology classes of the given
+        entity, `raw_entity_types` list of raw entity types provided by
+        the NER model.
+    mapping : dict
+        Mapping whose keys are type names to be used, values are dictionaries
+        with two keys: `include` and `exclude` specifying NCIT ontology
+        classes to respectively include and exclude to/from when assigning
+        the given type.
+
+    Returns
+    -------
+    type_data : pd.DataFrame
+        Dataframe indexed by unique entities, containing the column `type`
+        specifying the assigned types.
+    """
     def assign_mapped_type(x):
         taxonomy = (
             ast.literal_eval(x.taxonomy)
@@ -591,6 +674,44 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
 
 
 def link_ontology(linking, type_mapping, curated_table):
+    """Merge the input occurrence table with the ontology linking.
+
+    Prameters
+    ---------
+    linking : pd.DataFrame
+        Datatable containing the linking data. The table includes
+        the following columns: `mention` contains raw entities
+        given by the NER model, `concept` linked ontology term,
+        `uid` ID of the linked term in NCIT, `definition` definition
+        of the linked term, `taxonomy` a list containing uid's and names
+        of the parent ontology classes of the term.
+
+    type_mapping : dict
+        Mapping whose keys are type names to be used, values are dictionaries
+        with two keys: `include` and `exclude` specifying NCIT ontology
+        classes to respectively include and exclude to/from when assigning
+        the given type.
+    curated_table : pd.DataFrame
+        Input occurrence data table. Rows represent unique entities (indexed
+        by entity names), columns contain sets of aggregated occurrence factors
+        (e.g. sets of papers/sections/paragraphs where the given term occurs),
+        raw entity types (given by the NER model)
+
+    Returns
+    -------
+    linked_table : pd.DataFrame
+        The resulting table after grouping synonymical entities according to
+        the ontology linking. The table is indexed by unqique linked entities
+        containing the following columns: `paper`, `section`,
+        `paragraph` representing aggregated factors where the term occurs,
+        `aggregated_entities` set of raw entities linked to the given term,
+        `uid` unique identifier in NCIT, if available, `definition`
+        definition of the term in NCIT, `paper_frequency` number of unique
+        papers where mentioned, `entity_type` a unique entity type per entity
+        resolved using the ontology linking data (hierarchy, or taxonomy,
+        of NCIT classes) according to the input type mapping.
+
+    """
     linked_table = merge_with_ontology_linking(
         curated_table,
         factor_columns=["paper", "section", "paragraph"],
