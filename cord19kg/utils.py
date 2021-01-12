@@ -501,14 +501,17 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
     """
     # Filter entities that occur only once (only in one paragraph, usually
     # represent noisy terms)
-    occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
-        lambda x: len(x) >= min_occurrences)]
-    occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(
-        lambda x: len(x))
-    occurrence_data["section_frequency"] = occurrence_data["section"].apply(
-        lambda x: len(x))
-    occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(
-        lambda x: len(x))
+    if "paragraph" in factors:
+        occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
+            lambda x: len(x) >= min_occurrences)]
+        occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(
+            lambda x: len(x))
+    if "section" in factors:
+        occurrence_data["section_frequency"] = occurrence_data["section"].apply(
+            lambda x: len(x))
+    if "paper" in factors:
+        occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(
+            lambda x: len(x))
 
     graphs = {}
     trees = {}
