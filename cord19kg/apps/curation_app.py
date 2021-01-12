@@ -1,3 +1,17 @@
+#
+# Blue Brain Graph is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Blue Brain Graph is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+
 import io
 import os
 import base64
@@ -349,7 +363,10 @@ class CurationApp(object):
             table["entity_type"] = table["entity_type"].apply(
                 lambda x: assign_raw_type(x.split(",")))
 
-        return table
+        return table[[
+            "paper", "section", "paragraph",
+            "aggregated_entities", "uid",  "definition",
+            "paper_frequency", "entity_type"]]
 
     def get_terms_to_include(self):
         return self._terms_to_include
