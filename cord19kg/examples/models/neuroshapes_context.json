@@ -3,6 +3,7 @@
     "description": {
       "@id": "schema:description"
     },
+    "@base": "https://example.org/data/",
     "@vocab": "https://neuroshapes.org",
     "DataDownload": {
       "@id": "schema:DataDownload"
@@ -53,6 +54,18 @@
     "question": {
       "@id": "schema:question"
     },
+    "contribution": {
+      "@id": "nsg:contribution"
+    },
+    "agent": {
+      "@id": "prov:agent"
+    },
+    "hadRole": {
+      "@id": "prov:hadRole"
+    },
+    "Contribution": {
+      "@id": "nsg:Contribution"
+    },
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "schema": "http://schema.org/",
@@ -61,6 +74,8 @@
     "source": "oa:source",
     "start": "oa:start",
     "target": "oa:target",
+    "prov": "http://www.w3.org/ns/prov#",
+    "nsg": "https://neuroshapes.org/",
     "unitCode": {
       "@id": "schema:unitCode"
     },
