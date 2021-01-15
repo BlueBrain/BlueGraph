@@ -6,8 +6,7 @@ Setup
 .. code-block:: shell
 
    git clone https://github.com/BlueBrain/BlueBrainGraph.git
-   pip install --editable kganalytics[dev]
-   pip install --editable cord19kg[dev]
+   pip install --editable .[dev]
 
 Checks before committing
 
