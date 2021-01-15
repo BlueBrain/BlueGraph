@@ -353,6 +353,10 @@ class CurationApp(object):
     def get_curated_table(self):
         table = self._curated_table.copy()
         table = table.set_index("entity")
+
+        table["paper"] = table["paper"].apply(set)
+        table["paragraph"] = table["paragraph"].apply(set)
+        table["section"] = table["section"].apply(set)
         # Check if the table contains multiple entity types
         # (this means that the data was not linked and that
         # the types need to be resolved here).

@@ -46,9 +46,11 @@ def convert_size(size_bytes):
 
 class TopicWidget(object):
 
-    def __init__(self, forge, agent_username):
+    def __init__(self, forge, token):
         self.forge = forge
-        self.agent_username = agent_username
+        self.agent_username = jwt.decode(
+            token, verify=False)['preferred_username']
+        self.realm = jwt.decode(token, verify=False)["iss"].split("/")[-1]
 
         self.table_extractions = None
         self.curated_table_extractions = None
@@ -64,12 +66,12 @@ class TopicWidget(object):
         # initialize the layout of the widget
         self._widget_elements = [
             ipywidgets.Button(
-                description= '🔬 List all your topics',
+                description='🔬 List all your topics',
                 button_style='',
                 layout=ipywidgets.Layout(width='300px', height='30px'),
                 disabled=False),
             ipywidgets.Button(
-                description= "📃 Show datasets for selected topic",
+                description="📃 Show datasets for selected topic",
                 button_style='',
                 layout=ipywidgets.Layout(width='300px', height='30px'),
                 disabled=False),
@@ -77,12 +79,12 @@ class TopicWidget(object):
                 description='Select:',
                 disabled=False),
             ipywidgets.Button(
-                description= '📈 Reuse selected dataset',
+                description='📈 Reuse selected dataset',
                 button_style='',
                 layout=ipywidgets.Layout(width='300px', height='30px'),
                 disabled=False),
             ipywidgets.Button(
-                description= '✏️ Update topic',
+                description='✏️ Update topic',
                 button_style='',
                 layout=ipywidgets.Layout(width='300px', height='30px'),
                 disabled=False),
@@ -191,7 +193,7 @@ class TopicWidget(object):
             'description': self._widget.children[1].children[2].value,
             'keywords': self._widget.children[1].children[3].value,
             'question':  [
-                self._widget.children[1].children[i].value for i in range(5,9)]
+                self._widget.children[1].children[i].value for i in range(5, 9)]
         }
         self._topic_resource = self.forge.from_json(topic_to_save)
         self.forge.register(self._topic_resource)
@@ -211,14 +213,14 @@ class TopicWidget(object):
         SELECT ?id ?name ?description ?keywords ?field ?question ?createdAt
         WHERE {{
             ?id a Topic ;
-                name ?name ;
-                description ?description ;
-                keywords ?keywords ;
-                field ?field ;
-                question ?question ;
-                <https://bluebrain.github.io/nexus/vocabulary/deprecated> false ;
+                name ?name .
+            OPTIONAL {{ ?id description ?description }}
+            OPTIONAL {{ ?id keywords ?keywords }}
+            OPTIONAL {{ ?id field ?field }}
+            OPTIONAL {{ ?id question ?question }}
+            ?id <https://bluebrain.github.io/nexus/vocabulary/deprecated> false ;
                 <https://bluebrain.github.io/nexus/vocabulary/createdAt> ?createdAt ;
-                <https://bluebrain.github.io/nexus/vocabulary/createdBy> <{self.forge._store.endpoint}/realms/bbp/users/{self.agent_username}> .
+                <https://bluebrain.github.io/nexus/vocabulary/createdBy> <{self.forge._store.endpoint}/realms/{self.realm.lower()}/users/{self.agent_username}> .
         }}
         """
         resources = self.forge.sparql(query, limit=100)
@@ -297,7 +299,7 @@ class TopicWidget(object):
                         <https://bluebrain.github.io/nexus/vocabulary/createdBy> <{self.forge._store.endpoint}/realms/bbp/users/{self.agent_username}> .
                 }}
                 """
-            self._kg_resources = self.forge.sparql(query, limit=100, debug=True)
+            self._kg_resources = self.forge.sparql(query, limit=100)
             if len(self._kg_resources) >= 1:
                 with self._load_dataset_output:
                     display(self._widget_elements[2])
@@ -339,13 +341,13 @@ class TopicWidget(object):
 
                     message += (
                         f"Loaded curated table '{r.name}' ("
-                        "{len(self.curated_table_extractions)} entities)\n"
+                        f"{len(self.curated_table_extractions)} entities)\n"
                     )
                 else:
                     self.table_extractions = pd.read_csv(f"/tmp/{r.name}")
                     message += (
                         f"Loaded raw mentions table '{r.name}' "
-                        "({len(self.table_extractions)} rows)\n"
+                        f"({len(self.table_extractions)} rows)\n"
                     )
 
             # Read the graph objects
@@ -354,7 +356,7 @@ class TopicWidget(object):
                     self.loaded_graphs = pickle.load(f)
                     message += (
                         f"Loaded graph objects '{r.name}' "
-                        "({list(self.loaded_graphs.keys())})\n"
+                        f"({list(self.loaded_graphs.keys())})\n"
                     )
             # Read the visualization app configs
             if "visualization_session" in r.name:
@@ -417,11 +419,10 @@ class DataSaverWidget(object):
             )
 
         self.forge = forge
-        self.token = token
 
-        self.agent = jwt.decode(self.token, verify=False)
+        agent = jwt.decode(token, verify=False)
         self.agent = self.forge.reshape(
-            self.forge.from_json(self.agent), keep=[
+            self.forge.from_json(agent), keep=[
                 "name", "email", "sub", "preferred_username"])
         self.agent.id = self.agent.sub
         self.agent.type = "Person"
@@ -500,10 +501,11 @@ class DataSaverWidget(object):
             self.dataset.add_distribution(
                 edit_history_filename, content_type="application/json")
 
-        self.dataset.add_contribution(self.agent)
+        self.dataset.add_contribution(self.agent, versioned=False)
         self.dataset.contribution.hadRole = "Scientists"
 
         self.version = self.agent.preferred_username + "_" + timestr
+        # print(self.forge.as_jsonld(self.dataset))
 
         # initialize the layout of the widget
         self.register_output = ipywidgets.Output()
@@ -554,6 +556,7 @@ class DataSaverWidget(object):
             self.description_element.value
             if self.description_element.value else "No description provided"
         )
+
         self.forge.register(self.dataset)
 
         self.tempdir.cleanup()
