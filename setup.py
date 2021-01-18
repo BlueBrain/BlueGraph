@@ -54,7 +54,7 @@ setup(
         "setuptools_scm",
     ],
     install_requires=[
-        "numpy",
+        "numpy>=1.16.5",
         "pandas",
         "networkx",
         "python-louvain"
