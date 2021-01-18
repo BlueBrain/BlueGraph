@@ -1,0 +1,7 @@
+Releases
+========
+
+.. toctree::
+   :glob:
+
+   releases/*

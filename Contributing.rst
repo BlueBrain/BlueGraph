@@ -48,3 +48,18 @@ Releasing
 
    # Clean
    rm -R build dist *.egg-info
+
+Generating locally the documentation
+------------------------------------
+
+
+.. code-block:: shell
+
+   # cd to the docs directory
+   cd docs
+
+   # Install sphinx-build and related packages
+   pip install .[docs]
+
+   # Generate the docs
+   sphinx-build -T -W --keep-going -b html -d _build/doctrees -c ./source -D language=en ./source _build/html
