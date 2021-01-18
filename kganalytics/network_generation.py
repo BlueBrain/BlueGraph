@@ -85,6 +85,8 @@ def mutual_information(occurrence_data, factor, total_instances,
             elif mitype == "pmi3":
                 mi = math.log2(
                     (co_freq ** 3) / (s_freq * t_freq * total_instances))
+            else:
+                raise ValueError("Provided Mutual information score type (mitype) is not supported. Provide one value from the following list ['expected', 'normalized','pmi2', 'pmi3'] ")
         else:
             mi = math.log2((total_instances * co_freq) / (s_freq * t_freq))
     else:
