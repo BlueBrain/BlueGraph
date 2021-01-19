@@ -679,8 +679,8 @@ def resolve_taxonomy_to_types(occurrence_data, mapping):
 def link_ontology(linking, type_mapping, curated_table):
     """Merge the input occurrence table with the ontology linking.
 
-    Prameters
-    ---------
+    Parameters
+    ----------
     linking : pd.DataFrame
         Datatable containing the linking data. The table includes
         the following columns: `mention` contains raw entities

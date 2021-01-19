@@ -86,7 +86,6 @@ def subgraph_from_clusters(graph_object, cluster_type, clustersearch,
 
 
 def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
-    """Get top N nodes by paper frequency."""
     if nodes_to_keep is None:
         nodes_to_keep = []
 
@@ -110,7 +109,6 @@ def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
 
 
 def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
-    """Build a subgraph with top n nodes."""
     nodes_to_include = get_top_n_nodes(
         graph_object, n, node_subset, nodes_to_keep)
 
@@ -118,7 +116,6 @@ def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
 
 
 def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
-    """Build a spanning tree with default top n nodes."""
     nodes_to_include = get_top_n_nodes(
         graph_object, n, node_subset, nodes_to_keep)
 
@@ -280,6 +277,7 @@ graph
 
 
 class VisualizationApp(object):
+    """JupyterDash-based interactive graph visualization app."""
 
     def __init__(self, configs=None):
         self._app = JupyterDash(
@@ -416,10 +414,30 @@ class VisualizationApp(object):
         self._configs["current_layout"] = self._current_layout
 
     def get_configs(self):
+        """Get current app configs."""
         return self._configs
 
     def set_graph(self, graph_id, graph_object, tree_object=None,
                   positions=None, default_top_n=None, full_graph_view=False):
+        """Set a graph to display.
+
+        Parameters
+        ----------
+        graph_id : str
+            Graph identifier to use in the app
+        graph_object : nx.Graph
+            Input graph object
+        tree_object : nx.Graph, optional
+            Pre-computed minimum spanning tree object
+        positions : dict, optional
+            Dictionary containing pre-computed node positions
+        default_top_n : int, optional
+            Top n entities to display by default
+        full_graph_view : bool, optional
+            Flag indicating whether the current graph should
+            be displayed as a spanning tree or entirely
+            (spanning tree is shown by default)
+        """
         # Generate a paper lookup table
         paper_lookup = generate_paper_lookup(graph_object)
 
@@ -457,6 +475,13 @@ class VisualizationApp(object):
         return
 
     def set_current_graph(self, graph_id):
+        """Set current graph.
+
+        Parameters
+        ----------
+        graph_id : str
+            Graph identifier to set as the current graph.
+        """
         self._current_graph = graph_id
         self.dropdown_items.value = graph_id
         self.cyto.elements = self._graphs[self._current_graph]["cytoscape"]
@@ -472,6 +497,24 @@ class VisualizationApp(object):
         ]
 
     def run(self, port, mode="jupyterlab", debug=False, inline_exceptions=False):
+        """Run the graph visualization app.
+
+        Parameters
+        ----------
+        port : int
+            Port number to launch the app (`localhost:<port>`).
+        mode : str, optional
+            Mode in which the app should be launched. Possible values:
+            `inline` inside the current Jupyter notebook, `external`
+            given an external link that can be opened in a browser,
+            `jupyterlab` as a new tab of JupyterLab.
+        debug : bool, optional
+            Flag indicating whether the app is launched in the debug mode
+            (traceback will be printed).
+        inline_exceptions : bool, optional
+            Flag indicating whether app exceptions should be printed in
+            the current active notebook cell.
+        """
         try:
             save_run(
                 self, port, mode=mode, debug=debug,
@@ -480,15 +523,50 @@ class VisualizationApp(object):
             pass
 
     def set_list_papers_callback(self, func):
+        """Set the paper lookup callback.
+
+        This function will be called when the user requests
+        to see a list of papers associated with a selected
+        node or an edge. The visualization app will pass the
+        list of paper indentifiers to this function. The function
+        is expected to return a list of dictionaries each representing
+        a paper's meta-data.
+        """
         self._list_papers_callback = func
 
     def set_aggregated_entities_callback(self, func):
+        """Set the aggegated entities lookup callback.
+
+        This function will be called when the user requests
+        to see a set of raw entities associated with a selected
+        node. The visualization app will pass the selected entity
+        to this function. The function is expected to return a
+        dictionary whose keys are raw entities and whose values
+        are their occurrence frequencies.
+        """
         self._aggregated_entities_callback = func
 
     def set_entity_definitons(self, definition_dict):
+        """Set the lookup dictionary for entity definitions."""
         self._entity_definitions = definition_dict
 
     def export_graphs(self, graph_list):
+        """Export current graph objects from the app.
+
+        Parameters
+        ----------
+        graph_list : list of str
+            List of graph identifiers to export
+
+        Returns
+        -------
+        graphs : dict
+            Dictionary whose keys represent the input list of
+            graph identifiers to export. Eeach graph is given by a
+            dictionary with two keys: `graph` giving the full graph
+            object and `tree` giving the minimum spanning tree object.
+
+        """
         graphs = {}
         for g in graph_list:
             if g in self._graphs:
@@ -500,6 +578,7 @@ class VisualizationApp(object):
         return graphs
 
     def get_edit_history(self):
+        """Export the history of graph edits."""
         return self._edit_history
 
 

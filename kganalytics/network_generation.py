@@ -190,7 +190,7 @@ def generate_cooccurrence_network(occurrence_data,
     factor_column : str
         Name of the column containing the term occurrence data (for example,
         a set of unique scientific articles per each term in the index).
-    facour_count : int
+    factor_count : int
         Total number of all unique instances of the occurrence factor (for
         example, the total number of all scientific articles in the dataset).
     n_most_frequent : int, optional
@@ -210,6 +210,12 @@ def generate_cooccurrence_network(occurrence_data,
     keep : iterable, optional
         Collection of terms to keep even if they are not included in N most
         frequent terms.
+
+
+    Returns
+    -------
+    graph : nx.Graph
+        Resulting co-occurrence network.
     """
     if n_most_frequent is not None:
         print("Fitering data.....")

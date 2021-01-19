@@ -99,8 +99,7 @@ def parse_contents(contents, filename):
 # -------------- Curation app ------------------
 
 class CurationApp(object):
-
-    """Wrapper around a Dash application for entity occurrence curation."""
+    """JupyterDash-based interactive entity occurrence curation app."""
 
     def __init__(self):
         self._app = JupyterDash(
@@ -319,6 +318,17 @@ class CurationApp(object):
         ])
 
     def set_default_terms_to_include(self, terms):
+        """Set default terms to be fixed in the table.
+
+        The application allows to set fixed terms that
+        are included in the table at all times (even when
+        don't satisfy the conditions of current filters).
+
+        Parameters
+        ----------
+        terms : list of str
+            List of terms to fix in the data table
+        """
         self._terms_to_include = terms
         self.dropdown.value = self._terms_to_include
 
@@ -342,15 +352,54 @@ class CurationApp(object):
         self._table_columns = columns
 
     def set_ontology_linking_callback(self, func):
+        """Set the ontology linking callback.
+
+        This function will be called when the `Link ontology`
+        button is clicked. The curation app will pass the
+        current curation table object to this function.
+        """
         self._ontology_linking_callback = func
 
     def run(self, port, mode="jupyterlab", debug=False,
             inline_exceptions=False):
+        """Run the curation app.
+
+        Parameters
+        ----------
+        port : int
+            Port number to launch the app (`localhost:<port>`).
+        mode : str, optional
+            Mode in which the app should be launched. Possible values:
+            `inline` inside the current Jupyter notebook, `external`
+            given an external link that can be opened in a browser,
+            `jupyterlab` as a new tab of JupyterLab.
+        debug : bool, optional
+            Flag indicating whether the app is launched in the debug mode
+            (traceback will be printed).
+        inline_exceptions : bool, optional
+            Flag indicating whether app exceptions should be printed in
+            the current active notebook cell.
+        """
         save_run(
             self, port, mode=mode, debug=debug,
             inline_exceptions=inline_exceptions)
 
     def get_curated_table(self):
+        """Get the current curated data table.
+
+        Returns
+        -------
+        table : pd.DataFrame
+            Current curation data table. The table is indexed by unique
+            entities and contains the following columns:
+            `paper`/`section`/`paragraph` sets of papers/sections/paragraphs
+            where the entity occurs, `aggregated_entities` set of unique raw
+            entities associated with the entity (by ontology linking, if
+            performed), `uid` ontology concept id,  `definition` ontology
+            concept definition, `paper_frequency` number of unique papers
+            where occurs, `entity_type` type of the entity computed either
+            from the raw NER types or the ontology concept type.
+        """
         table = self._curated_table.copy()
         table = table.set_index("entity")
 

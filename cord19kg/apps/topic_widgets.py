@@ -45,8 +45,19 @@ def convert_size(size_bytes):
 
 
 class TopicWidget(object):
+    """Widget for loading and selecting topics from Nexus."""
 
     def __init__(self, forge, token):
+        """Initialize a topic widget.
+
+        Parameters
+        ----------
+        forge : kgforge.forge
+            Nexus forge object
+        token : str
+            Nexus authorization token
+
+        """
         self.forge = forge
         self.agent_username = jwt.decode(
             token, verify=False)['preferred_username']
@@ -402,16 +413,43 @@ class TopicWidget(object):
         )
 
     def display(self):
+        """Launch the topic widget."""
         display(self._widget)
 
 
 class DataSaverWidget(object):
+    """Widget for saving analysis data under topics stored in Nexus."""
 
     def __init__(self, forge, token, topic_resource_id,
-                 table_extractions, curated_table_extractions,
-                 curation_meta_data, exported_graphs, visualization_configs,
-                 edit_history, temp_prefix):
+                 table_extractions=None, curated_table_extractions=None,
+                 curation_meta_data=None, exported_graphs=None,
+                 visualization_configs=None, edit_history=None,
+                 temp_prefix=None):
+        """Initialize a data saver widget.
 
+        Parameters
+        ----------
+        forge : kgforge.forge
+            Nexus forge object
+        token : str
+            Nexus authorization token
+        topic_resource_id : str
+            Identifier of the selected topic resource in the Nexus store
+        table_extractions : pd.DataFrame, optional
+            Raw entity occurrence data table to save
+        curated_table_extractions : pd.DataFrame, optional
+            Curated entity occurrence data table to save
+        curation_meta_data : dict, optional
+            Curation meta-data
+        exported_graphs : dict, optional
+            Graphs exported from the visualization app
+        visualization_configs : dict, optional
+            Graph visualization app configs
+        edit_history : dict, optional
+            History of graph edits from the visualization app
+        temp_prefix : str, optional
+            Prefix to use for saving temp files
+        """
         if topic_resource_id is None:
             raise ValueError(
                 "Topic resource ID is undefined, make sure "
@@ -580,4 +618,5 @@ class DataSaverWidget(object):
                 print(self.dataset._last_action.message)
 
     def display(self):
+        """Launch the data saver widget."""
         display(self._widget)

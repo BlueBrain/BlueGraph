@@ -12,19 +12,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
 
-import pytest
 from kganalytics.metrics import (compute_degree_centrality,
                                  compute_pagerank_centrality,
                                  compute_betweenness_centrality,
                                  detect_communities
                                  )
 
-import pandas as pd
 
 def test_compute_degree_centrality(paper_comention_network_100_most_frequent):
 
     weights = ["frequency"]
-    degree_centrality = compute_degree_centrality(paper_comention_network_100_most_frequent, weights, 10)
+    degree_centrality = compute_degree_centrality(
+        paper_comention_network_100_most_frequent, weights, 10)
 
     assert degree_centrality is not None
     assert type(degree_centrality) == dict
@@ -35,7 +34,8 @@ def test_compute_degree_centrality(paper_comention_network_100_most_frequent):
 def test_compute_pagerank_centrality(paper_comention_network_100_most_frequent):
 
     weights = ["frequency"]
-    pagerank_centrality = compute_pagerank_centrality(paper_comention_network_100_most_frequent,  weights, 10)
+    pagerank_centrality = compute_pagerank_centrality(
+        paper_comention_network_100_most_frequent,  weights, 10)
 
     assert pagerank_centrality is not None
     assert type(pagerank_centrality) == dict
@@ -44,16 +44,21 @@ def test_compute_pagerank_centrality(paper_comention_network_100_most_frequent):
 
 
 def test_compute_betweenness_centrality(paper_comention_network_100_most_frequent):
-    weights = ["distance_ppmi","distance_npmi"]
-    betweenness_centrality = compute_betweenness_centrality(paper_comention_network_100_most_frequent, weights, 20)
+    weights = ["distance_ppmi", "distance_npmi"]
+    betweenness_centrality = compute_betweenness_centrality(
+        paper_comention_network_100_most_frequent, weights, 20)
     assert betweenness_centrality is not None
     assert type(betweenness_centrality) == dict
     assert len(betweenness_centrality.keys()) == 2
     assert len(betweenness_centrality[weights[0]].keys()) == 100
 
-def test_compute_betweenness_centrality_node_attributes(paper_comention_network_100_most_frequent):
 
-    _ = detect_communities(paper_comention_network_100_most_frequent, weight="frequency", set_attr="community")
+def test_compute_communities(paper_comention_network_100_most_frequent):
+
+    _ = detect_communities(
+        paper_comention_network_100_most_frequent,
+        weight="frequency", set_attr="community")
+
     for node in paper_comention_network_100_most_frequent.nodes(data=True):
         assert "community" in node[1]
         assert isinstance(node[1], dict)

@@ -60,17 +60,21 @@ setup(
         "python-louvain"
     ],
     extras_require={
-        "dev": ["tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1", "pytest-mock==3.3.1", "codecov"],
+        "dev": [
+            "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
+            "pytest-mock==3.3.1", "codecov"
+        ],
         "cord19kg": [
-        "jupyter_dash",
-        "dash_bootstrap_components",
-        "dash_daq",
-        "dash_extensions",
-        "dash_cytoscape",
-        "nexusforge",
-        "nexus-sdk",
-        "pyjwt==1.7.1",
-        "ipywidgets"],
+            "jupyter_dash",
+            "dash_bootstrap_components",
+            "dash_daq",
+            "dash_extensions",
+            "dash_cytoscape",
+            "nexusforge",
+            "nexus-sdk",
+            "pyjwt==1.7.1",
+            "ipywidgets"
+        ],
         "docs": ["sphinx", "sphinx-bluebrain-theme"],
     },
     classifiers=[
