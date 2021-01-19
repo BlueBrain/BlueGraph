@@ -4,4 +4,5 @@ API
 .. toctree::
    :hidden:
 
-   python-api
+   kganalytics-api
+   cord19kg-api
