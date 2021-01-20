@@ -1,15 +1,15 @@
-================
-Blue Brain Graph
-================
+==========
+Blue Graph
+==========
 
 |Travis_badge|
 
-Toolkit for graph analytics and co-occurrence analysis
+Framework for graph analytics and co-occurrence graph analysis
 
 About
 -----
 
-This repository contains a set of packages that bring together various graph analytics tools. The current implementation is based on the `NetworkX <https://networkx.org/>`_ library.
+This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset. It contains a set of packages that bring together various graph analytics tools. The current implementation is based on the `NetworkX <https://networkx.org/>`_ library. 
 
 :code:`kganalytics` package
 ---------------------------
