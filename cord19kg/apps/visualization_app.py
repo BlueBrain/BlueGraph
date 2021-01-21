@@ -1260,60 +1260,6 @@ def update_cytoscape_elements(resetbt, removebt, val,
        (button_id == "rename-apply" and not rename_invalid):
         open_rename_modal = not open_rename_modal
 
-    if button_id == "rename-apply":
-        if selected_rename_input:
-            rename_input_value = selected_rename_input
-
-        # Check if the rename input is valid
-        if rename_input_value != selected_nodes[0]:
-            if editing_mode == 1:
-                if rename_input_value in visualization_app._graphs[val]["nx_object"].nodes():
-                    rename_invalid = True
-                    rename_error_message = "Node with the label '{}' already exists".format(
-                        rename_input_value)
-            else:
-                for el in elements:
-                    if rename_input_value == el["data"]["id"]:
-                        rename_invalid = True
-                        rename_error_message = "Node with the label '{}' already exists".format(
-                            rename_input_value)
-                        break
-
-        if not rename_invalid:
-            if editing_mode == 1:
-                # Rename node in the graph
-                new_graph = nx.relabel_nodes(
-                    visualization_app._graphs[val]["nx_object"],
-                    {selected_nodes[0]: rename_input_value})
-
-                visualization_app._graphs[val]["nx_object"] = new_graph
-                elements = visualization_app._update_cyto_graph(
-                    val, new_graph, visualization_app._graphs[val]["top_n"],
-                    node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                    nodes_to_keep=nodes_to_keep)
-
-                visualization_app._graphs[val]["paper_lookup"][rename_input_value] = visualization_app._graphs[
-                    val]["paper_lookup"][selected_nodes[0]]
-                visualization_app._entity_definitions[rename_input_value] =\
-                    visualization_app._entity_definitions[selected_nodes[0]]
-
-                if val not in visualization_app._edit_history:
-                    visualization_app._edit_history[val] = []
-                visualization_app._edit_history[val].append(
-                    {
-                        "type": "rename",
-                        "original_node": selected_nodes[0],
-                        "new_name": rename_input_value
-                    }
-                )
-            else:
-                memory["renamed_elements"].update({selected_nodes[0]: rename_input_value})
-
-    # Open/close the rename dialog
-    if button_id == "rename-button" or button_id == "rename-close" or\
-       (button_id == "rename-apply" and not rename_invalid):
-        open_rename_modal = not open_rename_modal
-
     # -------- Handle reset graph elements --------
     if button_id == "reset-elements-button":
         if editing_mode == 1:
