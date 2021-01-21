@@ -17,6 +17,7 @@ import os
 import base64
 import traceback
 import pandas as pd
+import numpy as np
 
 from operator import (lt, le, eq, ne, ge, gt)
 
@@ -111,6 +112,8 @@ class CurationApp(object):
         self._curated_table = None
         self._server = self._app.server
 
+        self.n_most_frequent = None
+        
         # Components
         button_group = dbc.ButtonGroup(
             [
@@ -415,6 +418,13 @@ class CurationApp(object):
         if multi_type.any():
             table["entity_type"] = table["entity_type"].apply(
                 lambda x: assign_raw_type(x.split(",")))
+            
+        if "aggregated_entities" not in table.columns:
+            table["aggregated_entities"] = np.nan
+        if "uid" not in table.columns:
+            table["uid"] = np.nan
+        if "definition" not in table.columns:
+            table["definition"] = np.nan
 
         return table[[
             "paper", "section", "paragraph",
