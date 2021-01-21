@@ -215,12 +215,10 @@ COLA_CONFIG = {
     'name': 'cola',
     'animate': True,
     'refresh': 1,
-#             'infinite': True,
     'maxSimulationTime': 8000,
     'ungrabifyWhileSimulating': False,
-    'fit': True, 
+    'fit': True,
     'padding': 30,
-#             'nodeDimensionsIncludeLabels': False,
     'randomize': True,
     'avoidOverlap': True,
     'handleDisconnected': True,
@@ -251,7 +249,6 @@ COSE_CONFIG = {
 }
 
 
-
 LAYOUT_CONFIGS = {
     "preset": {
         "name": "preset"
@@ -260,15 +257,3 @@ LAYOUT_CONFIGS = {
     "cose-bilkent": COSE_BILKENT_CONFIG,
     "cola": COLA_CONFIG
 }
-#     if visualization_app._graphs[showgraph]["top_n"] is None and\
-#        visualization_app._graphs[showgraph]["positions"] is not None:
-#         layout = "preset"
-#         layout_config = {}
-#     if layout == "cose":
-#         layout_config = COSE_CONFIG
-#     elif layout =="cola":
-#         layout_config = COLA_CONFIG
-#     elif layout == "cose-bilkent":
-#         layout_config = COSE_BILKENT_CONFIG
-#     else:    
-        

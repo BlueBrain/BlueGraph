@@ -115,6 +115,14 @@ def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
     return nx.Graph(graph_object.subgraph(nodes_to_include))
 
 
+def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
+    """Build a subgraph with top n nodes."""
+    nodes_to_include = get_top_n_nodes(
+        graph_object, n, node_subset, nodes_to_keep)
+
+    return nx.Graph(graph_object.subgraph(nodes_to_include))
+
+
 def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
     nodes_to_include = get_top_n_nodes(
         graph_object, n, node_subset, nodes_to_keep)
@@ -311,6 +319,20 @@ class VisualizationApp(object):
         self._current_layout = components.DEFAULT_LAYOUT
         self._removed_nodes = set()
         self._removed_edges = set()
+
+        self._is_initializing = False
+
+        self._edit_history = {}
+
+    def _configure_layout(self, configs=None):
+        if configs is None:
+            configs = {}
+
+        self._configs = configs
+        self.cyto, layout, self.dropdown_items, self.cluster_filter =\
+            components.generate_layout(self._graphs, configs)
+
+        self._app.layout = layout
 
         self._is_initializing = False
 
@@ -535,6 +557,9 @@ class VisualizationApp(object):
         self._list_papers_callback = func
 
     def set_aggregated_entities_callback(self, func):
+        self._aggregated_entities_callback = func
+
+    def set_aggregated_entities_callback(self, func):
         """Set the aggegated entities lookup callback.
 
         This function will be called when the user requests
@@ -549,6 +574,20 @@ class VisualizationApp(object):
     def set_entity_definitons(self, definition_dict):
         """Set the lookup dictionary for entity definitions."""
         self._entity_definitions = definition_dict
+
+    def export_graphs(self, graph_list):
+        graphs = {}
+        for g in graph_list:
+            if g in self._graphs:
+                graphs[g] = {}
+                graphs[g]["graph"] = self._graphs[g]["nx_object"]
+                if "full_tree" in self._graphs[g]:
+                    graphs[g]["tree"] = self._graphs[g]["full_tree"]
+
+        return graphs
+
+    def get_edit_history(self):
+        return self._edit_history
 
     def export_graphs(self, graph_list):
         """Export current graph objects from the app.
@@ -586,6 +625,7 @@ visualization_app = VisualizationApp()
 
 
 # ############################## CALLBACKS ####################################
+
 def search(elements, search_value, value, showgraph, diffs=None,
            cluster_type=None, cluster_search=None, nodes_to_keep=None,
            global_scope=False):
@@ -873,6 +913,7 @@ def setup_paths_tab(nestedpaths):
         State("path-finder-tab", "className"),
     ]
 )
+
 def update_cytoscape_elements(resetbt, removebt, val,
                               nodefreqslider, edgefreqslider,
                               searchvalues, pathbt,
@@ -921,6 +962,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         elements = cytoelements
 
     current_top_n = visualization_app._graphs[val]["top_n"]
+
     total_number_of_entities = len(
         visualization_app._graphs[val]["nx_object"].nodes())
 
@@ -1218,6 +1260,60 @@ def update_cytoscape_elements(resetbt, removebt, val,
        (button_id == "rename-apply" and not rename_invalid):
         open_rename_modal = not open_rename_modal
 
+    if button_id == "rename-apply":
+        if selected_rename_input:
+            rename_input_value = selected_rename_input
+
+        # Check if the rename input is valid
+        if rename_input_value != selected_nodes[0]:
+            if editing_mode == 1:
+                if rename_input_value in visualization_app._graphs[val]["nx_object"].nodes():
+                    rename_invalid = True
+                    rename_error_message = "Node with the label '{}' already exists".format(
+                        rename_input_value)
+            else:
+                for el in elements:
+                    if rename_input_value == el["data"]["id"]:
+                        rename_invalid = True
+                        rename_error_message = "Node with the label '{}' already exists".format(
+                            rename_input_value)
+                        break
+
+        if not rename_invalid:
+            if editing_mode == 1:
+                # Rename node in the graph
+                new_graph = nx.relabel_nodes(
+                    visualization_app._graphs[val]["nx_object"],
+                    {selected_nodes[0]: rename_input_value})
+
+                visualization_app._graphs[val]["nx_object"] = new_graph
+                elements = visualization_app._update_cyto_graph(
+                    val, new_graph, visualization_app._graphs[val]["top_n"],
+                    node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+                    nodes_to_keep=nodes_to_keep)
+
+                visualization_app._graphs[val]["paper_lookup"][rename_input_value] = visualization_app._graphs[
+                    val]["paper_lookup"][selected_nodes[0]]
+                visualization_app._entity_definitions[rename_input_value] =\
+                    visualization_app._entity_definitions[selected_nodes[0]]
+
+                if val not in visualization_app._edit_history:
+                    visualization_app._edit_history[val] = []
+                visualization_app._edit_history[val].append(
+                    {
+                        "type": "rename",
+                        "original_node": selected_nodes[0],
+                        "new_name": rename_input_value
+                    }
+                )
+            else:
+                memory["renamed_elements"].update({selected_nodes[0]: rename_input_value})
+
+    # Open/close the rename dialog
+    if button_id == "rename-button" or button_id == "rename-close" or\
+       (button_id == "rename-apply" and not rename_invalid):
+        open_rename_modal = not open_rename_modal
+
     # -------- Handle reset graph elements --------
     if button_id == "reset-elements-button":
         if editing_mode == 1:
@@ -1436,6 +1532,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
             else total_number_of_entities,
             total_number_of_entities)
     elif button_id == "show-all-button":
+
         # Top entities are selected, but button is clicked, so show all
         elements = visualization_app._update_cyto_graph(
             val, visualization_app._graphs[val]["nx_object"], None,
@@ -1477,6 +1574,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                     visualization_app._graphs[val]["current_edge_value"][1]))
             visualization_app._graphs[val]["current_node_value"] =\
                 nodefreqslider
+
             memory["filtered_elements"] = hidden_elements
 
             new_marks = {}
@@ -1574,7 +1672,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     return [
         memory,
         visualization_app._current_layout,
-        zoom, 
+        zoom,
         elements,
         message,
         no_path_message,
@@ -1621,7 +1719,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
     res = []
     npmi_message = None
 
-    paper_lookup = visualization_app._graphs[visualization_app._current_graph]["paper_lookup"]
+    paper_lookup = visualization_app._graphs[
+        visualization_app._current_graph]["paper_lookup"]
 
     if button_id == "tapNode" and datanode:
         definition = ""
@@ -1669,6 +1768,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
         npmi_message = html.P(
             "Normalized pointwise mutual information: {:.2f}".format(npmi),
             id="edgeDesc")
+
         modal_buttons = [
             dbc.Button(label, id="open-body-scroll", color="primary")
         ]
@@ -1855,7 +1955,6 @@ def generate_stylesheet(elements,
 #                 "opacity": 0.2,
 #             },
 #         })
-
     if edge_freq_type:
         stylesheet = [
             style
@@ -1904,7 +2003,6 @@ def generate_stylesheet(elements,
                     'z-index': 9999
                 }
             })
-
     # Highlight selected edges
     if selected_edges:
         for edge in selected_edges:
@@ -2272,7 +2370,6 @@ def toggle_bottom_tabs(legend_b, details_b, edit_b, neighb_b, hide_b,
         button_id = 'No clicks yet'
     else:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
     if button_id == "toggle-hide":
         legend_is_open = False
         details_is_open = False
@@ -2284,19 +2381,16 @@ def toggle_bottom_tabs(legend_b, details_b, edit_b, neighb_b, hide_b,
         details_is_open = False
         edit_is_open = False
         neighb_is_open = False
-
     if button_id == "toggle-details" or button_id == "cytoscape":
         legend_is_open = False
         details_is_open = not details_is_open
         edit_is_open = False
         neighb_is_open = False
-
     if button_id == "toggle-edit":
         legend_is_open = False
         details_is_open = False
         edit_is_open = not edit_is_open
         neighb_is_open = False
-
     if button_id == "toggle-neighbors":
         legend_is_open = False
         details_is_open = False
