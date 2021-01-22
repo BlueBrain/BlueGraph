@@ -1,21 +1,27 @@
+#
+# Blue Brain Graph is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Blue Brain Graph is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+# General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+
 """Collection of utils for computing various network metrics."""
 import networkx as nx
 
 import community as community_louvain
 
-from kganalytics.utils import top_n
-
-
-def keys_by_value(d, val):
-    result = []
-    for k, v in d.items():
-        if v == val:
-            result.append(k)
-    return result
+from kganalytics.utils import top_n, keys_by_value
 
 
 def compute_degree_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute degree centralities and save as node attrs."""
+    """Compute degree centralities and add as node attrs."""
     degree_centrality = {}
     for w in weights:
         degree_centrality[w] = dict(graph.degree(weight=w))
@@ -31,7 +37,7 @@ def compute_degree_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def compute_pagerank_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute PageRank centralities and save as node attrs."""
+    """Compute PageRank centralities and add as node attrs."""
     pagerank_centrality = {}
     for w in weights:
         pagerank_centrality[w] = nx.pagerank(graph, weight=w)
@@ -47,7 +53,7 @@ def compute_pagerank_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def compute_betweenness_centrality(graph, weights, print_top_n_nodes=None):
-    """Compute PageRank centralities and save as node attrs."""
+    """Compute PageRank centralities and add as node attrs."""
     betweenness_centrality = {}
     for w in weights:
         betweenness_centrality[w] = nx.betweenness_centrality(graph, weight=w)
@@ -64,7 +70,7 @@ def compute_betweenness_centrality(graph, weights, print_top_n_nodes=None):
 
 
 def detect_communities(graph, weight="frequency", set_attr=None):
-    """Detect communities."""
+    """Detect node communities using Louvain algo."""
     print("Detecting communities...")
     partition = community_louvain.best_partition(
         graph, weight=weight)
@@ -82,7 +88,7 @@ def detect_communities(graph, weight="frequency", set_attr=None):
 def show_top_members(graph, partition, n):
     """Pretty-print top community members."""
     print("Top important community nodes: ")
-    print("---------------------------------------------------------------------")
+    print("------------------------------------------------------------------")
     communitites = set(partition.values())
     for i, c in enumerate(communitites):
         members = keys_by_value(partition, c)
@@ -118,7 +124,7 @@ def compute_all_metrics(graph, degree_weights,
     if betweenness_weights is None:
         betweenness_weights = degree_weights
 
-    if print_summary:
+    if print_summary and len(betweenness_weights) > 0:
         print("Computing betweenness centrality statistics....")
 
     compute_betweenness_centrality(
@@ -127,5 +133,6 @@ def compute_all_metrics(graph, degree_weights,
     if community_weights is None:
         community_weights = degree_weights
     for w in community_weights:
+        print(f"Using the '{w}' weight...")
         detect_communities(
             graph, weight=w, set_attr="community_{}".format(w))

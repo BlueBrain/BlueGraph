@@ -1,0 +1,87 @@
+{
+  "@context": {
+    "description": {
+      "@id": "schema:description"
+    },
+    "@base": "https://example.org/data/",
+    "@vocab": "https://neuroshapes.org",
+    "DataDownload": {
+      "@id": "schema:DataDownload"
+    },
+    "Dataset": {
+      "@id": "schema:Dataset"
+    },
+    "NCIT": "http://purl.obolibrary.org/obo/ncit_",
+    "Topic": {
+      "@id": "https://bbp.epfl.ch/nexus/v1/resources/covid19-kg/schemas/Topic"
+    },
+    "about": {
+      "@id": "schema:about",
+      "@type": "@id"
+    },
+    "alogrithm": {
+      "@id": "schema:algorithm"
+    },
+    "body": "oa:hasBody",
+    "contentSize": {
+      "@id": "schema:contentSize"
+    },
+    "contentUrl": {
+      "@id": "schema:contentUrl",
+      "@type": "@id"
+    },
+    "definition": "skos:definition",
+    "distribution": {
+      "@id": "schema:distribution"
+    },
+    "encodingFormat": {
+      "@id": "schema:encodingFormat"
+    },
+    "end": "oa:end",
+    "exact": "oa:exact",
+    "field": {
+      "@id": "https://bbp.epfl.ch/nexus/v1/resources/covid19-kg/schemas/field"
+    },
+    "keywords": {
+      "@id": "schema:keywords"
+    },
+    "label": "rdfs:label",
+    "name": {
+      "@id": "schema:name"
+    },
+    "nxv": "https://bluebrain.github.io/nexus/vocabulary/",
+    "oa": "http://www.w3.org/ns/anno.jsonld/",
+    "question": {
+      "@id": "schema:question"
+    },
+    "contribution": {
+      "@id": "nsg:contribution"
+    },
+    "agent": {
+      "@id": "prov:agent"
+    },
+    "hadRole": {
+      "@id": "prov:hadRole"
+    },
+    "Contribution": {
+      "@id": "nsg:Contribution"
+    },
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "schema": "http://schema.org/",
+    "selector": "oa:selector",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "source": "oa:source",
+    "start": "oa:start",
+    "target": "oa:target",
+    "prov": "http://www.w3.org/ns/prov#",
+    "nsg": "https://neuroshapes.org/",
+    "unitCode": {
+      "@id": "schema:unitCode"
+    },
+    "value": {
+      "@id": "schema:value"
+    }
+  },
+  "@id": "https://bbp.epfl.ch/nexus/v1/resources/covid19-kg/schemas/context"
+}
