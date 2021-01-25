@@ -11,11 +11,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
-
-from setuptools import setup
 import os
-
-from setuptools import find_packages, setup
+from setuptools import setup
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -24,9 +21,9 @@ with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="bbg_analytics",
+    name="bluegraph",
     author="Blue Brain Project, EPFL",
-    version="0.1.0",
+    version="0.2.0",
     use_scm_version={
         "write_to": "kganalytics/version.py",
         "write_to_template": "__version__ = '{version}'\n",
@@ -37,27 +34,31 @@ setup(
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueBrainGraph",
     packages=[
-        "kganalytics",
-        "cord19kg",
-        "cord19kg.apps"
+        "bluegraph",
+        "bluegraph.core",
+        "bluegraph.core.analyse",
+        "bluegraph.core.embed",
+        "bluegraph.preprocess",
+        "bluegraph.backends",
+        "bluegraph.backends.networkx",
+        "bluegraph.backends.networkx.analyse",
+        "bluegraph.backends.graph_tool",
+        "bluegraph.backends.graph_tool.analyse",
+        "bluegraph.backends.neo4j",
+        "bluegraph.backends.neo4j.analyse",
+        "bluegraph.backends.stellargraph",
+        "bluegraph.backends.stellargraph.embed",
+        "bluegraph.downstream"
     ],
-    package_data={
-        'cord19kg.apps': [
-            'assets/*',
-            'assets/fontawesome-5.15.1-web/',
-            'assets/fontawesome-5.15.1-web/css/*',
-            'assets/fontawesome-5.15.1-web/webfonts/*'
-        ]
-    },
     python_requires=">=3.6",
-    setup_requires=[
-        "setuptools_scm",
-    ],
     install_requires=[
-        "numpy>=1.16.5",
+        "numpy",
         "pandas",
-        "networkx",
-        "python-louvain"
+        "sklearn",
+        "scipy",
+        "matplotlib",
+        "nltk",
+        "nexusforge"
     ],
     extras_require={
         "dev": [
@@ -70,12 +71,25 @@ setup(
             "dash_daq",
             "dash_extensions",
             "dash_cytoscape",
-            "nexusforge",
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"
         ],
         "docs": ["sphinx", "sphinx-bluebrain-theme"],
+        "networkx": [
+            "networkx",
+            "python-louvain"
+        ],
+        "graph_tool": [
+            "graph-tool"
+        ],
+        "neo4j": [
+            "neo4j"
+        ],
+        "stellargraph": [
+            "stellargraph",
+            "tensorflow"
+        ]
     },
     classifiers=[
         "Intended Audience :: Information Technology",

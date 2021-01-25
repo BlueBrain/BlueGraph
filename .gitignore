@@ -1,6 +1,11 @@
 *.egg-info/
 build/
 dist/
+.pytest_cache
+*/__pycache__
+*/*/__pycache__
+*/*/*/__pycache__
+*/*/*/*/__pycache__
 kganalytics/notebooks/data/gephi*
 *.ipynb_checkpoints/
 *.DS_Store
