@@ -4,7 +4,7 @@ from graph_tool.centrality import pagerank as gt_pagerank
 from graph_tool.centrality import betweenness as gt_betweenness
 from graph_tool.centrality import closeness as gt_closeness
 
-from ..io import pgframe_to_graph_tool
+from ..io import (pgframe_to_graph_tool, graph_tool_to_pgframe)
 
 
 class GTMetricProcessor(MetricProcessor):
@@ -16,11 +16,17 @@ class GTMetricProcessor(MetricProcessor):
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
         return dict(
-            zip(list(self.graph.vertex_properties["id"]), new_property.a))
+            zip(list(self.graph.vertex_properties["@id"]), new_property.a))
 
     def _write_node_property(self, new_property, property_name):
         """Write node property values to the graph."""
         self.graph.vertex_properties[property_name] = new_property
+
+    def density(self):
+        return (
+            self.graph.num_edges() /
+            ((self.graph.num_vertices() * (self.graph.num_vertices() - 1)) / 2)
+        )
 
     def degree_centrality(self, weight=None, write=False,
                           write_property=None):
@@ -71,3 +77,7 @@ class GTMetricProcessor(MetricProcessor):
             self.graph, weight=distance)
         return self._dispatch_processing_result(
             closeness, "closeness", write, write_property)
+
+    def get_pgframe(self):
+        """Get a new pgframe object from the wrapped graph object."""
+        return graph_tool_to_pgframe(self.graph)

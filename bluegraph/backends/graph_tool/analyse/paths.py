@@ -14,6 +14,15 @@ class GTPathFinder(PathFinder):
         """Generate the appropiate graph representation from a PGFrame."""
         return pgframe_to_graph_tool(pgframe)
 
+    def top_neighbors(self, node, n, weight):
+        """Get top n neighbours of the specified node by weight."""
+        neigbours = {}
+        for neighbor in self.graph.neighbors(node):
+            neigbours[neighbor] = self.graph.edges[node, neighbor][weight]
+        return {
+            el: neigbours[el] for el in top_n(neigbours, n)
+        }
+
     def shortest_path(self, source, target, distance=None, exclude_edge=False):
         """Compute the single shortest path from the source to the target.
 
