@@ -67,3 +67,40 @@ class MetricProcessor(ABC):
             self._write_node_property(new_property, write_property)
         else:
             return self._yeild_node_property(new_property)
+
+    @abstractmethod
+    def get_pgframe(self):
+        """Get a new pgframe object from the wrapped graph object."""
+        pass
+
+    def compute_all_node_metrics(self,
+                                 degree_weights=None,
+                                 pagerank_weights=None,
+                                 betweenness_weights=None,
+                                 closeness_weights=None):
+        if degree_weights is None:
+            degree_weights = []
+        if pagerank_weights is None:
+            pagerank_weights = []
+        if betweenness_weights is None:
+            betweenness_weights = []
+        if closeness_weights is None:
+            closeness_weights
+
+        results = {
+            "degree": {},
+            "pagerank": {},
+            "betweenness": {},
+            "closeness": {}
+        }
+        for weight in degree_weights:
+            results["degree"][weight] = self.degree_centrality(weight)
+        for weight in degree_weights:
+            results["pagerank"][weight] = self.pagerank_centrality(weight)
+        for weight in degree_weights:
+            results["betweenness"][weight] = self.betweenness_centrality(
+                weight)
+        for weight in degree_weights:
+            results["closeness"][weight] = self.closeness_centrality(
+                weight)
+        return results

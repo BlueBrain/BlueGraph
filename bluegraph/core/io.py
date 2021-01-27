@@ -422,6 +422,11 @@ class PGFrame(ABC):
             graph._edge_prop_types.update(edge_property_types)
         return graph
 
+    @classmethod
+    @abstractmethod
+    def from_frames(self, nodes, edges):
+        pass
+
 
 class PandasPGFrame(PGFrame):
     """Class for storing typed PGs as a collection of pandas DataFrames."""
@@ -765,6 +770,24 @@ class PandasPGFrame(PGFrame):
         subgraph._nodes = self.filter_nodes(nodes)
         subgraph._edges = self.ilter_edges(edges)
         return subgraph
+
+    @classmethod
+    def from_frames(cls, nodes, edges,
+                    node_prop_types=None, edge_prop_types=None):
+        graph = cls()
+        graph._nodes = nodes.copy()
+        graph._edges = edges.copy()
+
+        if node_prop_types is None:
+            node_prop_types = {}
+
+        if edge_prop_types is None:
+            edge_prop_types = {}
+
+        graph._node_prop_types = node_prop_types
+        graph._edge_prop_types = edge_prop_types
+
+        return graph
 
 
 class SparkPGFrame(PGFrame):

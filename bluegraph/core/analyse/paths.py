@@ -13,6 +13,11 @@ class PathFinder(ABC):
         pass
 
     @abstractmethod
+    def top_neighbors(self, node, n, weight):
+        """Get top n neighbours of the specified node by weight."""
+        pass
+
+    @abstractmethod
     def shortest_path(self, source, target, distance=None, exclude_edge=False):
         """Compute the single shortest path from the source to the target.
 
@@ -163,4 +168,40 @@ class PathFinder(ABC):
         b_c_paths : list
             List containing the shortest paths from B to C
         """
+        pass
+
+    @abstractmethod
+    def n_nested_paths(self, source, target, n, nested_n=None,
+                       distance=None, strategy="naive", depth=1):
+        """Find top n nested paths.
+        Nested paths are found iteratively for each level of depth. For example,
+        if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth,
+        then the function searches for paths between each consecutive pair of
+        nodes (e1 and e2, e2 and e3, etc.).
+        Parameters
+        ----------
+        source : str
+            Source node ID
+        target : str
+            Target node ID
+        n : int
+            Number of top paths to include in the result
+        nested_n : int
+            Number of top paths to include in the result for the depth > 1
+        distance : str, optional
+            The name of the attribute to use as the edge distance
+        strategy : str, optional
+            Path finding strategy: `naive` or `yen`. By default, `naive`.
+        depth : int, optional
+            Number of interactions of the path search
+        Returns
+        -------
+        current_paths : list
+            List containing best nested paths according to the distance score
+        """
+        pass
+
+    @abstractmethod
+    def minimum_spanning_tree(graph, weight):
+        """Compute the minimum spanning tree."""
         pass
