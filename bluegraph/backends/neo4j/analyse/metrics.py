@@ -5,7 +5,7 @@ from bluegraph.exceptions import (MetricProcessingException,
                                   MetricProcessingWarning)
 
 from neo4j import GraphDatabase
-from ..io import pgframe_to_neo4j
+from ..io import (pgframe_to_neo4j, neo4j_to_pgframe)
 
 
 class Neo4jMetricProcessor(MetricProcessor):
@@ -165,3 +165,7 @@ class Neo4jMetricProcessor(MetricProcessor):
             write=write, write_property=write_property,
             score_name="centrality")
         return result
+
+    def get_pgframe(self):
+        """Get a new pgframe object from the wrapped graph object."""
+        return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)

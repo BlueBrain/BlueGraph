@@ -80,3 +80,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         """)
         execute(query)
     return driver
+
+
+def neo4j_to_pgframe(driver, node_label, edge_label):
+    pass
