@@ -2,7 +2,7 @@ from bluegraph.core.analyse.metrics import MetricProcessor
 
 import networkx as nx
 
-from ..io import pgframe_to_networkx
+from ..io import (pgframe_to_networkx, networkx_to_pgframe)
 
 
 class NXMetricProcessor(MetricProcessor):
@@ -20,6 +20,9 @@ class NXMetricProcessor(MetricProcessor):
         """Write node property values to the graph."""
         nx.set_node_attributes(
             self.graph, new_property, property_name)
+
+    def density(self):
+        return nx.density(self.graph)
 
     def degree_centrality(self, weight=None, write=False,
                           write_property=None):
@@ -50,3 +53,8 @@ class NXMetricProcessor(MetricProcessor):
             self.graph, distance=distance)
         return self._dispatch_processing_result(
             closeness_centrality, "closeness", write, write_property)
+
+    def get_pgframe(self):
+        """Get a new pgframe object from the wrapped graph object."""
+        return networkx_to_pgframe(self.graph)
+

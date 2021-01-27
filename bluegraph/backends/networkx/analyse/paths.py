@@ -125,6 +125,15 @@ class NXPathFinder(PathFinder):
                 f"Unknown path search strategy '{strategy}'")
         return paths
 
+    def top_neighbors(self, node, n, weight):
+        """Get top n neighbours of the specified node by weight."""
+        neigbours = {}
+        for neighbor in self.graph.neighbors(node):
+            neigbours[neighbor] = self.graph.edges[node, neighbor][weight]
+        return {
+            el: neigbours[el] for el in top_n(neigbours, n)
+        }
+
     def shortest_path(self, source, target, distance=None, exclude_edge=False):
         """Compute the single shortest path from the source to the target.
 
@@ -321,3 +330,56 @@ class NXPathFinder(PathFinder):
         #     exclude_edge=exclude_edge)
 
         # return a_b_paths, b_c_paths
+
+    def n_nested_paths(self, source, target, n, nested_n=None,
+                       distance=None, strategy="naive", depth=1):
+        """Find top n nested paths.
+        Nested paths are found iteratively for each level of depth. For example,
+        if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth,
+        then the function searches for paths between each consecutive pair of
+        nodes (e1 and e2, e2 and e3, etc.).
+        Parameters
+        ----------
+        graph : nx.Graph
+            Input graph object
+        source : str
+            Source node ID
+        target : str
+            Target node ID
+        n : int
+            Number of top paths to include in the result
+        nested_n : int
+            Number of top paths to include in the result for the depth > 1
+        distance : str, optional
+            The name of the attribute to use as the edge distance
+        strategy : str, optional
+            Path finding strategy: `naive` or `yen`. By default, `naive`.
+        depth : int, optional
+            Number of interactions of the path search
+        Returns
+        -------
+        current_paths : list
+            List containing best nested paths according to the distance score
+        """
+        if nested_n is None:
+            nested_n = n
+        current_paths = [[source, target]]
+        visited = set()
+        for level in range(depth):
+            new_paths = []
+            for path in current_paths:
+                for i in range(1, len(path)):
+                    s = path[i - 1]
+                    t = path[i]
+                    if (s, t) not in visited and (t, s) not in visited:
+                        visited.add((s, t))
+                        new_paths += top_n_paths(
+                            self.graph, s, t, n if level == 0 else nested_n,
+                            strategy=strategy, distance=distance)
+            current_paths = new_paths
+        return current_paths
+
+    def minimum_spanning_tree(self, weight):
+        """Compute the minimum spanning tree."""
+        pass
+        return nx.minimum_spanning_tree(self.graph, weight=weight)
