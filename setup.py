@@ -48,7 +48,8 @@ setup(
         "bluegraph.backends.neo4j.analyse",
         "bluegraph.backends.stellargraph",
         "bluegraph.backends.stellargraph.embed",
-        "bluegraph.downstream"
+        "bluegraph.downstream",
+        "bluegraph.preprocess"
     ],
     python_requires=">=3.6",
     install_requires=[
