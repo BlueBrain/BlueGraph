@@ -69,22 +69,22 @@ def test_gt_processor(random_pgframe):
     gt_object = processor.graph
     assert(
         set(gt_object.vertex_properties.keys()) ==
-        set(["id", "degree", "pagerank", "betweenness", "closeness"]))
+        set(["@id", "degree", "pagerank", "betweenness", "closeness"]))
 
     dd = dict(zip(
-        gt_object.vertex_properties["id"],
+        gt_object.vertex_properties["@id"],
         gt_object.vertex_properties["degree"]))
     assert_approx_equal_metrics(dd, d)
     pp = dict(zip(
-        gt_object.vertex_properties["id"],
+        gt_object.vertex_properties["@id"],
         gt_object.vertex_properties["pagerank"]))
     assert_approx_equal_metrics(pp, p)
     bb = dict(zip(
-        gt_object.vertex_properties["id"],
+        gt_object.vertex_properties["@id"],
         gt_object.vertex_properties["betweenness"]))
     assert_approx_equal_metrics(bb, b)
     cc = dict(zip(
-        gt_object.vertex_properties["id"],
+        gt_object.vertex_properties["@id"],
         gt_object.vertex_properties["closeness"]))
     assert_approx_equal_metrics(cc, c)
 

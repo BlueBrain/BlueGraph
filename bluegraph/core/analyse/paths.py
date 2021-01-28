@@ -1,5 +1,9 @@
 from abc import (ABC, abstractmethod)
 
+from bluegraph.core.utils import top_n
+
+from bluegraph.exceptions import PathSearchException
+
 
 class PathFinder(ABC):
     """Abstract class for a path finder."""
@@ -13,11 +17,61 @@ class PathFinder(ABC):
         pass
 
     @abstractmethod
-    def top_neighbors(self, node, n, weight):
-        """Get top n neighbours of the specified node by weight."""
+    def _get_distance(self, source, target, distance):
+        """Get distance value between source and target."""
         pass
 
     @abstractmethod
+    def _get_neighbors(self, node_id):
+        """Get neighors of the node."""
+        pass
+
+    @abstractmethod
+    def _compute_shortest_path(self, source, target, distance=None,
+                               exclude_edge=False):
+        """Backend-dependent method for computing the shortest path."""
+        pass
+
+    @abstractmethod
+    def _compute_all_shortest_paths(self, source, target, exclude_edge=False):
+        """Backend-dependent method for computing all the shortest paths."""
+
+    @abstractmethod
+    def _compute_yen_shortest_paths(self, target, n,
+                                    distance, exclude_edge=False):
+        """Compute n shortest paths using the Yen's algo."""
+        pass
+
+    def top_neighbors(self, node, n, weight):
+        """Get top n neighbours of the specified node by weight."""
+        neigbours = {}
+        for neighbor in self._get_neighbors(node):
+            neigbours[neighbor] = self._get_distance(
+                node, neighbor, weight)
+        return {
+            el: neigbours[el] for el in top_n(neigbours, n)
+        }
+
+    def _get_cumulative_distances(self, paths, distance):
+        """Get cumulative distance scores for provided paths."""
+        def _sumup_distances(path):
+            result = 0
+            for i in range(1, len(path)):
+                source = path[i - 1]
+                target = path[i]
+                if distance is not None:
+                    result += self._get_distance(
+                        source, target, distance)
+                else:
+                    result += 1
+            return result
+
+        path_ranking = {
+            p: _sumup_distances(p) for p in paths
+        }
+
+        return path_ranking
+
     def shortest_path(self, source, target, distance=None, exclude_edge=False):
         """Compute the single shortest path from the source to the target.
 
@@ -31,10 +85,11 @@ class PathFinder(ABC):
             Flag indicating whether the direct edge from the source to
             the target should be excluded from the result (if exists).
         """
-        pass
+        return self._compute_shortest_path(
+            source, target, distance=distance,
+            exclude_edge=exclude_edge)
 
-    @abstractmethod
-    def all_shortest_paths(self, source, target):
+    def all_shortest_paths(self, source, target, exclude_edge=False):
         """Compute all shortest paths from the source to the target.
 
         This function computes all the shortest (unweighted) paths
@@ -50,11 +105,11 @@ class PathFinder(ABC):
             Flag indicating whether the direct edge from the source to
             the target should be excluded from the result (if exists).
         """
-        pass
+        return self._compute_all_shortest_paths(
+            source, target, exclude_edge=exclude_edge)
 
-    @abstractmethod
     def n_shortest_paths(self, source, target, n, distance=None,
-                         strategy="naive"):
+                         strategy="naive", exclude_edge=False):
         """Compute n shortest paths from the source to the target.
 
         Two search strategies are available: 'naive' and 'yen'.
@@ -93,10 +148,114 @@ class PathFinder(ABC):
         paths : list
             List containing top n best paths according to the distance score
         """
-        pass
+        if n == 1:
+            return [self.shortest_path(source, target, distance)]
 
-    @abstractmethod
-    def shortest_tripath(self, source, intermediary, target, distance=None):
+        if strategy == "naive":
+            all_paths = self.all_shortest_paths(
+                source, target, exclude_edge=True)
+
+            path_ranking = self._get_cumulative_distances(
+                all_paths, distance)
+
+            if not exclude_edge:
+                s_t_distance = self._get_cumulative_distances(
+                        [(source, target)], distance)
+                path_ranking.update(s_t_distance)
+
+            paths = top_n(path_ranking, n, smallest=True)
+        elif strategy == "yen":
+            paths = self._compute_yen_shortest_paths(
+                source, target, n=n,
+                distance=distance, exclude_edge=exclude_edge)
+        else:
+            PathSearchException(
+                f"Unknown path search strategy '{strategy}'")
+        return paths
+
+    def nested_shortest_path(self, source, target, depth=1, distance=None,
+                             exclude_edge=True):
+        """Find the shortest nested path."""
+        current_paths = [[source, target]]
+
+        all_paths = set()
+        visited = set()
+        for level in range(depth):
+            new_paths = []
+            for current_path in current_paths:
+                for i in range(1, len(current_path)):
+                    s = current_path[i - 1]
+                    t = current_path[i]
+                    if s != t and (s, t) not in visited and (t, s) not in visited:
+                        visited.add((s, t))
+                        path = self.shortest_path(
+                            s, t, distance=distance,
+                            exclude_edge=exclude_edge)
+                        all_paths.add(path)
+                        new_paths += [list(path)]
+
+            current_paths = new_paths
+        return all_paths
+
+    def n_nested_shortest_paths(self, source, target,  top_level_n,
+                                nested_n=None, depth=1, distance=None,
+                                strategy="naive", exclude_edge=False):
+        """Find top n nested paths.
+        Nested paths are found iteratively for each level of depth. For example,
+        if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth,
+        then the function searches for paths between each consecutive pair of
+        nodes (e1 and e2, e2 and e3, etc.).
+        Parameters
+        ----------
+        graph : nx.Graph
+            Input graph object
+        source : str
+            Source node ID
+        target : str
+            Target node ID
+        top_level_n : int
+            Number of top paths to include in the result
+        nested_n : int
+            Number of top paths to include in the result for the depth > 1
+        depth : int, optional
+            Number of interactions of the path search
+        distance : str, optional
+            The name of the attribute to use as the edge distance
+        strategy : str, optional
+            Path finding strategy: `naive` or `yen`. By default, `naive`.
+
+        Returns
+        -------
+        current_paths : list
+            List containing best nested paths according to the distance score
+        """
+        if nested_n is None:
+            nested_n = top_level_n
+
+        current_paths = [[source, target]]
+        all_paths = set()
+        visited = set()
+
+        for level in range(depth):
+            new_paths = []
+            for path in current_paths:
+                for i in range(1, len(path)):
+                    s = path[i - 1]
+                    t = path[i]
+                    if (s, t) not in visited and (t, s) not in visited:
+                        visited.add((s, t))
+                        paths = self.n_shortest_paths(
+                            s, t,
+                            top_level_n if level == 0 else nested_n,
+                            strategy=strategy, distance=distance,
+                            exclude_edge=exclude_edge)
+                        all_paths.update(paths)
+                        new_paths += paths
+            current_paths = new_paths
+        return all_paths
+
+    def shortest_tripath(self, source, intermediary, target,
+                         distance=None, exclude_edge=False, overlap=True):
         """Compute the shortest tri-path from the source to the target.
 
         The shortest tripath is given by two paths: the shortest path from
@@ -129,11 +288,30 @@ class PathFinder(ABC):
         b_c_path : tuple
             The shortest path from B to C
         """
-        pass
+        raise PathSearchException(
+            "Tripath search is currently not implemented")
+        # a_b_path = self.shortest_path(
+        #     source, intermediary, distance=distance, exclude_edge=exclude_edge)
 
-    @abstractmethod
+        # if overlap is False:
+        #     search_nodes = [
+        #         n for n in self.graph.nodes()
+        #         if n not in list(a_b_path)[1:-1]
+        #     ]
+        #     graph = self.graph.subgraph(search_nodes)
+        # else:
+        #     graph = self.graph
+
+        # b_c_path = self.compute_shortest_path(
+        #     graph, intermediary, target,
+        #     distance=distance,
+        #     exclude_edge=exclude_edge)
+
+        # return a_b_path, b_c_path
+
     def n_shortest_tripaths(self, source, intermediary, target,
-                            n, distance=None, strategy="naive", overlap=True):
+                            n, distance=None, strategy="naive",
+                            exclude_edge=False, overlap=True):
         """Compute n shortest tri-paths from the source to the target.
 
         Tripaths cosist of two path sets, from the source (A) to the
@@ -168,40 +346,28 @@ class PathFinder(ABC):
         b_c_paths : list
             List containing the shortest paths from B to C
         """
-        pass
+        raise PathSearchException(
+            "Tripath search is currently not implemented")
+        # a_b_paths = self.n_shortest_paths(
+        #     source, intermediary, n, distance=distance,
+        #     strategy=strategy, exclude_edge=exclude_edge)
 
-    @abstractmethod
-    def n_nested_paths(self, source, target, n, nested_n=None,
-                       distance=None, strategy="naive", depth=1):
-        """Find top n nested paths.
-        Nested paths are found iteratively for each level of depth. For example,
-        if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth,
-        then the function searches for paths between each consecutive pair of
-        nodes (e1 and e2, e2 and e3, etc.).
-        Parameters
-        ----------
-        source : str
-            Source node ID
-        target : str
-            Target node ID
-        n : int
-            Number of top paths to include in the result
-        nested_n : int
-            Number of top paths to include in the result for the depth > 1
-        distance : str, optional
-            The name of the attribute to use as the edge distance
-        strategy : str, optional
-            Path finding strategy: `naive` or `yen`. By default, `naive`.
-        depth : int, optional
-            Number of interactions of the path search
-        Returns
-        -------
-        current_paths : list
-            List containing best nested paths according to the distance score
-        """
-        pass
+        # if overlap is False:
+        #     visited_nodes = set()
+        #     for p in a_b_paths:
+        #         visited_nodes.update(list(p)[-1:1])
+        #     search_nodes = [
+        #         n for n in self.graph.nodes()
+        #         if n not in visited_nodes
+        #     ]
+        #     graph = self.graph.subgraph(search_nodes)
+        # else:
+        #     graph = self.graph
 
-    @abstractmethod
-    def minimum_spanning_tree(graph, weight):
-        """Compute the minimum spanning tree."""
-        pass
+        # b_c_paths = self.compute_n_shortest_paths(
+        #     graph, intermediary, target, n,
+        #     distance=distance, strategy=strategy,
+        #     exclude_edge=exclude_edge)
+
+        # return a_b_paths, b_c_paths
+

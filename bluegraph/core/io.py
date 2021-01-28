@@ -36,7 +36,7 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
-    def add_edge_properties(self, prop_column):
+    def add_edge_properties(self, prop_column, prop_type=None):
         pass
 
     @staticmethod
@@ -491,12 +491,14 @@ class PandasPGFrame(PGFrame):
                         .drop("@id_right", axis=1)\
                         .set_index("@id")
 
-        if prop_type is not None:
-            if prop_type not in ["text", "numeric", "category"]:
-                raise PGFrameException(
-                    f"Invalid property data type '{prop_type}', "
-                    "allowed types 'text', 'numeric', 'category'")
-            self._set_node_prop_type(prop_name, prop_type)
+        if prop_type is None:
+            prop_type = "category"
+
+        if prop_type not in ["text", "numeric", "category"]:
+            raise PGFrameException(
+                f"Invalid property data type '{prop_type}', "
+                "allowed types 'text', 'numeric', 'category'")
+        self._set_node_prop_type(prop_name, prop_type)
 
     def add_edge_properties(self, prop_column, prop_type=None):
         if not isinstance(prop_column, pd.DataFrame):
@@ -524,12 +526,15 @@ class PandasPGFrame(PGFrame):
                     self._edges = self._edges\
                         .drop(["@source_id_right", "@target_id_right"], axis=1)\
                         .set_index(["@source_id", "@target_id"])
-            if prop_type is not None:
-                if prop_type not in ["text", "numeric", "category"]:
-                    raise PGFrameException(
-                        f"Invalid property data type '{prop_type}', "
-                        "allowed types 'text', 'numeric', 'category'")
-                self._set_edge_prop_type(prop_name, prop_type)
+
+        if prop_type is None:
+            prop_type = "category"
+
+        if prop_type not in ["text", "numeric", "category"]:
+            raise PGFrameException(
+                f"Invalid property data type '{prop_type}', "
+                "allowed types 'text', 'numeric', 'category'")
+        self._set_edge_prop_type(prop_name, prop_type)
 
     @staticmethod
     def _is_numeric_column(frame, prop):
