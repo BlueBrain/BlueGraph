@@ -16,38 +16,70 @@ class PathFinder(ABC):
         """Generate the appropiate graph representation from a PGFrame."""
         pass
 
+    @staticmethod
     @abstractmethod
     def _get_distance(self, source, target, distance):
         """Get distance value between source and target."""
         pass
 
+    @staticmethod
     @abstractmethod
     def _get_neighbors(self, node_id):
         """Get neighors of the node."""
         pass
 
     @abstractmethod
-    def _compute_shortest_path(self, source, target, distance=None,
+    def _get_subgraph(self, nodes_to_include):
+        """Produce a graph induced by the input nodes."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def _compute_shortest_path(graph, source, target, distance=None,
                                exclude_edge=False):
         """Backend-dependent method for computing the shortest path."""
         pass
 
+    @staticmethod
     @abstractmethod
-    def _compute_all_shortest_paths(self, source, target, exclude_edge=False):
+    def _compute_all_shortest_paths(graph, source, target, exclude_edge=False):
         """Backend-dependent method for computing all the shortest paths."""
 
+    @staticmethod
     @abstractmethod
-    def _compute_yen_shortest_paths(self, target, n,
+    def _compute_yen_shortest_paths(graph, target, n,
                                     distance, exclude_edge=False):
         """Compute n shortest paths using the Yen's algo."""
+        pass
+
+    @abstractmethod
+    def minimum_spanning_tree(self, distance, write=False, write_property=None):
+        """Compute the minimum spanning tree.
+
+        Parameters
+        ----------
+        distance : str
+            Distance to minimize when computing the minimum spanning tree (MST)
+        write : bool, optional
+            Flag indicating whether the MST should be returned as a new graph
+            object or saved within a Boolean edge property being True whenever
+            a given edge belongs to the MST.
+        write_property : str, optional
+            Edge property name for marking edges beloning to the MST.
+
+        Returns
+        -------
+        tree : graph object
+            The minimum spanning tree graph object (backend-dependent)
+        """
         pass
 
     def top_neighbors(self, node, n, weight):
         """Get top n neighbours of the specified node by weight."""
         neigbours = {}
-        for neighbor in self._get_neighbors(node):
+        for neighbor in self._get_neighbors(self.graph, node):
             neigbours[neighbor] = self._get_distance(
-                node, neighbor, weight)
+                self.graph, node, neighbor, weight)
         return {
             el: neigbours[el] for el in top_n(neigbours, n)
         }
@@ -61,7 +93,7 @@ class PathFinder(ABC):
                 target = path[i]
                 if distance is not None:
                     result += self._get_distance(
-                        source, target, distance)
+                        self.graph, source, target, distance)
                 else:
                     result += 1
             return result
@@ -86,7 +118,7 @@ class PathFinder(ABC):
             the target should be excluded from the result (if exists).
         """
         return self._compute_shortest_path(
-            source, target, distance=distance,
+            self.graph, source, target, distance=distance,
             exclude_edge=exclude_edge)
 
     def all_shortest_paths(self, source, target, exclude_edge=False):
@@ -106,7 +138,7 @@ class PathFinder(ABC):
             the target should be excluded from the result (if exists).
         """
         return self._compute_all_shortest_paths(
-            source, target, exclude_edge=exclude_edge)
+            self.graph, source, target, exclude_edge=exclude_edge)
 
     def n_shortest_paths(self, source, target, n, distance=None,
                          strategy="naive", exclude_edge=False):
@@ -166,7 +198,7 @@ class PathFinder(ABC):
             paths = top_n(path_ranking, n, smallest=True)
         elif strategy == "yen":
             paths = self._compute_yen_shortest_paths(
-                source, target, n=n,
+                self.graph, source, target, n=n,
                 distance=distance, exclude_edge=exclude_edge)
         else:
             PathSearchException(
@@ -288,26 +320,26 @@ class PathFinder(ABC):
         b_c_path : tuple
             The shortest path from B to C
         """
-        raise PathSearchException(
-            "Tripath search is currently not implemented")
-        # a_b_path = self.shortest_path(
-        #     source, intermediary, distance=distance, exclude_edge=exclude_edge)
+        a_b_path = self.shortest_path(
+            source, intermediary,
+            distance=distance, exclude_edge=exclude_edge)
 
-        # if overlap is False:
-        #     search_nodes = [
-        #         n for n in self.graph.nodes()
-        #         if n not in list(a_b_path)[1:-1]
-        #     ]
-        #     graph = self.graph.subgraph(search_nodes)
-        # else:
-        #     graph = self.graph
+        search_nodes = []
+        if overlap is False:
+            search_nodes = [
+                n for n in self.graph.nodes()
+                if n not in list(a_b_path)[1:-1]
+            ]
 
-        # b_c_path = self.compute_shortest_path(
-        #     graph, intermediary, target,
-        #     distance=distance,
-        #     exclude_edge=exclude_edge)
+        subgraph = self._get_subgraph(search_nodes)
 
-        # return a_b_path, b_c_path
+        b_c_path = self._compute_shortest_path(
+            subgraph,
+            intermediary, target,
+            distance=distance,
+            exclude_edge=exclude_edge)
+
+        return a_b_path, b_c_path
 
     def n_shortest_tripaths(self, source, intermediary, target,
                             n, distance=None, strategy="naive",

@@ -1,6 +1,8 @@
 from bluegraph.core.analyse.paths import PathFinder
+from bluegraph.exceptions import PathSearchException
 
-from graph_tool.topology import shortest_path
+from graph_tool import GraphView
+from graph_tool.topology import shortest_path, min_spanning_tree
 from graph_tool.topology import all_shortest_paths as gt_all_shortest_paths
 from graph_tool.util import find_vertex
 
@@ -9,66 +11,109 @@ from ..io import pgframe_to_graph_tool
 
 def handle_exclude_gt_edge(method):
     """Method decorator that removes and restores the direct s/t edge."""
-    def wrapper(finder, source, target, **kwargs):
+    def wrapper(graph, source, target, **kwargs):
         exclude_edge = False
         if "exclude_edge" in kwargs:
             exclude_edge = kwargs["exclude_edge"]
 
         source_vertex = find_vertex(
-            finder.graph, finder.graph.vp["@id"], source)[0]
+            graph, graph.vp["@id"], source)[0]
         target_vertex = find_vertex(
-            finder.graph, finder.graph.vp["@id"], target)[0]
+            graph, graph.vp["@id"], target)[0]
 
-        direct_edge = finder.graph.edge(source_vertex, target_vertex)
-        edge_filter = finder.graph.new_edge_property("bool", val=True)
+        direct_edge = graph.edge(source_vertex, target_vertex)
+        edge_filter = graph.new_edge_property("bool", val=True)
 
         if direct_edge and exclude_edge is True:
             edge_filter[direct_edge] = False
-            finder.graph.set_edge_filter(edge_filter)
+            graph.set_edge_filter(edge_filter)
 
-        result = method(finder, source, target, **kwargs)
+        result = method(graph, source, target, **kwargs)
 
-        finder.graph.clear_filters()
+        graph.clear_filters()
         return result
 
     return wrapper
 
 
+def _get_vertex_obj(graph, node_id):
+    v = find_vertex(
+        graph, graph.vp["@id"], node_id)
+    if len(v) == 1:
+        return v[0]
+
+
+def _get_node_id(graph, vertex_obj):
+    return graph.vp["@id"][vertex_obj]
+
+
+def get_edges(graph, properties=False):
+    if not properties:
+        return [
+            (
+                graph.vp["@id"][e.source()],
+                graph.vp["@id"][e.target()]
+            )
+            for e in graph.edges()
+        ]
+    else:
+        props = graph.ep.keys()
+        return [
+            (
+                graph.vp["@id"][e.source()],
+                graph.vp["@id"][e.target()],
+                {
+                    p: graph.ep[p][e]
+                    for p in props
+                }
+            )
+            for e in graph.edges()
+        ]
+
+
 class GTPathFinder(PathFinder):
     """graph-tool-based shortest paths finder."""
-
-    def _get_vertex_obj(self, node_id):
-        v = find_vertex(
-            self.graph, self.graph.vp["@id"], node_id)
-        if len(v) == 1:
-            return v[0]
-
-    def _get_node_id(self, vertex_obj):
-        return self.graph.vp["@id"][vertex_obj]
 
     @staticmethod
     def _generate_graph(pgframe):
         """Generate the appropiate graph representation from a PGFrame."""
         return pgframe_to_graph_tool(pgframe)
 
-    def _get_distance(self, source, target, distance):
+    @staticmethod
+    def _get_distance(graph, source, target, distance):
         """Get distance value between source and target."""
-        source = self._get_vertex_obj(source)
-        target = self._get_vertex_obj(target)
+        source = _get_vertex_obj(graph, source)
+        target = _get_vertex_obj(graph, target)
 
-        edge = self.graph.edge(source, target)
-        return self.graph.ep[distance][edge]
+        edge = graph.edge(source, target)
+        return graph.ep[distance][edge]
 
-    def _get_neighbors(self, node_id):
+    @staticmethod
+    def _get_neighbors(graph, node_id):
         """Get neighors of the node."""
-        node_obj = self._get_vertex_obj(node_id)
+        node_obj = _get_vertex_obj(graph, node_id)
         neighors = node_obj.out_neighbors()
         return [
-            self._get_node_id(n) for n in neighors
+            _get_node_id(graph, n) for n in neighors
         ]
 
+    def _get_subgraph(self, nodes_to_include):
+        """Produce a graph induced by the input nodes."""
+
+        node_filter = self.graph.new_vertex_property(
+            "bool", val=False)
+        vertices_to_include = [
+            _get_vertex_obj(self.graph, n)
+            for n in nodes_to_include
+        ]
+        for v in vertices_to_include:
+            node_filter[v] = True
+
+        return GraphView(self.graph, node_filter)
+
+    @staticmethod
     @handle_exclude_gt_edge
-    def _compute_shortest_path(self, source, target, distance=None,
+    def _compute_shortest_path(graph, source, target, distance=None,
                                exclude_edge=False):
         """Compute the single shortest path from the source to the target.
 
@@ -82,20 +127,21 @@ class GTPathFinder(PathFinder):
             Flag indicating whether the direct edge from the source to
             the target should be excluded from the result (if exists).
         """
-        source_vertex = self._get_vertex_obj(source)
-        target_vertex = self._get_vertex_obj(target)
+        source_vertex = _get_vertex_obj(graph, source)
+        target_vertex = _get_vertex_obj(graph, target)
 
         path, _ = shortest_path(
-            self.graph,
+            graph,
             source_vertex, target_vertex,
-            weights=self.graph.edge_properties[distance] if distance else None)
+            weights=graph.edge_properties[distance] if distance else None)
 
         return tuple([
-            self.graph.vp["@id"][el] for el in path
+            graph.vp["@id"][el] for el in path
         ])
 
+    @staticmethod
     @handle_exclude_gt_edge
-    def _compute_all_shortest_paths(self, source, target, exclude_edge=False):
+    def _compute_all_shortest_paths(graph, source, target, exclude_edge=False):
         """Compute all shortest paths from the source to the target.
 
         This function computes all the shortest (unweighted) paths
@@ -111,19 +157,20 @@ class GTPathFinder(PathFinder):
             Flag indicating whether the direct edge from the source to
             the target should be excluded from the result (if exists).
         """
-        source_vertex = self._get_vertex_obj(source)
-        target_vertex = self._get_vertex_obj(target)
+        source_vertex = _get_vertex_obj(graph, source)
+        target_vertex = _get_vertex_obj(graph, target)
 
-        paths = gt_all_shortest_paths(self.graph, source_vertex, target_vertex)
+        paths = gt_all_shortest_paths(graph, source_vertex, target_vertex)
 
         return [
             tuple([
-                self.graph.vp["@id"][el]
+                graph.vp["@id"][el]
                 for el in path
             ]) for path in paths
         ]
 
-    def _compute_yen_shortest_paths(self, source, target, n,
+    @staticmethod
+    def _compute_yen_shortest_paths(graph, source, target, n,
                                     distance, exclude_edge=False):
         """Compute n shortest paths using the Yen's algo."""
         raise NotImplementedError(
@@ -178,3 +225,40 @@ class GTPathFinder(PathFinder):
             return super().n_shortest_paths(
                 source, target, n, distance=distance,
                 strategy="naive", exclude_edge=exclude_edge)
+
+    def minimum_spanning_tree(self, distance, write=False,
+                              write_property=None):
+        """Compute the minimum spanning tree.
+
+        Parameters
+        ----------
+        distance : str
+            Distance to minimize when computing the minimum spanning tree
+            (MST)
+        write : bool, optional
+            Flag indicating whether the MST should be returned as
+            a new graph
+            object or saved within a Boolean edge property being True whenever
+            a given edge belongs to the MST.
+        write_property : str, optional
+            Edge property name for marking edges beloning to the MST.
+
+        Returns
+        -------
+        tree : nx.Graph
+            The minimum spanning tree graph object
+        """
+        mst_property = min_spanning_tree(
+            self.graph, weights=self.graph.ep[distance])
+        if write:
+            if write_property is None:
+                raise PathSearchException(
+                    "The minimum spanning tree finder has the write option set "
+                    "to True, the write property name must be specified")
+
+            self.graph.ep[write_property] = mst_property
+        else:
+            tree = self.graph.copy()
+            tree.set_edge_filter(mst_property)
+            tree.purge_edges()
+            return tree
