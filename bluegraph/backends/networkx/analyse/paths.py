@@ -1,7 +1,4 @@
 from bluegraph.core.analyse.paths import PathFinder
-from bluegraph.core.utils import top_n
-
-from bluegraph.exceptions import PathSearchException
 
 from ..io import pgframe_to_networkx
 
@@ -15,18 +12,13 @@ def handle_exclude_nx_edge(method):
         if "exclude_edge" in kwargs:
             exclude_edge = kwargs["exclude_edge"]
 
-        backup_edge = None
-
+        subgraph = graph
         if exclude_edge and (source, target) in graph.edges():
-            backup_edge = {
-                **graph.edges[source, target]
-            }
-            graph.remove_edge(source, target)
+            subgraph = subgraph.edge_subgraph(
+                [e for e in subgraph.edges() if e != (source, target)]
+            )
 
-        result = method(graph, source, target, **kwargs)
-
-        if backup_edge is not None:
-            graph.add_edge(source, target, **backup_edge)
+        result = method(subgraph, source, target, **kwargs)
         return result
 
     return wrapper
@@ -34,6 +26,10 @@ def handle_exclude_nx_edge(method):
 
 class NXPathFinder(PathFinder):
     """NetworkX-based shortest paths finder."""
+
+    @staticmethod
+    def _get_edges(graph, properties=False):
+        return graph.edges(data=properties)
 
     @staticmethod
     def _generate_graph(pgframe):
@@ -50,9 +46,21 @@ class NXPathFinder(PathFinder):
         """Get neighors of the node."""
         return list(graph.neighbors(node_id))
 
-    def _get_subgraph(self, nodes_to_include):
+    def _get_subgraph(self, node_filter, edge_filter=None):
         """Produce a graph induced by the input nodes."""
-        return self.graph.subgraph(nodes_to_include)
+        nodes_to_include = [
+            n for n in self.graph.nodes()
+            if node_filter(n)
+        ]
+
+        subgraph = self.graph.subgraph(nodes_to_include)
+
+        if edge_filter is not None:
+            subgraph = subgraph.edge_subgraph(
+                [e for e in subgraph.edges() if edge_filter(e)]
+            )
+
+        return subgraph
 
     @staticmethod
     @handle_exclude_nx_edge
@@ -63,8 +71,12 @@ class NXPathFinder(PathFinder):
     @staticmethod
     @handle_exclude_nx_edge
     def _compute_all_shortest_paths(graph, s, t, exclude_edge=False):
-        all_paths = [tuple(p) for p in nx.all_shortest_paths(
-            graph, s, t)]
+        try:
+            all_paths = [tuple(p) for p in nx.all_shortest_paths(
+                graph, s, t)]
+        except nx.exception.NetworkXNoPath as e:
+            raise PathFinder.NoPathException(
+                f"Path from '{s}' to '{t}' does not exist")
         return all_paths
 
     @staticmethod
@@ -72,7 +84,7 @@ class NXPathFinder(PathFinder):
     def _compute_yen_shortest_paths(graph, source, target, n=None,
                                     distance=None, exclude_edge=False):
         if n is None:
-            raise PathSearchException(
+            raise PathFinder.PathSearchException(
                 "Number of paths must be specified when calling"
                 "`NXPathFinder.compute_yen_shortest_paths`")
         generator = nx.shortest_simple_paths(
@@ -108,7 +120,7 @@ class NXPathFinder(PathFinder):
         tree = nx.minimum_spanning_tree(self.graph, weight=distance)
         if write:
             if write_property is None:
-                raise PathSearchException(
+                raise PathFinder.PathSearchException(
                     "The minimum spanning tree finder has the write option set "
                     "to True, the write property name must be specified")
 

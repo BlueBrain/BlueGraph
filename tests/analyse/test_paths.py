@@ -1,5 +1,5 @@
 from bluegraph.backends.networkx import NXPathFinder
-from bluegraph.backends.graph_tool import GTPathFinder, get_edges
+from bluegraph.backends.graph_tool import GTPathFinder
 
 
 def _benchmark_path_finder(finder):
@@ -49,7 +49,7 @@ def _benchmark_path_finder(finder):
                 ("A", "B", "D"), ("A", "E", "D"), ("A", "D")
             ])
         )
-    except NotImplementedError:
+    except finder.NotImplementedError:
         pass
 
     res = finder.n_shortest_paths(
@@ -66,7 +66,7 @@ def _benchmark_path_finder(finder):
                 ("A", "C", "E", "D")
             ])
         )
-    except NotImplementedError:
+    except finder.NotImplementedError:
         pass
 
     res = finder.nested_shortest_path(
@@ -79,16 +79,58 @@ def _benchmark_path_finder(finder):
     assert(len(res) == 8)
 
     # ------ Test tripaths ----------
-    # res = finder.shortest_tripath("A", "B", "D", distance="distance")
-    # print(res)
+    a_b, b_d = finder.shortest_tripath("A", "B", "D", distance="distance")
+    assert(a_b == ("A", "B"))
+    assert(b_d == ("B", "D"))
 
-    # res = finder.shortest_tripath(
-    #     "A", "B", "D", distance="distance", exclude_edge=True)
-    # print(res)
+    a_b, b_d = finder.shortest_tripath(
+        "A", "B", "D", distance="distance", exclude_edge=True)
+    assert(a_b == ('A', 'C', 'B'))
+    assert(b_d == ('B', 'A', 'E', 'D'))
 
-    # res = finder.shortest_tripath(
-    #     "A", "B", "D", distance="distance", exclude_edge=True, overlap=False)
-    # print(res)
+    res = finder.shortest_tripath(
+        "A", "B", "D", distance="distance",
+        exclude_edge=True, overlap=False)
+    assert(a_b == ('A', 'C', 'B'))
+    assert(b_d == ('B', 'A', 'E', 'D'))
+
+    a_b, b_d = finder.n_shortest_tripaths(
+        "A", "B", "D", 3, distance="distance")
+    assert(set(a_b) == set([
+        ('A', 'B'), ('A', 'C', 'B'), ('A', 'D', 'B')
+    ]))
+    assert(set(b_d) == set([('B', 'D'), ('B', 'A', 'D')]))
+
+    a_b, b_d = finder.n_shortest_tripaths(
+        "A", "B", "D", 3, distance="distance", exclude_edge=True)
+    assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
+    assert(set(b_d) == set([('B', 'A', 'D')]))
+
+    a_b, b_d = finder.n_shortest_tripaths(
+        "A", "B", "D", 3, distance="distance", exclude_edge=True,
+        overlap=False)
+    assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
+    assert(set(b_d) == set([('B', 'A', 'D')]))
+
+    try:
+        a_b, b_d = finder.n_shortest_tripaths(
+            "A", "B", "D", 3,
+            strategy="yen",
+            distance="distance")
+        assert(set(a_b) == set(
+            [('A', 'B'), ('A', 'C', 'B'), ('A', 'E', 'D', 'B')]))
+        assert(set(b_d) == set(
+            [('B', 'D'), ('B', 'A', 'E', 'D'), ('B', 'C', 'E', 'D')]))
+
+        a_b, b_d = finder.n_shortest_tripaths(
+            "A", "B", "D", 3, strategy="yen",
+            distance="distance", overlap=False)
+        assert(set(a_b) == set(
+            [('A', 'B'), ('A', 'C', 'B'), ('A', 'E', 'D', 'B')]))
+        assert(set(b_d) == set([('B', 'D'), ('B', 'A', 'D')]))
+
+    except finder.NotImplementedError:
+        pass
 
 
 def test_nx_paths(path_test_graph):
@@ -117,11 +159,11 @@ def test_gt_paths(path_test_graph):
     mst = {
         ('A', 'E'), ('A', 'B'), ('A', 'C'), ('E', 'D')
     }
-    assert(set(get_edges(res)) == mst)
+    assert(set(GTPathFinder._get_edges(res)) == mst)
     finder.minimum_spanning_tree(
         "distance", write=True, write_property="MST")
 
-    edges = get_edges(finder.graph, properties=True)
+    edges = GTPathFinder._get_edges(finder.graph, properties=True)
     for s, t, attrs in edges:
         if (s, t) in mst:
             assert(attrs["MST"] == 1)

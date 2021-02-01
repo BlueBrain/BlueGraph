@@ -1,5 +1,4 @@
 from bluegraph.core.analyse.paths import PathFinder
-from bluegraph.exceptions import PathSearchException
 
 from graph_tool import GraphView
 from graph_tool.topology import shortest_path, min_spanning_tree
@@ -16,13 +15,13 @@ def handle_exclude_gt_edge(method):
         if "exclude_edge" in kwargs:
             exclude_edge = kwargs["exclude_edge"]
 
-        source_vertex = find_vertex(
-            graph, graph.vp["@id"], source)[0]
-        target_vertex = find_vertex(
-            graph, graph.vp["@id"], target)[0]
+        source_vertex = _get_vertex_obj(graph, source)
+        target_vertex = _get_vertex_obj(graph, target)
 
-        direct_edge = graph.edge(source_vertex, target_vertex)
-        edge_filter = graph.new_edge_property("bool", val=True)
+        direct_edge = None
+        if source_vertex and target_vertex:
+            direct_edge = graph.edge(source_vertex, target_vertex)
+            edge_filter = graph.new_edge_property("bool", val=True)
 
         if direct_edge and exclude_edge is True:
             edge_filter[direct_edge] = False
@@ -30,7 +29,8 @@ def handle_exclude_gt_edge(method):
 
         result = method(graph, source, target, **kwargs)
 
-        graph.clear_filters()
+        if direct_edge:
+            graph.clear_filters()
         return result
 
     return wrapper
@@ -47,32 +47,32 @@ def _get_node_id(graph, vertex_obj):
     return graph.vp["@id"][vertex_obj]
 
 
-def get_edges(graph, properties=False):
-    if not properties:
-        return [
-            (
-                graph.vp["@id"][e.source()],
-                graph.vp["@id"][e.target()]
-            )
-            for e in graph.edges()
-        ]
-    else:
-        props = graph.ep.keys()
-        return [
-            (
-                graph.vp["@id"][e.source()],
-                graph.vp["@id"][e.target()],
-                {
-                    p: graph.ep[p][e]
-                    for p in props
-                }
-            )
-            for e in graph.edges()
-        ]
-
-
 class GTPathFinder(PathFinder):
     """graph-tool-based shortest paths finder."""
+
+    @staticmethod
+    def _get_edges(graph, properties=False):
+        if not properties:
+            return [
+                (
+                    graph.vp["@id"][e.source()],
+                    graph.vp["@id"][e.target()]
+                )
+                for e in graph.edges()
+            ]
+        else:
+            props = graph.ep.keys()
+            return [
+                (
+                    graph.vp["@id"][e.source()],
+                    graph.vp["@id"][e.target()],
+                    {
+                        p: graph.ep[p][e]
+                        for p in props
+                    }
+                )
+                for e in graph.edges()
+            ]
 
     @staticmethod
     def _generate_graph(pgframe):
@@ -97,19 +97,27 @@ class GTPathFinder(PathFinder):
             _get_node_id(graph, n) for n in neighors
         ]
 
-    def _get_subgraph(self, nodes_to_include):
+    def _get_subgraph(self, node_filter, edge_filter=None):
         """Produce a graph induced by the input nodes."""
+        if edge_filter is not None:
+            edge_filter_prop = self.graph.new_edge_property(
+                "bool", vals=[
+                    edge_filter((
+                        _get_node_id(self.graph, e.source()),
+                        _get_node_id(self.graph, e.target())))
+                    for e in self.graph.edges()]
+            )
 
-        node_filter = self.graph.new_vertex_property(
-            "bool", val=False)
-        vertices_to_include = [
-            _get_vertex_obj(self.graph, n)
-            for n in nodes_to_include
-        ]
-        for v in vertices_to_include:
-            node_filter[v] = True
+        node_filter_prop = self.graph.new_vertex_property(
+            "bool", vals=[
+                node_filter(_get_node_id(self.graph, v))
+                for v in self.graph.vertices()]
+        )
 
-        return GraphView(self.graph, node_filter)
+        return GraphView(
+            self.graph,
+            vfilt=node_filter_prop,
+            efilt=edge_filter_prop)
 
     @staticmethod
     @handle_exclude_gt_edge
@@ -173,7 +181,7 @@ class GTPathFinder(PathFinder):
     def _compute_yen_shortest_paths(graph, source, target, n,
                                     distance, exclude_edge=False):
         """Compute n shortest paths using the Yen's algo."""
-        raise NotImplementedError(
+        raise PathFinder.NotImplementedError(
             "Yen's algorithm for finding n shortest paths "
             "is currently not implemented")
 
@@ -218,7 +226,7 @@ class GTPathFinder(PathFinder):
             List containing top n best paths according to the distance score
         """
         if strategy == "yen":
-            raise NotImplementedError(
+            raise PathFinder.NotImplementedError(
                 "Yen's algorithm for finding n shortest paths "
                 "is currently not implemented")
         else:
@@ -252,7 +260,7 @@ class GTPathFinder(PathFinder):
             self.graph, weights=self.graph.ep[distance])
         if write:
             if write_property is None:
-                raise PathSearchException(
+                raise PathFinder.PathSearchException(
                     "The minimum spanning tree finder has the write option set "
                     "to True, the write property name must be specified")
 

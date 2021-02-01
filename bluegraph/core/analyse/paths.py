@@ -2,13 +2,19 @@ from abc import (ABC, abstractmethod)
 
 from bluegraph.core.utils import top_n
 
-from bluegraph.exceptions import PathSearchException
+from bluegraph.exceptions import BlueGraphException
 
 
 class PathFinder(ABC):
     """Abstract class for a path finder."""
     def __init__(self, pgframe):
         self.graph = self._generate_graph(pgframe)
+
+    @staticmethod
+    @abstractmethod
+    def _get_edges(graph, properties=False):
+        """Get edges of the underlying graph."""
+        pass
 
     @staticmethod
     @abstractmethod
@@ -29,8 +35,8 @@ class PathFinder(ABC):
         pass
 
     @abstractmethod
-    def _get_subgraph(self, nodes_to_include):
-        """Produce a graph induced by the input nodes."""
+    def _get_subgraph(self, node_filter, edge_filter=None):
+        """Get a node/edge induced subgraph."""
         pass
 
     @staticmethod
@@ -73,6 +79,32 @@ class PathFinder(ABC):
             The minimum spanning tree graph object (backend-dependent)
         """
         pass
+
+    def get_subgraph(self, nodes_to_include=None,
+                     node_filter=None,
+                     edges_to_include=None,
+                     edge_filter=None):
+        """Produce a graph induced by the input nodes."""
+        def include_node(x):
+            included = True
+            if nodes_to_include is not None:
+                included = x in nodes_to_include
+            unfiltered = True
+            if node_filter is not None:
+                unfiltered = node_filter(x)
+            return included and unfiltered
+
+        def include_edge(x):
+            included = True
+            if edges_to_include is not None:
+                included = x in edges_to_include
+            unfiltered = True
+            if edge_filter is not None:
+                unfiltered = edge_filter(x)
+            return included and unfiltered
+
+        subgraph = self._get_subgraph(include_node, include_edge)
+        return subgraph
 
     def top_neighbors(self, node, n, weight):
         """Get top n neighbours of the specified node by weight."""
@@ -140,6 +172,36 @@ class PathFinder(ABC):
         return self._compute_all_shortest_paths(
             self.graph, source, target, exclude_edge=exclude_edge)
 
+    def _compute_n_shortest_paths(self, graph, source, target, n,
+                                  distance=None, strategy="naive",
+                                  exclude_edge=False):
+        if n == 1:
+            return [
+                self._compute_shortest_path(
+                    graph, source, target, distance)]
+
+        if strategy == "naive":
+            all_paths = self._compute_all_shortest_paths(
+                graph, source, target, exclude_edge=True)
+
+            path_ranking = self._get_cumulative_distances(
+                all_paths, distance)
+
+            if not exclude_edge:
+                s_t_distance = self._get_cumulative_distances(
+                        [(source, target)], distance)
+                path_ranking.update(s_t_distance)
+
+            paths = top_n(path_ranking, n, smallest=True)
+        elif strategy == "yen":
+            paths = self._compute_yen_shortest_paths(
+                graph, source, target, n=n,
+                distance=distance, exclude_edge=exclude_edge)
+        else:
+            PathSearchException(
+                f"Unknown path search strategy '{strategy}'")
+        return paths
+
     def n_shortest_paths(self, source, target, n, distance=None,
                          strategy="naive", exclude_edge=False):
         """Compute n shortest paths from the source to the target.
@@ -180,30 +242,9 @@ class PathFinder(ABC):
         paths : list
             List containing top n best paths according to the distance score
         """
-        if n == 1:
-            return [self.shortest_path(source, target, distance)]
-
-        if strategy == "naive":
-            all_paths = self.all_shortest_paths(
-                source, target, exclude_edge=True)
-
-            path_ranking = self._get_cumulative_distances(
-                all_paths, distance)
-
-            if not exclude_edge:
-                s_t_distance = self._get_cumulative_distances(
-                        [(source, target)], distance)
-                path_ranking.update(s_t_distance)
-
-            paths = top_n(path_ranking, n, smallest=True)
-        elif strategy == "yen":
-            paths = self._compute_yen_shortest_paths(
-                self.graph, source, target, n=n,
-                distance=distance, exclude_edge=exclude_edge)
-        else:
-            PathSearchException(
-                f"Unknown path search strategy '{strategy}'")
-        return paths
+        return self._compute_n_shortest_paths(
+            self.graph, source, target, n, distance=distance,
+            strategy=strategy, exclude_edge=exclude_edge)
 
     def nested_shortest_path(self, source, target, depth=1, distance=None,
                              exclude_edge=True):
@@ -320,18 +361,23 @@ class PathFinder(ABC):
         b_c_path : tuple
             The shortest path from B to C
         """
+
         a_b_path = self.shortest_path(
             source, intermediary,
             distance=distance, exclude_edge=exclude_edge)
 
-        search_nodes = []
-        if overlap is False:
-            search_nodes = [
-                n for n in self.graph.nodes()
-                if n not in list(a_b_path)[1:-1]
-            ]
+        def encountered_node(x):
+            if overlap is False:
+                return (
+                    x not in list(a_b_path)[1:-1] or
+                    x == intermediary or
+                    x == target
+                )
+            else:
+                return True
 
-        subgraph = self._get_subgraph(search_nodes)
+        subgraph = self.get_subgraph(
+            node_filter=encountered_node)
 
         b_c_path = self._compute_shortest_path(
             subgraph,
@@ -378,28 +424,47 @@ class PathFinder(ABC):
         b_c_paths : list
             List containing the shortest paths from B to C
         """
-        raise PathSearchException(
-            "Tripath search is currently not implemented")
-        # a_b_paths = self.n_shortest_paths(
-        #     source, intermediary, n, distance=distance,
-        #     strategy=strategy, exclude_edge=exclude_edge)
+        a_b_paths = self.n_shortest_paths(
+            source, intermediary, n, distance=distance,
+            strategy=strategy, exclude_edge=exclude_edge)
 
-        # if overlap is False:
-        #     visited_nodes = set()
-        #     for p in a_b_paths:
-        #         visited_nodes.update(list(p)[-1:1])
-        #     search_nodes = [
-        #         n for n in self.graph.nodes()
-        #         if n not in visited_nodes
-        #     ]
-        #     graph = self.graph.subgraph(search_nodes)
-        # else:
-        #     graph = self.graph
+        visited_nodes = set()
+        for p in a_b_paths:
+            visited_nodes.update(
+                [
+                    el for el in list(p)[1:-1]
+                    if el != intermediary and el != target
+                ])
 
-        # b_c_paths = self.compute_n_shortest_paths(
-        #     graph, intermediary, target, n,
-        #     distance=distance, strategy=strategy,
-        #     exclude_edge=exclude_edge)
+        def encountered_node(x):
+            if overlap is False:
+                return x not in visited_nodes
+            else:
+                return True
 
-        # return a_b_paths, b_c_paths
+        subgraph = self.get_subgraph(
+            node_filter=encountered_node)
+        try:
+            b_c_paths = self._compute_n_shortest_paths(
+                subgraph, intermediary, target, n,
+                distance=distance, strategy=strategy,
+                exclude_edge=exclude_edge)
+        except PathFinder.NoPathException:
+            raise PathFinder.NoPathException(
+                "No paths satisfying the contraints from the "
+                f"intermediary '{intermediary}' to the "
+                f"target '{target}' exists")
 
+        return a_b_paths, b_c_paths
+
+    class PathSearchException(BlueGraphException):
+        """Exception class for generic path search error."""
+        pass
+
+    class NoPathException(BlueGraphException):
+        """Exception class for 'path does not exist."""
+        pass
+
+    class NotImplementedError(BlueGraphException):
+        """Exception class for not implemented bits."""
+        pass

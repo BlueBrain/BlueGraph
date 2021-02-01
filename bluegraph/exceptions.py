@@ -14,7 +14,3 @@ class MetricProcessingException(BlueGraphException):
 
 class MetricProcessingWarning(UserWarning):
     pass
-
-
-class PathSearchException(BlueGraphException):
-    pass
