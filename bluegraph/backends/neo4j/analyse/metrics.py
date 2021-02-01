@@ -4,55 +4,11 @@ from bluegraph.core.analyse.metrics import MetricProcessor
 from bluegraph.exceptions import (MetricProcessingException,
                                   MetricProcessingWarning)
 
-from neo4j import GraphDatabase
-from ..io import (pgframe_to_neo4j, neo4j_to_pgframe)
+from ..io import Neo4jGraphProcessor
 
 
-class Neo4jMetricProcessor(MetricProcessor):
+class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
     """Class for metric processing based on Neso4j graphs."""
-
-    def __init__(self, pgframe=None, uri=None, username=None, password=None,
-                 driver=None, node_label=None, edge_label=None):
-        if node_label is None:
-            raise MetricProcessingException(
-                "Cannot initialize a Neo4jMetricProcessor: "
-                "node label must be specified")
-        if edge_label is None:
-            raise MetricProcessingException(
-                "Cannot initialize a Neo4jMetricProcessor: "
-                "edge label must be specified")
-        if driver is None:
-            self.driver = GraphDatabase.driver(
-                uri, auth=(username, password))
-        else:
-            self.driver = driver
-        self.node_label = node_label
-        self.edge_label = edge_label
-        if pgframe is not None:
-            self._generate_graph(
-                pgframe, driver=driver,
-                node_label=node_label, edge_label=edge_label)
-
-    @classmethod
-    def from_graph_object(cls, graph_object):
-        """Instantiate a MetricProcessor directly from a Graph object."""
-        raise MetricProcessingException(
-            "Neo4jMetricProcessor cannot be initialized from a graph object")
-
-    @staticmethod
-    def _generate_graph(pgframe, driver=None,
-                        node_label=None, edge_label=None, directed=True):
-        return pgframe_to_neo4j(
-            pgframe=pgframe,
-            driver=driver, node_label=node_label,
-            edge_label=edge_label)
-
-    def execute(self, query):
-        session = self.driver.session()
-        response = session.run(query)
-        result = response.data()
-        session.close()
-        return result
 
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
@@ -165,7 +121,3 @@ class Neo4jMetricProcessor(MetricProcessor):
             write=write, write_property=write_property,
             score_name="centrality")
         return result
-
-    def get_pgframe(self):
-        """Get a new pgframe object from the wrapped graph object."""
-        return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)

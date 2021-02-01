@@ -7,8 +7,6 @@ from bluegraph.exceptions import BlueGraphException
 
 class PathFinder(ABC):
     """Abstract class for a path finder."""
-    def __init__(self, pgframe):
-        self.graph = self._generate_graph(pgframe)
 
     @staticmethod
     @abstractmethod
@@ -106,14 +104,15 @@ class PathFinder(ABC):
         subgraph = self._get_subgraph(include_node, include_edge)
         return subgraph
 
-    def top_neighbors(self, node, n, weight):
+    def top_neighbors(self, node, n, weight, smallest=False):
         """Get top n neighbours of the specified node by weight."""
         neigbours = {}
         for neighbor in self._get_neighbors(self.graph, node):
             neigbours[neighbor] = self._get_distance(
                 self.graph, node, neighbor, weight)
         return {
-            el: neigbours[el] for el in top_n(neigbours, n)
+            el: neigbours[el]
+            for el in top_n(neigbours, n, smallest=smallest)
         }
 
     def _get_cumulative_distances(self, paths, distance):
@@ -178,7 +177,8 @@ class PathFinder(ABC):
         if n == 1:
             return [
                 self._compute_shortest_path(
-                    graph, source, target, distance)]
+                    graph, source, target, distance,
+                    exclude_edge=exclude_edge)]
 
         if strategy == "naive":
             all_paths = self._compute_all_shortest_paths(
@@ -198,7 +198,7 @@ class PathFinder(ABC):
                 graph, source, target, n=n,
                 distance=distance, exclude_edge=exclude_edge)
         else:
-            PathSearchException(
+            PathFinder.PathSearchException(
                 f"Unknown path search strategy '{strategy}'")
         return paths
 

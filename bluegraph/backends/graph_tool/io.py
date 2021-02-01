@@ -2,7 +2,7 @@ import pandas as pd
 import graph_tool as gt
 
 
-from bluegraph.core.io import PandasPGFrame
+from bluegraph.core.io import PandasPGFrame, GraphProcessor
 
 
 NUMERIC_TYPES = [
@@ -68,3 +68,14 @@ def graph_tool_to_pgframe(graph):
                 pgframe.add_node_properties(prop)
                 pgframe._set_node_prop_type(k, result_type)
     return pgframe
+
+
+class GTGraphProcessor(GraphProcessor):
+
+    @staticmethod
+    def _generate_graph(pgframe):
+        return pgframe_to_graph_tool(pgframe)
+
+    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+        """Get a new pgframe object from the wrapped graph object."""
+        return graph_tool_to_pgframe(self.graph)

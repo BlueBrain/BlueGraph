@@ -5,7 +5,7 @@ from graph_tool.topology import shortest_path, min_spanning_tree
 from graph_tool.topology import all_shortest_paths as gt_all_shortest_paths
 from graph_tool.util import find_vertex
 
-from ..io import pgframe_to_graph_tool
+from ..io import GTGraphProcessor
 
 
 def handle_exclude_gt_edge(method):
@@ -47,7 +47,7 @@ def _get_node_id(graph, vertex_obj):
     return graph.vp["@id"][vertex_obj]
 
 
-class GTPathFinder(PathFinder):
+class GTPathFinder(GTGraphProcessor, PathFinder):
     """graph-tool-based shortest paths finder."""
 
     @staticmethod
@@ -73,11 +73,6 @@ class GTPathFinder(PathFinder):
                 )
                 for e in graph.edges()
             ]
-
-    @staticmethod
-    def _generate_graph(pgframe):
-        """Generate the appropiate graph representation from a PGFrame."""
-        return pgframe_to_graph_tool(pgframe)
 
     @staticmethod
     def _get_distance(graph, source, target, distance):
@@ -183,7 +178,7 @@ class GTPathFinder(PathFinder):
         """Compute n shortest paths using the Yen's algo."""
         raise PathFinder.NotImplementedError(
             "Yen's algorithm for finding n shortest paths "
-            "is currently not implemented")
+            "is currently not implemented for graph-tool backend")
 
     def n_shortest_paths(self, source, target, n, distance=None,
                          strategy="naive", exclude_edge=False):

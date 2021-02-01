@@ -3,6 +3,8 @@ import numpy as np
 
 from neo4j import GraphDatabase
 
+from bluegraph.core.io import GraphProcessor
+
 
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
@@ -84,3 +86,53 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
 
 def neo4j_to_pgframe(driver, node_label, edge_label):
     pass
+
+
+class Neo4jGraphProcessor(GraphProcessor):
+
+    def __init__(self, pgframe=None, uri=None, username=None, password=None,
+                 driver=None, node_label=None, edge_label=None):
+        if node_label is None:
+            raise Neo4jGraphProcessor.ProcessorException(
+                "Cannot initialize a Neo4jMetricProcessor: "
+                "node label must be specified")
+        if edge_label is None:
+            raise Neo4jGraphProcessor.ProcessorException(
+                "Cannot initialize a Neo4jMetricProcessor: "
+                "edge label must be specified")
+        if driver is None:
+            self.graph = GraphDatabase.driver(
+                uri, auth=(username, password))
+        else:
+            self.graph = driver
+        self.node_label = node_label
+        self.edge_label = edge_label
+        if pgframe is not None:
+            self._generate_graph(
+                pgframe, driver=driver,
+                node_label=node_label, edge_label=edge_label)
+
+    @classmethod
+    def from_graph_object(cls, graph_object):
+        """Instantiate a MetricProcessor directly from a Graph object."""
+        raise Neo4jGraphProcessor.ProcessorException(
+            "Neo4jMetricProcessor cannot be initialized from a graph object")
+
+    @staticmethod
+    def _generate_graph(pgframe, driver=None,
+                        node_label=None, edge_label=None, directed=True):
+        return pgframe_to_neo4j(
+            pgframe=pgframe,
+            driver=driver, node_label=node_label,
+            edge_label=edge_label)
+
+    def execute(self, query):
+        session = self.graph.session()
+        response = session.run(query)
+        result = response.data()
+        session.close()
+        return result
+
+    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+        """Get a new pgframe object from the wrapped graph object."""
+        return neo4j_to_pgframe(self.graph, self.node_label, self.edge_label)

@@ -10,7 +10,7 @@ from pandas.api.types import is_numeric_dtype, is_string_dtype
 from bluegraph.core.utils import (_aggregate_values,
                                   element_has_type,
                                   str_to_set)
-from bluegraph.exceptions import PGFrameException
+from bluegraph.exceptions import PGFrameException, BlueGraphException
 
 
 class PGFrame(ABC):
@@ -800,4 +800,34 @@ class SparkPGFrame(PGFrame):
 
     def __init__(self):
         """Initalize a SparkPGFrame."""
+        pass
+
+
+class GraphProcessor(ABC):
+
+    def __init__(self, pgframe):
+        self.graph = self._generate_graph(pgframe)
+
+    @staticmethod
+    @abstractmethod
+    def _generate_graph(pgframe):
+        pass
+
+    @abstractmethod
+    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+        """Get a new pgframe object from the wrapped graph object."""
+        pass
+
+    @classmethod
+    def from_graph_object(cls, graph_object):
+        processor = cls()
+        processor.graph = graph_object
+        return processor
+
+    def get_pgframe(self, node_filter=None, edge_filter=None):
+        """Get a new pgframe object from the wrapped graph object."""
+        return self._generate_pgframe(
+            node_filter=node_filter, edge_filter=edge_filter)
+
+    class ProcessorException(BlueGraphException):
         pass

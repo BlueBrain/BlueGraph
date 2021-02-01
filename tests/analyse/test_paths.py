@@ -1,5 +1,6 @@
 from bluegraph.backends.networkx import NXPathFinder
 from bluegraph.backends.graph_tool import GTPathFinder
+from bluegraph.backends.neo4j import Neo4jPathFinder
 
 
 def _benchmark_path_finder(finder):
@@ -31,13 +32,13 @@ def _benchmark_path_finder(finder):
     assert(set(res) == set([("A", "B", "D"), ("A", "E", "D")]))
 
     # ------ Test n shortest paths ----------
-    res = finder.n_shortest_paths("A", "D", 3, distance="distance")
-    assert(set(res) == set([("A", "B", "D"), ("A", "E", "D"), ("A", "D")]))
-
-    res = finder.n_shortest_paths("A", "D", 4, distance="distance")
-    assert(set(res) == set([("A", "B", "D"), ("A", "E", "D"), ("A", "D")]))
-
     try:
+        res = finder.n_shortest_paths("A", "D", 3, distance="distance")
+        assert(set(res) == set([("A", "B", "D"), ("A", "E", "D"), ("A", "D")]))
+
+        res = finder.n_shortest_paths("A", "D", 4, distance="distance")
+        assert(set(res) == set([("A", "B", "D"), ("A", "E", "D"), ("A", "D")]))
+
         res = finder.n_shortest_paths(
             "A", "D", 3, distance="distance", strategy="yen")
         assert(set(res) == set([("A", "B", "D"), ("A", "E", "D"), ("A", "D")]))
@@ -49,14 +50,11 @@ def _benchmark_path_finder(finder):
                 ("A", "B", "D"), ("A", "E", "D"), ("A", "D")
             ])
         )
-    except finder.NotImplementedError:
-        pass
 
-    res = finder.n_shortest_paths(
-        "A", "D", 3, distance="distance", exclude_edge=True)
-    assert(set(res) == set([("A", "B", "D"), ("A", "E", "D")]))
+        res = finder.n_shortest_paths(
+            "A", "D", 3, distance="distance", exclude_edge=True)
+        assert(set(res) == set([("A", "B", "D"), ("A", "E", "D")]))
 
-    try:
         res = finder.n_shortest_paths(
             "A", "D", 4, distance="distance", strategy="yen", exclude_edge=True)
         assert(set(res) == set([
@@ -66,17 +64,22 @@ def _benchmark_path_finder(finder):
                 ("A", "C", "E", "D")
             ])
         )
+
+        res = finder.nested_shortest_path(
+            "A", "B", 2, "distance", exclude_edge=True)
+        assert(len(res) == 3)
+
+        res = finder.n_nested_shortest_paths(
+            "A", "B", top_level_n=5, nested_n=3, depth=2,
+            distance="distance", exclude_edge=True)
+        assert(len(res) == 8)
+        res = finder.n_nested_shortest_paths(
+            "A", "B", top_level_n=3, nested_n=2, depth=2,
+            strategy="yen",
+            distance="distance", exclude_edge=True)
+        assert(len(res) == 15)
     except finder.NotImplementedError:
         pass
-
-    res = finder.nested_shortest_path(
-        "A", "B", 2, "distance", exclude_edge=True)
-    assert(len(res) == 3)
-
-    res = finder.n_nested_shortest_paths(
-        "A", "B", top_level_n=5, nested_n=3, depth=2,
-        distance="distance", exclude_edge=True)
-    assert(len(res) == 8)
 
     # ------ Test tripaths ----------
     a_b, b_d = finder.shortest_tripath("A", "B", "D", distance="distance")
@@ -169,3 +172,14 @@ def test_gt_paths(path_test_graph):
             assert(attrs["MST"] == 1)
         else:
             assert(attrs["MST"] == 0)
+
+
+def test_neo4j_paths(path_test_graph, neo4j_driver, neo4j_test_node_label,
+                     neo4j_test_edge_label):
+    finder = Neo4jPathFinder(
+        pgframe=path_test_graph,
+        driver=neo4j_driver,
+        node_label=neo4j_test_node_label,
+        edge_label=neo4j_test_edge_label)
+    _benchmark_path_finder(finder)
+

@@ -4,14 +4,10 @@ from graph_tool.centrality import pagerank as gt_pagerank
 from graph_tool.centrality import betweenness as gt_betweenness
 from graph_tool.centrality import closeness as gt_closeness
 
-from ..io import (pgframe_to_graph_tool, graph_tool_to_pgframe)
+from ..io import GTGraphProcessor
 
 
-class GTMetricProcessor(MetricProcessor):
-
-    @staticmethod
-    def _generate_graph(pgframe, directed=True):
-        return pgframe_to_graph_tool(pgframe)
+class GTMetricProcessor(GTGraphProcessor, MetricProcessor):
 
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
@@ -77,7 +73,3 @@ class GTMetricProcessor(MetricProcessor):
             self.graph, weight=distance)
         return self._dispatch_processing_result(
             closeness, "closeness", write, write_property)
-
-    def get_pgframe(self):
-        """Get a new pgframe object from the wrapped graph object."""
-        return graph_tool_to_pgframe(self.graph)

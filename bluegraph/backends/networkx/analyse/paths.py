@@ -1,6 +1,6 @@
 from bluegraph.core.analyse.paths import PathFinder
 
-from ..io import pgframe_to_networkx
+from ..io import NXGraphProcessor
 
 import networkx as nx
 
@@ -24,17 +24,12 @@ def handle_exclude_nx_edge(method):
     return wrapper
 
 
-class NXPathFinder(PathFinder):
+class NXPathFinder(NXGraphProcessor, PathFinder):
     """NetworkX-based shortest paths finder."""
 
     @staticmethod
     def _get_edges(graph, properties=False):
         return graph.edges(data=properties)
-
-    @staticmethod
-    def _generate_graph(pgframe):
-        """Generate the appropiate graph representation from a PGFrame."""
-        return pgframe_to_networkx(pgframe)
 
     @staticmethod
     def _get_distance(graph, source, target, distance):
