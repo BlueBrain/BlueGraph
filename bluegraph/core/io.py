@@ -276,7 +276,6 @@ class PGFrame(ABC):
         node_id = None
         if "@id" in record:
             node_id = record["@id"]
-
         attrs = {}
         node_type = None
         context = None
@@ -307,11 +306,13 @@ class PGFrame(ABC):
                                     if not only_props:
                                         neighbours[key].append(
                                             self._nodes_edges_from_dict(
-                                                node_id if node_id else source,
+                                                node_id if node_id is not None
+                                                else source,
                                                 key
-                                                if node_id
+                                                if node_id is not None
                                                 else relation + "." + key,
-                                                attrs if node_id else source_attrs,
+                                                attrs if node_id is not None
+                                                else source_attrs,
                                                 el,
                                                 include_context,
                                                 type_handler,
@@ -324,9 +325,9 @@ class PGFrame(ABC):
                             attrs[key] = v
                     elif not only_props:
                         neighbours[key] = self._nodes_edges_from_dict(
-                            node_id if node_id else source,
-                            key if node_id else relation + "." + key,
-                            attrs if node_id else source_attrs,
+                            node_id if node_id is not None else source,
+                            key if node_id is not None else relation + "." + key,
+                            attrs if node_id is not None else source_attrs,
                             v,
                             include_context,
                             type_handler,
@@ -394,9 +395,39 @@ class PGFrame(ABC):
         # Set default node and edge types
         self._set_default_prop_types()
 
-    def to_jsonld(self):
+    def to_jsonld(self, edges_key="edges"):
         """Create a JSON-LD representation of the PGFrame."""
-        pass
+        def _normalize_to_set(x):
+            return [x] if isinstance(x, str) else x
+
+        def aggregate_nodes(x):
+            node = {
+                "@id": str(x.name)
+            }
+            if x["@type"]:
+                node["@type"] = _normalize_to_set(x["@type"])
+
+            for k in x.keys():
+                if k != "@type":
+                    node[k] = x[k]
+            try:
+                incident_edges = self._edges.xs(
+                    x.name, level=0, axis=0).to_dict("index")
+                edges = []
+                for target, edge_props in incident_edges.items():
+                    edge_type = edge_props["@type"]
+                    del edge_props["@type"]
+                    edge_props[edge_type] = {
+                        "@id": str(target)
+                    }
+                    edges.append(edge_props)
+                node[edges_key] = edges
+            except KeyError:
+                pass
+            return node
+
+        nodes = self._nodes.apply(aggregate_nodes, axis=1).to_list()
+        return nodes
 
     def to_csv(self, path):
         if not os.path.exists(path):
@@ -582,7 +613,7 @@ class PandasPGFrame(PGFrame):
             if filter_props:
                 df = df.filter(
                     items=[c for c in df.columns if filter_props(c)],
-                    axis=1) 
+                    axis=1)
             if include_index:
                 df = df.reset_index()
             if rename_cols:
@@ -664,8 +695,10 @@ class PandasPGFrame(PGFrame):
         return self._edges.shape[0]
 
     def _write_node(self, node_id, node_type, context, attrs):
-        attrs["@type"] = set(node_type)
-        self._nodes = self._nodes.append({"@id": node_id, **attrs}, ignore_index=True)
+        if node_type is not None:
+            attrs["@type"] = set(node_type)
+        self._nodes = self._nodes.append(
+            {"@id": node_id, **attrs}, ignore_index=True)
 
     def _write_edge(self, source_id, target_id, edge_type, attrs):
         attrs["@type"] = {edge_type}
@@ -676,8 +709,9 @@ class PandasPGFrame(PGFrame):
         }, ignore_index=True)
 
     def _aggregate_nodes(self):
-        self._nodes = self._nodes.groupby("@id").aggregate(
+        res = self._nodes.groupby("@id").aggregate(
             _aggregate_values)
+        self._nodes = res
 
     def _aggregate_edges(self):
         self._edges = self._edges.groupby(["@source_id", "@target_id"]).aggregate(

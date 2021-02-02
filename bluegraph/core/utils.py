@@ -8,7 +8,9 @@ def _aggregate_values(values):
     for el in values:
         if isinstance(el, set):
             value_set.update(el)
-        elif not math.is_nan(el):
+        elif isinstance(el, str):
+            value_set.add(el)
+        elif not math.isnan(el):
             value_set.add(el)
     if len(value_set) == 1:
         return list(value_set)[0]
