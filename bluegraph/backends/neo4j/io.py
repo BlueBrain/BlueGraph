@@ -101,10 +101,10 @@ class Neo4jGraphProcessor(GraphProcessor):
                 "Cannot initialize a Neo4jMetricProcessor: "
                 "edge label must be specified")
         if driver is None:
-            self.graph = GraphDatabase.driver(
+            self.driver = GraphDatabase.driver(
                 uri, auth=(username, password))
         else:
-            self.graph = driver
+            self.driver = driver
         self.node_label = node_label
         self.edge_label = edge_label
         if pgframe is not None:
@@ -127,7 +127,7 @@ class Neo4jGraphProcessor(GraphProcessor):
             edge_label=edge_label)
 
     def execute(self, query):
-        session = self.graph.session()
+        session = self.driver.session()
         response = session.run(query)
         result = response.data()
         session.close()
@@ -135,4 +135,4 @@ class Neo4jGraphProcessor(GraphProcessor):
 
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
-        return neo4j_to_pgframe(self.graph, self.node_label, self.edge_label)
+        return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)

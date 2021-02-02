@@ -74,17 +74,16 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
                 for e in graph.edges()
             ]
 
-    @staticmethod
-    def _get_distance(graph, source, target, distance):
+    def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        source = _get_vertex_obj(graph, source)
-        target = _get_vertex_obj(graph, target)
+        source = _get_vertex_obj(self.graph, source)
+        target = _get_vertex_obj(self.graph, target)
 
-        edge = graph.edge(source, target)
-        return graph.ep[distance][edge]
+        edge = self.graph.edge(source, target)
+        return self.graph.ep[distance][edge]
 
     @staticmethod
-    def _get_neighbors(graph, node_id):
+    def get_neighbors(graph, node_id):
         """Get neighors of the node."""
         node_obj = _get_vertex_obj(graph, node_id)
         neighors = node_obj.out_neighbors()
@@ -92,20 +91,25 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
             _get_node_id(graph, n) for n in neighors
         ]
 
-    def _get_subgraph(self, node_filter, edge_filter=None):
+    def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
-        if edge_filter is not None:
+        if nodes_to_exclude is None:
+            nodes_to_exclude = []
+
+        edge_filter_prop = None
+        if edges_to_exclude is not None:
             edge_filter_prop = self.graph.new_edge_property(
                 "bool", vals=[
-                    edge_filter((
+                    (
                         _get_node_id(self.graph, e.source()),
-                        _get_node_id(self.graph, e.target())))
+                        _get_node_id(self.graph, e.target())
+                    ) not in edges_to_exclude
                     for e in self.graph.edges()]
             )
 
         node_filter_prop = self.graph.new_vertex_property(
             "bool", vals=[
-                node_filter(_get_node_id(self.graph, v))
+                _get_node_id(self.graph, v) not in nodes_to_exclude
                 for v in self.graph.vertices()]
         )
 

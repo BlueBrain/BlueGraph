@@ -31,28 +31,29 @@ class NXPathFinder(NXGraphProcessor, PathFinder):
     def _get_edges(graph, properties=False):
         return graph.edges(data=properties)
 
-    @staticmethod
-    def _get_distance(graph, source, target, distance):
+    def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        return graph.edges[source, target][distance]
+        return self.graph.edges[source, target][distance]
 
     @staticmethod
-    def _get_neighbors(graph, node_id):
+    def get_neighbors(graph, node_id):
         """Get neighors of the node."""
         return list(graph.neighbors(node_id))
 
-    def _get_subgraph(self, node_filter, edge_filter=None):
+    def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
+        if nodes_to_exclude is None:
+            nodes_to_exclude = []
         nodes_to_include = [
             n for n in self.graph.nodes()
-            if node_filter(n)
+            if n not in nodes_to_exclude
         ]
 
         subgraph = self.graph.subgraph(nodes_to_include)
 
-        if edge_filter is not None:
+        if edges_to_exclude is not None:
             subgraph = subgraph.edge_subgraph(
-                [e for e in subgraph.edges() if edge_filter(e)]
+                [e for e in subgraph.edges() if e not in edges_to_exclude]
             )
 
         return subgraph

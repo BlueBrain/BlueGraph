@@ -52,7 +52,7 @@ def random_pgframe():
     return frame
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def neo4j_driver():
     driver = GraphDatabase.driver(
         NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))

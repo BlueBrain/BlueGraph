@@ -3,9 +3,39 @@ from bluegraph.backends.graph_tool import GTPathFinder
 from bluegraph.backends.neo4j import Neo4jPathFinder
 
 
-def _benchmark_path_finder(finder):
+def assert_undirected_edges_equal(edges1, edges2):
+    all_edges = True
+    for (s, t) in edges1:
+        if (s, t) not in edges2 and (t, s) not in edges2:
+            all_edges = False
+            break
+    if all_edges:
+        for (s, t) in edges2:
+            if (s, t) not in edges1 and (t, s) not in edges1:
+                all_edges = False
+                break
+    assert(all_edges)
+
+
+def benchmark_path_finder(finder):
+    edges = finder.get_edges()
+    assert_undirected_edges_equal(
+        set(edges), set(
+            [
+                ('A', 'B'), ('A', 'C'), ('A', 'D'), ('A', 'E'),
+                ('B', 'D'), ('B', 'C'), ('C', 'E'), ('D', 'E')
+            ]))
+
+    edges = finder.get_edges(properties=True)
+    assert(len(edges) == 8)
+
+    distance = finder.get_distance("A", "B", "distance")
+    assert(int(distance) == 3)
+
     res = finder.top_neighbors("A", 10, "distance")
-    assert(res == {'D': 8, 'B': 3, 'C': 3, 'E': 2})
+    assert({
+        k: int(v) for k, v in res.items()
+    } == {'D': 8, 'B': 3, 'C': 3, 'E': 2})
 
     # ------ Test single shortest paths ----------
     res = finder.shortest_path("A", "B")
@@ -97,25 +127,25 @@ def _benchmark_path_finder(finder):
     assert(a_b == ('A', 'C', 'B'))
     assert(b_d == ('B', 'A', 'E', 'D'))
 
-    a_b, b_d = finder.n_shortest_tripaths(
-        "A", "B", "D", 3, distance="distance")
-    assert(set(a_b) == set([
-        ('A', 'B'), ('A', 'C', 'B'), ('A', 'D', 'B')
-    ]))
-    assert(set(b_d) == set([('B', 'D'), ('B', 'A', 'D')]))
-
-    a_b, b_d = finder.n_shortest_tripaths(
-        "A", "B", "D", 3, distance="distance", exclude_edge=True)
-    assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
-    assert(set(b_d) == set([('B', 'A', 'D')]))
-
-    a_b, b_d = finder.n_shortest_tripaths(
-        "A", "B", "D", 3, distance="distance", exclude_edge=True,
-        overlap=False)
-    assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
-    assert(set(b_d) == set([('B', 'A', 'D')]))
-
     try:
+        a_b, b_d = finder.n_shortest_tripaths(
+            "A", "B", "D", 3, distance="distance")
+        assert(set(a_b) == set([
+            ('A', 'B'), ('A', 'C', 'B'), ('A', 'D', 'B')
+        ]))
+        assert(set(b_d) == set([('B', 'D'), ('B', 'A', 'D')]))
+
+        a_b, b_d = finder.n_shortest_tripaths(
+            "A", "B", "D", 3, distance="distance", exclude_edge=True)
+        assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
+        assert(set(b_d) == set([('B', 'A', 'D')]))
+
+        a_b, b_d = finder.n_shortest_tripaths(
+            "A", "B", "D", 3, distance="distance", exclude_edge=True,
+            overlap=False)
+        assert(set(a_b) == set([('A', 'C', 'B'), ('A', 'D', 'B')]))
+        assert(set(b_d) == set([('B', 'A', 'D')]))
+
         a_b, b_d = finder.n_shortest_tripaths(
             "A", "B", "D", 3,
             strategy="yen",
@@ -138,7 +168,7 @@ def _benchmark_path_finder(finder):
 
 def test_nx_paths(path_test_graph):
     finder = NXPathFinder(path_test_graph)
-    _benchmark_path_finder(finder)
+    benchmark_path_finder(finder)
 
     res = finder.minimum_spanning_tree("distance")
     mst = {
@@ -156,7 +186,7 @@ def test_nx_paths(path_test_graph):
 
 def test_gt_paths(path_test_graph):
     finder = GTPathFinder(path_test_graph)
-    _benchmark_path_finder(finder)
+    benchmark_path_finder(finder)
 
     res = finder.minimum_spanning_tree("distance")
     mst = {
@@ -181,5 +211,19 @@ def test_neo4j_paths(path_test_graph, neo4j_driver, neo4j_test_node_label,
         driver=neo4j_driver,
         node_label=neo4j_test_node_label,
         edge_label=neo4j_test_edge_label)
-    _benchmark_path_finder(finder)
+    benchmark_path_finder(finder)
 
+    # res = finder.minimum_spanning_tree("distance")
+    # mst = {
+    #     ('A', 'E'), ('A', 'B'), ('A', 'C'), ('E', 'D')
+    # }
+    # assert(set(GTPathFinder.get_edges(res)) == mst)
+    # finder.minimum_spanning_tree(
+    #     "distance", write=True, write_property="MST")
+
+    # edges = GTPathFinder.get_edges(finder.graph, properties=True)
+    # for s, t, attrs in edges:
+    #     if (s, t) in mst:
+    #         assert(attrs["MST"] == 1)
+    #     else:
+    #         assert(attrs["MST"] == 0)
