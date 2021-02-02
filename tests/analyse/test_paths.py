@@ -32,6 +32,9 @@ def benchmark_path_finder(finder):
     distance = finder.get_distance("A", "B", "distance")
     assert(int(distance) == 3)
 
+    neighbors = finder.get_neighbors("A")
+    assert(set(neighbors) == set(['B', 'C', 'D', 'E']))
+
     res = finder.top_neighbors("A", 10, "distance")
     assert({
         k: int(v) for k, v in res.items()

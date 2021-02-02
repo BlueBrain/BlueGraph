@@ -10,20 +10,18 @@ class PathFinder(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_distance(graph, source, target, distance):
+    def _get_edges(graph, properties=False):
+        """Get edges of the underlying graph."""
+        pass
+
+    @abstractmethod
+    def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
         pass
 
-    @staticmethod
     @abstractmethod
-    def get_neighbors(graph, node_id):
+    def get_neighbors(self, node_id):
         """Get neighors of the node."""
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def _get_edges(graph, properties=False):
-        """Get edges of the underlying graph."""
         pass
 
     @abstractmethod
@@ -79,7 +77,7 @@ class PathFinder(ABC):
     def top_neighbors(self, node, n, weight, smallest=False):
         """Get top n neighbours of the specified node by weight."""
         neigbours = {}
-        for neighbor in self.get_neighbors(self.graph, node):
+        for neighbor in self.get_neighbors(node):
             neigbours[neighbor] = self.get_distance(
                 node, neighbor, weight)
         return {

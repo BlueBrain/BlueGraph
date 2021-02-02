@@ -82,13 +82,12 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
         edge = self.graph.edge(source, target)
         return self.graph.ep[distance][edge]
 
-    @staticmethod
-    def get_neighbors(graph, node_id):
+    def get_neighbors(self, node_id):
         """Get neighors of the node."""
-        node_obj = _get_vertex_obj(graph, node_id)
+        node_obj = _get_vertex_obj(self.graph, node_id)
         neighors = node_obj.out_neighbors()
         return [
-            _get_node_id(graph, n) for n in neighors
+            _get_node_id(self.graph, n) for n in neighors
         ]
 
     def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):

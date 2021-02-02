@@ -190,13 +190,17 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             self.driver, self.node_label, self.edge_label)
         query = graph._get_edge_query(source, target)
         result = self.execute(query)
-        recs = [r for r in result]
         return [record["edge"][distance] for record in result][0]
 
-    @staticmethod
-    def get_neighbors(graph, node_id):
+    def get_neighbors(self, node_id):
         """Get neighors of the node."""
-        pass
+        query = (
+            f"MATCH (n:{self.node_label} {{id: '{node_id}'}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label})\n"
+            "RETURN m.id as neighor"
+        )
+        result = self.execute(query)
+        return [record["neighor"] for record in result]
 
     def get_subgraph(self, nodes_to_exclude, edges_to_exclude=None):
         """Get a node/edge induced subgraph."""

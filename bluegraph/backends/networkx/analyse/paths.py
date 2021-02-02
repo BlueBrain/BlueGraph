@@ -35,10 +35,9 @@ class NXPathFinder(NXGraphProcessor, PathFinder):
         """Get distance value between source and target."""
         return self.graph.edges[source, target][distance]
 
-    @staticmethod
-    def get_neighbors(graph, node_id):
+    def get_neighbors(self, node_id):
         """Get neighors of the node."""
-        return list(graph.neighbors(node_id))
+        return list(self.graph.neighbors(node_id))
 
     def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
