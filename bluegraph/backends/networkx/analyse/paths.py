@@ -28,6 +28,11 @@ class NXPathFinder(NXGraphProcessor, PathFinder):
     """NetworkX-based shortest paths finder."""
 
     @staticmethod
+    def _get_nodes(graph, properties=False):
+        """Get nodes of the input graph."""
+        return graph.nodes(data=properties)
+
+    @staticmethod
     def _get_edges(graph, properties=False):
         return graph.edges(data=properties)
 

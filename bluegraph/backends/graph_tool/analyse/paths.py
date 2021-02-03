@@ -51,6 +51,27 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
     """graph-tool-based shortest paths finder."""
 
     @staticmethod
+    def _get_nodes(graph, properties=False):
+        """Get nodes of the input graph."""
+        if not properties:
+            return [
+                graph.vp["@id"][v]
+                for v in graph.vertices()
+            ]
+        else:
+            props = graph.vp.keys()
+            return [
+                (
+                    graph.vp["@id"][v],
+                    {
+                        p: graph.vp[p][v]
+                        for p in props
+                    }
+                )
+                for v in graph.vertices()
+            ]
+
+    @staticmethod
     def _get_edges(graph, properties=False):
         if not properties:
             return [

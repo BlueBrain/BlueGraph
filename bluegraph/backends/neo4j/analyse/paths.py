@@ -108,13 +108,13 @@ class Neo4jGraphView(object):
                 if distance else ""
             )
             selector = (
-                f"  nodeProjection: '{self.node_label}',\n"
+                f"   nodeProjection: '{self.node_label}',\n"
                 "   relationshipProjection: {\n"
                 f"    Edge: {{\n"
                 f"      type: '{self.edge_label}',\n{distance_selector}"
                 f"      orientation: 'UNDIRECTED'\n"
                 "    }\n"
-                "  }\n"
+                "   }\n"
             )
         else:
             node_query = self._get_nodes_query(return_ids=True)
@@ -161,9 +161,34 @@ class Neo4jGraphView(object):
 class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
     """Neo4j-based shortest paths finder."""
 
+    def _get_identity_view(self):
+        return Neo4jGraphView(
+            self.driver, self.node_label, self.edge_label)
+
+    @staticmethod
+    def _get_nodes(graph, properties=False):
+        """Get nodes of the input graph."""
+        query = graph._get_nodes_query()
+        result = graph.execute(query)
+        nodes = []
+        for record in result:
+            n = record["node_id"]
+            if properties:
+                props = record["node"]
+                nodes.append((n, props))
+            else:
+                nodes.append(n)
+        return nodes
+
+    def get_nodes(self, properties=False):
+        """Get nodes of the underlying graph."""
+        graph = self._get_identity_view()
+        return self._get_nodes(
+            graph, properties=properties)
+
     @staticmethod
     def _get_edges(graph, properties=False):
-        """Get edges of the underlying graph."""
+        """Get edges of the input graph."""
         query = graph._get_edges_query(single_direction=True)
         result = graph.execute(query)
         edges = []
@@ -179,15 +204,13 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
 
     def get_edges(self, properties=False):
         """Get edges of the underlying graph."""
-        graph = Neo4jGraphView(
-            self.driver, self.node_label, self.edge_label)
+        graph = self._get_identity_view()
         return self._get_edges(
             graph, properties=properties)
 
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        graph = Neo4jGraphView(
-            self.driver, self.node_label, self.edge_label)
+        graph = self._get_identity_view()
         query = graph._get_edge_query(source, target)
         result = self.execute(query)
         return [record["edge"][distance] for record in result][0]
@@ -265,27 +288,6 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             tuple(record["nodes"])
             for record in result
         ]
-
-    def minimum_spanning_tree(self, distance, write=False, write_property=None):
-        """Compute the minimum spanning tree.
-
-        Parameters
-        ----------
-        distance : str
-            Distance to minimize when computing the minimum spanning tree (MST)
-        write : bool, optional
-            Flag indicating whether the MST should be returned as a new graph
-            object or saved within a Boolean edge property being True whenever
-            a given edge belongs to the MST.
-        write_property : str, optional
-            Edge property name for marking edges beloning to the MST.
-
-        Returns
-        -------
-        tree : graph object
-            The minimum spanning tree graph object (backend-dependent)
-        """
-        pass
 
     def top_neighbors(self, node, n, weight, smallest=False):
         """Get top n neighbours of the specified node by weight."""
@@ -412,3 +414,61 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             PathFinder.PathSearchException(
                 f"Unknown path search strategy '{strategy}'")
         return paths
+
+    def minimum_spanning_tree(self, distance,
+                              write=False, write_edge_label=None,
+                              start_node=None):
+        """Compute the minimum spanning tree.
+
+        Parameters
+        ----------
+        distance : str
+            Distance to minimize when computing the minimum spanning tree (MST)
+        write : bool, optional
+            Flag indicating whether the MST should be returned as a new graph
+            object or saved within a Boolean edge property being True whenever
+            a given edge belongs to the MST.
+        write_edge_label : str, optional
+            Edge label for creating edges beloning to the MST.
+
+        Returns
+        -------
+        tree : graph object
+            The minimum spanning tree graph object (backend-dependent)
+        """
+        if write is False:
+            raise PathFinder.PathSearchException(
+                "Minimum spanning tree computation with "
+                "the parameter `write=False` is currently is not "
+                "supported for Neo4j graphs")
+        else:
+            if write_edge_label is None:
+                raise PathFinder.PathSearchException(
+                    "The minimum spanning tree computation "
+                    "has the `write` option set to `True`, "
+                    "the write property name must be specified")
+
+        if start_node is not None:
+            head = f"MATCH (n:{self.node_label} {{id: '{start_node}'}})\n"
+        else:
+            head = (
+                f"MATCH (n:{self.node_label})\n"
+                "WITH n, rand() as r ORDER BY r LIMIT 1\n"
+            )
+
+        graph = self._get_identity_view()
+
+        query = (
+            head +
+            "CALL gds.alpha.spanningTree.minimum.write({\n" +
+            graph.get_projection_query(distance) + ","
+            "   startNodeId: id(n),\n"
+            f"   relationshipWeightProperty: '{distance}',\n"
+            f"   writeProperty: '{write_edge_label}',\n"
+            "   weightWriteProperty: 'writeCost'\n"
+            "})\n"
+            "YIELD createMillis, computeMillis, writeMillis\n"
+            "RETURN createMillis, computeMillis, writeMillis"
+
+        )
+        self.execute(query)

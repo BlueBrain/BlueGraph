@@ -1,6 +1,6 @@
 from bluegraph.backends.networkx import NXPathFinder
 from bluegraph.backends.graph_tool import GTPathFinder
-from bluegraph.backends.neo4j import Neo4jPathFinder
+from bluegraph.backends.neo4j import Neo4jPathFinder, Neo4jGraphView
 
 
 def assert_undirected_edges_equal(edges1, edges2):
@@ -199,7 +199,7 @@ def test_gt_paths(path_test_graph):
     finder.minimum_spanning_tree(
         "distance", write=True, write_property="MST")
 
-    edges = GTPathFinder._get_edges(finder.graph, properties=True)
+    edges = finder.get_edges(properties=True)
     for s, t, attrs in edges:
         if (s, t) in mst:
             assert(attrs["MST"] == 1)
@@ -216,17 +216,30 @@ def test_neo4j_paths(path_test_graph, neo4j_driver, neo4j_test_node_label,
         edge_label=neo4j_test_edge_label)
     benchmark_path_finder(finder)
 
-    # res = finder.minimum_spanning_tree("distance")
-    # mst = {
-    #     ('A', 'E'), ('A', 'B'), ('A', 'C'), ('E', 'D')
-    # }
-    # assert(set(GTPathFinder.get_edges(res)) == mst)
-    # finder.minimum_spanning_tree(
-    #     "distance", write=True, write_property="MST")
+    finder.minimum_spanning_tree(
+        "distance", write=True,
+        write_edge_label="MST_A", start_node="A")
 
-    # edges = GTPathFinder.get_edges(finder.graph, properties=True)
-    # for s, t, attrs in edges:
-    #     if (s, t) in mst:
-    #         assert(attrs["MST"] == 1)
-    #     else:
-    #         assert(attrs["MST"] == 0)
+    mst = {
+        ('A', 'E'), ('A', 'B'), ('A', 'C'), ('E', 'D')
+    }
+
+    graph = Neo4jGraphView(
+        finder.driver, neo4j_test_node_label, "MST_A")
+    assert_undirected_edges_equal(
+        mst,  Neo4jPathFinder._get_edges(graph))
+
+    finder.minimum_spanning_tree(
+        "distance", write=True,
+        write_edge_label="MST")
+    graph = Neo4jGraphView(
+        finder.driver, neo4j_test_node_label, "MST")
+    edges = Neo4jPathFinder._get_edges(graph)
+    assert(len(mst) == len(edges))
+
+    visited = set()
+    for s, t in edges:
+        visited.add(s)
+        visited.add(t)
+
+    assert(visited == set(finder.get_nodes()))

@@ -10,6 +10,12 @@ class PathFinder(ABC):
 
     @staticmethod
     @abstractmethod
+    def _get_nodes(graph, properties=False):
+        """Get nodes of the input graph."""
+        pass
+
+    @staticmethod
+    @abstractmethod
     def _get_edges(graph, properties=False):
         """Get edges of the underlying graph."""
         pass
@@ -69,6 +75,10 @@ class PathFinder(ABC):
             The minimum spanning tree graph object (backend-dependent)
         """
         pass
+
+    def get_nodes(self, properties=False):
+        """Get nodes of the underlying graph."""
+        return self._get_nodes(self.graph, properties=properties)
 
     def get_edges(self, properties=False):
         """Get edges of the underlying graph."""
