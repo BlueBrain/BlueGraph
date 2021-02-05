@@ -49,7 +49,9 @@ setup(
         "bluegraph.backends.stellargraph",
         "bluegraph.backends.stellargraph.embed",
         "bluegraph.downstream",
-        "bluegraph.preprocess"
+        "bluegraph.preprocess",
+        "cord19kg",
+        "cord19kg.apps"
     ],
     python_requires=">=3.6",
     install_requires=[

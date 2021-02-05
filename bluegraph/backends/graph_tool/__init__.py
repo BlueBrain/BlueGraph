@@ -6,3 +6,4 @@ from blugraph.graph_tool import GTPathFinder
 """
 from .analyse.metrics import GTMetricProcessor
 from .analyse.paths import GTPathFinder
+from .io import (pgframe_to_graph_tool, graph_tool_to_pgframe)

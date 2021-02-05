@@ -32,7 +32,7 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
-    def add_node_properties(self, prop_column):
+    def add_node_properties(self, prop_column, prop_type=None):
         pass
 
     @abstractmethod
@@ -185,7 +185,8 @@ class PGFrame(ABC):
             self._node_prop_types[prop] = prop_type
         else:
             raise ValueError(
-                f"Cannot cast the values of the node property '{prop}' to '{prop_type}'"
+                "Cannot cast the values of the node property "
+                f"'{prop}' to '{prop_type}'"
             )
 
     def _set_edge_prop_type(self, prop, prop_type):
@@ -193,7 +194,8 @@ class PGFrame(ABC):
             self._edge_prop_types[prop] = prop_type
         else:
             raise ValueError(
-                f"Cannot cast the values of the edge property '{prop}' to '{prop_type}'"
+                "Cannot cast the values of the edge property "
+                f" '{prop}' to '{prop_type}'"
             )
 
     def node_prop_as_category(self, prop):
@@ -458,6 +460,66 @@ class PGFrame(ABC):
     def from_frames(self, nodes, edges):
         pass
 
+    def export_to_gephi(self, prefix, node_attr_mapping,
+                        edge_attr_mapping, edge_filter=None):
+        """Save the graph for Gephi import.
+
+        Saves the graph as two `.csv` files one with nodes
+        (`<prefix>_nodes.csv`) and one with edges (
+        `<prefix>_edges.csv`). Node IDs are replaced by
+        interger identifiers (Gephi asks for node IDs to be numerical) and
+        entity names are added as the node property 'Label'.
+        """
+        ordered_edge_attrs = list(edge_attr_mapping.keys())
+        edge_header = "Source;Target;{}\n".format(
+            ";".join([
+                edge_attr_mapping[attr]
+                for attr in ordered_edge_attrs
+            ]))
+
+        def generate_edge_repr(edge_props):
+            return ";".join([
+                str(edge_props[attr])
+                for attr in ordered_edge_attrs])
+
+        edge_repr = "\n".join([
+            "{};{};{}".format(
+                self._nodes.index.get_loc(u) + 1,
+                self._nodes.index.get_loc(v) + 1,
+                generate_edge_repr(self.get_edge(u, v)))
+            for u, v in self.edges()
+            if edge_filter is None or edge_filter(
+                u, v, self.get_edge(u, v))
+        ])
+
+        with open("{}_edges.csv".format(prefix), "w+") as f:
+            f.write(edge_header + edge_repr)
+
+        ordered_node_attrs = list(node_attr_mapping.keys())
+        node_header = "Id;Label;{}\n".format(
+            ";".join([
+                node_attr_mapping[attr]
+                for attr in ordered_node_attrs
+            ]))
+
+        def generate_node_repr(node_props):
+            return ";".join([
+                str(node_props[attr])
+                for attr in ordered_node_attrs])
+
+        node_repr = "\n".join([
+            "{};{};{}".format(
+                self._nodes.index.get_loc(n) + 1,
+                n,
+                generate_node_repr(
+                    self.get_node(n))
+            )
+            for n in self.nodes()
+        ])
+
+        with open("{}_nodes.csv".format(prefix), "w+") as f:
+            f.write(node_header + node_repr)
+
 
 class PandasPGFrame(PGFrame):
     """Class for storing typed PGs as a collection of pandas DataFrames."""
@@ -685,6 +747,14 @@ class PandasPGFrame(PGFrame):
                 self._edges["@type"].apply(
                     lambda x: element_has_type(x, typed_by))]
         return df[prop]
+
+    def get_node(self, n):
+        """Get node properties."""
+        return self._nodes.loc[n].to_dict()
+
+    def get_edge(self, s, t):
+        """Get edge properties."""
+        return self._edges.loc[(s, t)].to_dict()
 
     def number_of_nodes(self):
         """Return a number of nodes."""

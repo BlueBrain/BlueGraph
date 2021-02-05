@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 
 from tensorflow.keras.models import load_model
 
-from bluegraph.core import NodeEmbedder, DEFAULT_PARAMS
+from bluegraph.core.embed.embedders import NodeEmbedder, DEFAULT_PARAMS
 
 from .ml_utils import (dispatch_node_generator,
                        dispatch_training_params,

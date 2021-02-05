@@ -5,6 +5,73 @@ from bluegraph.core.utils import top_n
 from bluegraph.exceptions import BlueGraphException
 
 
+def pretty_print_paths(paths, as_repr=False):
+    """Pretty print a set of same source/target paths."""
+    a = paths[0][0]
+    b = paths[0][-1]
+    a_repr = "{} <-> ".format(a)
+    b_repr = " <-> {}".format(b)
+    path_repr = [
+        " <-> ".join(p[1:-1])
+        for p in paths
+    ]
+    lines = ["{}{}{}".format(
+        a_repr, " " * max(len(p) for p in path_repr), b_repr)]
+    lines += ["{}{}".format(" " * len(a_repr), p) for p in path_repr]
+    if as_repr:
+        return "\n".join(lines)
+    for line in lines:
+        print(line)
+
+
+def pretty_print_tripaths(a, b, c, n, a_b_paths, b_c_paths):
+    a_b_paths_repr = [
+        " -> ".join(p[1:-1]) for p in a_b_paths
+    ]
+
+    b_c_paths_repr = [
+        " -> ".join(p[1:-1]) for p in b_c_paths
+    ]
+
+    max_left = max([len(el) for el in a_b_paths_repr])
+    max_right = max([len(el) for el in b_c_paths_repr])
+
+    a_repr = "{} ->".format(a)
+    b_repr = "-> {} ->".format(b)
+    c_repr = "-> {}".format(c)
+    print("{}{}{}{}{}".format(
+        a_repr,
+        " " * max_left,
+        b_repr,
+        " " * max_right,
+        c_repr))
+    for i in range(n):
+        if i >= len(a_b_paths) and i >= len(b_c_paths):
+            break
+        left = a_b_paths_repr[i] if i < len(a_b_paths) else (" " * max_left)
+        right = b_c_paths_repr[i] if i < len(b_c_paths) else (" " * max_right)
+        print(
+            " " * len(a_repr), left,
+            " " * (max_left - len(left) + len(b_repr)),
+            right)
+
+
+def graph_elements_from_paths(paths):
+    """Create a graph from a set of paths.
+    Resulting graph contains nodes and edges from the input
+    set  of paths. If the source graph is provided, the attributes
+    of the selected nodes and edges are copied from the source graph.
+    """
+    nodes = set()
+    edges = set()
+    for p in paths:
+        nodes.add(p[0])
+        for i in range(1, len(p)):
+            nodes.add(p[i])
+            edges.add((p[i - 1], p[i]))
+    return nodes, edges
+
+
 class PathFinder(ABC):
     """Abstract class for a path finder."""
 
@@ -72,7 +139,7 @@ class PathFinder(ABC):
         Returns
         -------
         tree : graph object
-            The minimum spanning tree graph object (backend-dependent)
+            The minimum spanning tree graph object
         """
         pass
 
@@ -86,13 +153,13 @@ class PathFinder(ABC):
 
     def top_neighbors(self, node, n, weight, smallest=False):
         """Get top n neighbours of the specified node by weight."""
-        neigbours = {}
+        neighbors = {}
         for neighbor in self.get_neighbors(node):
-            neigbours[neighbor] = self.get_distance(
+            neighbors[neighbor] = self.get_distance(
                 node, neighbor, weight)
         return {
-            el: neigbours[el]
-            for el in top_n(neigbours, n, smallest=smallest)
+            el: neighbors[el]
+            for el in top_n(neighbors, n, smallest=smallest)
         }
 
     def _get_cumulative_distances(self, paths, distance):
@@ -305,7 +372,7 @@ class PathFinder(ABC):
                         all_paths.update(paths)
                         new_paths += paths
             current_paths = new_paths
-        return all_paths
+        return list(all_paths)
 
     def shortest_tripath(self, source, intermediary, target,
                          distance=None, exclude_edge=False, overlap=True):

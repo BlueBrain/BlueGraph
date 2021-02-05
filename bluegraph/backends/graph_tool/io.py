@@ -67,6 +67,31 @@ def graph_tool_to_pgframe(graph):
                     result_type = "numeric"
                 pgframe.add_node_properties(prop)
                 pgframe._set_node_prop_type(k, result_type)
+
+    edges = [
+        (graph.vp["@id"][e.source()], graph.vp["@id"][e.target()])
+        for e in graph.edges()]
+    pgframe.add_edges(edges)
+
+    for k, v in graph.ep.items():
+        prop = pd.DataFrame(
+            [
+                [edges[i][0], edges[i][1], el]
+                for i, el in enumerate(list(v))
+            ],
+            columns=["@source_id", "@target_id", k]
+        )
+        prop.set_index(["@source_id", "@target_id"])
+        if k == "@type":
+            pgframe.assign_edge_types(prop)
+        else:
+            prop_type = v.value_type()
+            result_type = "category"
+            if prop_type in NUMERIC_TYPES:
+                result_type = "numeric"
+            pgframe.add_edge_properties(prop)
+            pgframe._set_edge_prop_type(k, result_type)
+
     return pgframe
 
 
