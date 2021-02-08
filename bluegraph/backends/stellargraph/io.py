@@ -3,6 +3,8 @@ import pandas as pd
 
 import stellargraph as sg
 
+from bluegraph.core.io import GraphProcessor
+
 
 def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
                             feature_prop=None):
@@ -49,3 +51,4 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
 
 def stellargraph_to_pgframe(sg_object):
     pass
+

@@ -90,3 +90,48 @@ def path_test_graph():
     frame.edge_prop_as_numeric("distance")
     return frame
 
+
+@pytest.fixture(scope="session")
+def node_embedding_test_graph():
+    nodes = [
+        "Alice", "Bob", "Eric", "John", "Anna", "Laura", "Matt"
+    ]
+    age = [25, 9, 70, 42, 26, 35, 36]
+    height = [180, 122, 173, 194, 172, 156, 177]
+    weight = [75, 43, 68, 82, 70, 59, 81]
+    sources = [
+        "Alice", "Alice", "Bob", "Bob", "Bob", "Eric", "Anna", "Anna", "Matt"
+    ]
+    targets = [
+        "Bob", "Eric", "Eric", "John", "Anna", "Anna", "Laura", "John", "John"
+    ]
+    weights = [1.0, 2.2, 0.3, 4.1, 1.5, 21.0, 1.0, 2.5, 7.5]
+    edges = list(zip(sources, targets))
+    frame = PandasPGFrame(nodes=nodes, edges=edges)
+
+    # Add properties
+
+    a = pd.DataFrame()
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "age": age
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "height": height
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "weight": weight
+        }, prop_type="numeric")
+
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "distance": weights
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+    return frame

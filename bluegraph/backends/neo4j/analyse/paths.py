@@ -1,161 +1,6 @@
 from bluegraph.core.analyse.paths import PathFinder
 
-from ..io import Neo4jGraphProcessor
-
-
-class Neo4jGraphView(object):
-
-    def __init__(self, driver, node_label,
-                 edge_label, nodes_to_exclude=None,
-                 edges_to_exclude=None):
-        self.driver = driver
-        self.node_label = node_label
-        self.edge_label = edge_label
-        self.nodes_to_exclude = nodes_to_exclude if nodes_to_exclude else []
-        self.edges_to_exclude = edges_to_exclude if edges_to_exclude else []
-
-    def execute(self, query):
-        session = self.driver.session()
-        response = session.run(query)
-        result = response.data()
-        session.close()
-        return result
-
-    def _get_nodes_query(self, return_ids=False):
-        nodes_exclude_statement = ""
-        if len(self.nodes_to_exclude) > 0:
-            nodes_repr = ", ".join([
-                f"\"{node}\"" for node in self.nodes_to_exclude
-            ])
-            nodes_exclude_statement =\
-                f"NOT n.id IN [{nodes_repr}]"
-
-        if len(nodes_exclude_statement) > 0:
-            nodes_exclude_statement =\
-                "WHERE " + nodes_exclude_statement
-
-        if return_ids:
-            return_statement = "RETURN id(n) as id"
-        else:
-            return_statement = "RETURN n.id as node_id, properties(n) as node"
-
-        node_query = (
-            f"MATCH (n:{self.node_label}) {nodes_exclude_statement} " +
-            return_statement
-        )
-        return node_query
-
-    def _get_edge_query(self, source, target):
-        return (
-            f"MATCH (start:{self.node_label} {{id: '{source}'}})-"
-            f"[r:{self.edge_label}]-"
-            f"(end:{self.node_label} {{id: '{target}'}})\n"
-            "RETURN properties(r) as edge"
-        )
-
-    def _get_edges_query(self, distance=None, return_ids=False,
-                         single_direction=False):
-        edges_exclude_statement = ""
-        edges_exceptions = []
-
-        if len(self.nodes_to_exclude) > 0:
-            nodes_repr = ", ".join([
-                f"\"{node}\"" for node in self.nodes_to_exclude
-            ])
-            edges_exceptions.append(
-                f"NOT n.id IN [{nodes_repr}] " +
-                f"AND NOT m.id IN [{nodes_repr}]"
-            )
-
-        if len(self.edges_to_exclude) > 0:
-            edges_exceptions += [
-                f"NOT (n.id=\"{source}\" AND m.id=\"{target}\") "
-                for (source, target) in self.edges_to_exclude
-            ]
-
-        if len(edges_exceptions) > 0:
-            edges_exclude_statement =\
-                "WHERE " + " AND ".join(edges_exceptions)
-
-        # generate node/edge queries
-        distance_selector = (
-            f", r.{distance} as distance"
-            if distance else ""
-        )
-
-        if return_ids:
-            return_statement =\
-                f"RETURN id(n) AS source, id(m) AS target {distance_selector}"
-        else:
-            return_statement = (
-                "RETURN n.id as source_id, m.id as target_id, "
-                "properties(r) as edge"
-            )
-
-        arrow = ">" if single_direction else ""
-        edge_query = (
-            f"MATCH (n:{self.node_label})-[r:{self.edge_label}]-{arrow}"
-            f"(m:{self.node_label}) "
-            f"{edges_exclude_statement} {return_statement}"
-        )
-        return edge_query
-
-    def get_projection_query(self, distance=None):
-        if len(self.nodes_to_exclude) == 0 and len(self.edges_to_exclude) == 0:
-            # generate node/edge projection
-            distance_selector = (
-                f"       properties: '{distance}',\n"
-                if distance else ""
-            )
-            selector = (
-                f"   nodeProjection: '{self.node_label}',\n"
-                "   relationshipProjection: {\n"
-                f"    Edge: {{\n"
-                f"      type: '{self.edge_label}',\n{distance_selector}"
-                f"      orientation: 'UNDIRECTED'\n"
-                "    }\n"
-                "   }\n"
-            )
-        else:
-            node_query = self._get_nodes_query(return_ids=True)
-            edge_query = self._get_edges_query(distance, return_ids=True)
-            selector = (
-                f"  nodeQuery: '{node_query}',\n"
-                f"  relationshipQuery: '{edge_query}'"
-            )
-        return selector
-
-    def _generate_st_match_query(self, source, target):
-        return (
-            f"MATCH (start:{self.node_label} {{id: '{source}'}}), "
-            f"(end:{self.node_label} {{id: '{target}'}})\n"
-        )
-
-    def _generate_path_search_call(self, source, target, procedure,
-                                   distance=None, exclude_edge=False,
-                                   extra_params=None):
-        if extra_params is None:
-            extra_params = {}
-
-        node_edge_selector = self.get_projection_query(
-            distance)
-
-        distance_setter = (
-            f"  relationshipWeightProperty: '{distance}',\n"
-            if distance else ""
-        )
-
-        extra_params = ("," if len(extra_params) > 0 else "") + "\n".join(
-            f"{k}: {v}" for k, v in extra_params.items())
-
-        query = (
-            f"CALL {procedure}({{\n"
-            f"{node_edge_selector},\n{distance_setter}"
-            f"    startNode: start,\n"
-            f"    endNode: end{extra_params}\n"
-            "})\n"
-        )
-        return query
+from ..io import Neo4jGraphProcessor, Neo4jGraphView
 
 
 class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
@@ -233,6 +78,33 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             edges_to_exclude=edges_to_exclude)
 
     @staticmethod
+    def _generate_path_search_call(graph, source, target, procedure,
+                                   distance=None, exclude_edge=False,
+                                   extra_params=None):
+        if extra_params is None:
+            extra_params = {}
+
+        node_edge_selector = graph.get_projection_query(
+            distance)
+
+        distance_setter = (
+            f"  relationshipWeightProperty: '{distance}',\n"
+            if distance else ""
+        )
+
+        extra_params = ("," if len(extra_params) > 0 else "") + "\n".join(
+            f"{k}: {v}" for k, v in extra_params.items())
+
+        query = (
+            f"CALL {procedure}({{\n"
+            f"{node_edge_selector},\n{distance_setter}"
+            f"    startNode: start,\n"
+            f"    endNode: end{extra_params}\n"
+            "})\n"
+        )
+        return query
+
+    @staticmethod
     def _compute_shortest_path(graph, source, target, distance=None,
                                exclude_edge=False):
         """Backend-dependent method for computing the shortest path."""
@@ -241,8 +113,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
 
         query = (
             graph._generate_st_match_query(source, target) +
-            graph._generate_path_search_call(
-                source, target,
+            Neo4jPathFinder._generate_path_search_call(
+                graph, source, target,
                 "gds.alpha.shortestPath.stream",
                 distance, exclude_edge) +
             "YIELD nodeId\n"

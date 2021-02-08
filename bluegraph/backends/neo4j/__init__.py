@@ -6,3 +6,4 @@ from blugraph.neo4j import Neo4jPathFinder
 """
 from .analyse.metrics import Neo4jMetricProcessor
 from .analyse.paths import Neo4jPathFinder, Neo4jGraphView
+from .embed.embedders import Neo4jNodeEmbedder

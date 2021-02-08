@@ -1,16 +1,6 @@
-
-
 class BlueGraphException(Exception):
     pass
 
 
-class PGFrameException(BlueGraphException):
-    pass
-
-
-class MetricProcessingException(BlueGraphException):
-    pass
-
-
-class MetricProcessingWarning(UserWarning):
+class BlueGraphWarning(UserWarning):
     pass

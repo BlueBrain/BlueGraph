@@ -1,8 +1,6 @@
 import warnings
 
 from bluegraph.core.analyse.metrics import MetricProcessor
-from bluegraph.exceptions import (MetricProcessingException,
-                                  MetricProcessingWarning)
 
 from ..io import Neo4jGraphProcessor
 
@@ -37,7 +35,7 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
         )
         if write:
             if write_property is None:
-                raise MetricProcessingException(
+                raise MetricProcessor.MetricProcessingException(
                     f"{metric_name.capitalize()} processing has the write "
                     "option set to True, "
                     "the write property name must be specified")
@@ -102,7 +100,7 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
             warnings.warn(
                 "Weighted betweenness centrality for Neo4j graphs "
                 "is not implemented: computing the unweighted version",
-                MetricProcessingWarning)
+                MetricProcessor.MetricProcessingWarning)
         result = self._run_gdc_query(
             "gds.betweenness", "betweenness", weight=None,
             write=write, write_property=write_property)
@@ -115,7 +113,7 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
             warnings.warn(
                 "Weighted closeness centrality for Neo4j graphs "
                 "is not implemented: computing the unweighted version",
-                MetricProcessingWarning)
+                MetricProcessor.MetricProcessingWarning)
         result = self._run_gdc_query(
             "gds.alpha.closeness", "closeness", weight=None,
             write=write, write_property=write_property,

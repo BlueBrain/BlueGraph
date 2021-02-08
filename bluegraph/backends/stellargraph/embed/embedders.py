@@ -1,185 +1,242 @@
-import os
-import pickle
-import re
-import shutil
-
-import numpy as np
 import pandas as pd
-import stellargraph as sg
-from scipy.spatial import cKDTree
+import warnings
 
+from tensorflow.keras import optimizers, losses, metrics, regularizers, Model
 from tensorflow.keras.models import load_model
 
-from bluegraph.core.embed.embedders import NodeEmbedder, DEFAULT_PARAMS
+from stellargraph.data import UnsupervisedSampler
+from stellargraph.mapper import (KGTripleGenerator,
+                                 Attri2VecLinkGenerator,
+                                 Attri2VecNodeGenerator,
+                                 GraphSAGELinkGenerator,
+                                 GraphSAGENodeGenerator)
+from stellargraph.layer import (ComplEx,
+                                DistMult,
+                                Attri2Vec,
+                                GraphSAGE,
+                                link_classification)
 
-from .ml_utils import (dispatch_node_generator,
-                       dispatch_training_params,
-                       fit_embedder,
-                       fit_attri_embedder)
+from bluegraph.core.embed.embedders import (ElementEmbedder,
+                                            DEFAULT_EMBEDDING_DIMENSION)
+
+from ..io import pgframe_to_stellargraph
 
 
-class StellarGraphNodeEmbedder(NodeEmbedder):
+DEFAULT_STELLARGRAPH_PARAMS = {
+    "embedding_dimension": DEFAULT_EMBEDDING_DIMENSION,
+    "batch_size": 20,
+    "negative_samples": 10,
+    "epochs": 5,
+    "length": 5,
+    "number_of_walks": 4,
+    "num_samples": [10, 5],
+}
+
+
+STELLARGRAPH_PARAMS = {
+    "transductive": [
+        "embedding_dimension",
+        "batch_size",
+        "negative_samples",
+        "epochs"
+    ],
+    "inductive": [
+        "embedding_dimension",
+        "length",
+        "number_of_walks",
+        "batch_size",
+        "epochs",
+        "num_samples"
+    ]
+}
+
+
+def _dispatch_node_generator(graph, model_name, batch_size, num_samples):
+    """Dispatch generator of nodes for the provided model name."""
+    if model_name == "attri2vec":
+        node_generator = Attri2VecNodeGenerator(
+            graph, batch_size).flow(graph.nodes())
+    elif model_name == "GraphSAGE":
+        node_generator = GraphSAGENodeGenerator(
+            graph, batch_size, num_samples).flow(graph.nodes())
+    else:
+        raise ValueError("")
+
+    return node_generator
+
+
+class StellarGraphNodeEmbedder(ElementEmbedder):
     """Embedder for StellarGraph library."""
 
-    def __init__(self, model_name, default_params=None):
-        """Initialize StellarGraphEmbedder."""
-        self.model_name = model_name
-
-        # Default training parameters
-        if default_params is None:
-            default_params = DEFAULT_PARAMS
-        self.default_params = default_params
-
-        self._graph = None
-        self._embedding_model = None
-        self.embeddings = None
+    _transductive_models = ["complex", "distmult"]
+    _inductive_models = ["attri2vec", "graphsage"]
 
     @staticmethod
-    def _generate_graph(pgframe, directed=True, include_type=True,
-                        feature_prop=None):
-        """Convert the PGFrame to a StellarGraph object."""
-        feature_array = None
-        if include_type:
-            nodes = {}
-            for t in pgframe.node_types():
-                index = pgframe.nodes(typed_by=t)
-                if feature_prop:
-                    feature_array = np.array(
-                        pgframe.get_node_property_values(
-                            feature_prop,
-                            typed_by=t).to_list())
-                nodes[t] = sg.IndexedArray(feature_array, index=index)
-        else:
-            if feature_prop:
-                feature_array = np.array(
-                    pgframe.get_node_property_values(
-                        feature_prop).to_list())
-            nodes = sg.IndexedArray(feature_array, index=pgframe.nodes())
+    def _generate_graph(pgframe, graph_configs):
+        """Generate backend-specific graph object."""
+        return pgframe_to_stellargraph(
+            pgframe,
+            directed=graph_configs["directed"],
+            include_type=graph_configs["include_type"],
+            feature_prop=graph_configs["feature_vector_prop"])
 
-        if pgframe.number_of_edges() > 0:
-            edges = pgframe.edges(
-                raw_frame=True,
-                include_index=True,
-                filter_props=lambda x: (x == "@type") if include_type else False,
-                rename_cols={'@source_id': 'source', "@target_id": "target"})
-        else:
-            edges = pd.DataFrame(columns=["source", "target"])
+    @staticmethod
+    def _dispatch_training_params(model_name, defaults, **kwargs):
+        """Dispatch training parameters."""
+        model_type = (
+            "transductive"
+            if model_name in StellarGraphNodeEmbedder._transductive_models
+            else "inductive"
+        )
 
-        if directed:
-            graph = sg.StellarDiGraph(
-                nodes=nodes,
-                edges=edges,
-                edge_type_column="@type" if include_type else None)
-        else:
-            graph = sg.StellarGraph(
-                nodes=nodes,
-                edges=edges,
-                edge_type_column="@type" if include_type else None)
-        return graph
+        params = {}
+        for k, v in kwargs.items():
+            if k not in STELLARGRAPH_PARAMS[model_type]:
+                warnings.warn(
+                    f"StellarGraphNodeEmbedder's model '{model_name}' "
+                    f"does not support the training parameter '{k}', "
+                    "the parameter will be ignored",
+                    ElementEmbedder.FittingWarning)
+            else:
+                params[k] = v
 
-    def fit_model(self, **kwargs):
-        """Fit the model."""
-        params = dispatch_training_params(self.default_params, **kwargs)
+        for k, v in DEFAULT_STELLARGRAPH_PARAMS.items():
+            if k not in params:
+                params[k] = v
 
-        if self._graph is None:
-            raise ValueError(
-                "Graph is not specified, use 'set_graph' before"
-                " fitting the model"
+        return params
+
+    @staticmethod
+    def _fit_transductive_embedder(train_graph, params, model_name):
+        """Fit transductive embedder (no model, just embeddings)."""
+        generator = KGTripleGenerator(train_graph, params["batch_size"])
+
+        # Create an embedding layer
+        if model_name == "DistMult":
+            embedding_layer = DistMult(
+                generator,
+                embedding_dimension=params["embedding_dimension"],
+                embeddings_regularizer=regularizers.l2(1e-7),
+            )
+        elif model_name == "ComplEx":
+            embedding_layer = ComplEx(
+                generator,
+                embedding_dimension=params["embedding_dimension"],
+                embeddings_regularizer=regularizers.l2(1e-7),
             )
 
-        kg_algos = ["ComplEx", "DistMult"]
-        attri_algos = ["attri2vec", "GraphSAGE"]
+        x_inp, x_out = embedding_layer.in_out_tensors()
 
-        if self.model_name in kg_algos:
-            embeddings = fit_embedder(
-                self._graph, params, self.model_name)
-            self.embeddings = pd.DataFrame(
-                {"embedding": embeddings.tolist()}, index=self._graph.nodes())
-        elif self.model_name in attri_algos:
-            self._embedding_model = fit_attri_embedder(
-                self._graph, params, self.model_name)
-            self.embeddings = self.predict_embeddings(self._graph)
-        else:
-            raise ValueError(
-                "Unknown embedding model '{}'.".format(self.model_name))
+        # Create an embedding model
+        model = Model(inputs=x_inp, outputs=x_out)
+        model.compile(
+            optimizer=optimizers.Adam(lr=0.001),
+            loss=losses.BinaryCrossentropy(from_logits=True),
+            metrics=[metrics.BinaryAccuracy(threshold=0.0)],
+        )
 
-    def predict_embeddings(self, graph, batch_size=None, num_samples=None):
-        """Predict embedding for out-of-sample elements."""
-        if self._embedding_model is None:
-            raise ValueError(
-                "Embedder does not have a predictive model")
-        if batch_size is None:
-            batch_size = self.default_params["batch_size"]
-        if num_samples is None:
-            num_samples = self.default_params["num_samples"]
-        node_generator = dispatch_node_generator(
+        # Train the embedding model
+        train_generator = generator.flow(
+            pd.DataFrame(
+                train_graph.edges(
+                    include_edge_type=True),
+                columns=["source", "target", "label"]),
+            negative_samples=params["negative_samples"],
+            shuffle=True
+        )
+
+        model.fit(
+            train_generator, epochs=params["epochs"])
+
+        embeddings = embedding_layer.embeddings()[0]
+
+        return pd.DataFrame(
+            {"embedding": embeddings.tolist()},
+            index=train_graph.nodes())
+
+    @staticmethod
+    def _fit_inductive_embedder(train_graph, params, model_name):
+        """Fit inductive embedder (predictive model and embeddings)."""
+        unsupervised_samples = UnsupervisedSampler(
+            train_graph,
+            nodes=train_graph.nodes(),
+            length=params["length"],
+            number_of_walks=params["number_of_walks"]
+        )
+
+        # Create a generator of data for embedding and the embedding layer
+        if model_name == "attri2vec":
+            generator = Attri2VecLinkGenerator(
+                train_graph, params["batch_size"])
+
+            layer_sizes = [params["embedding_dimension"]]
+
+            embedding_layer = Attri2Vec(
+                layer_sizes=layer_sizes,
+                generator=generator,
+                bias=False, normalize=None
+            )
+        elif model_name == "GraphSAGE":
+            generator = GraphSAGELinkGenerator(
+                train_graph,
+                params["batch_size"],
+                params["num_samples"])
+
+            layer_sizes = [
+                params["embedding_dimension"],
+                params["embedding_dimension"]
+            ]
+
+            embedding_layer = GraphSAGE(
+                layer_sizes=layer_sizes,
+                generator=generator,
+                bias=True,
+                dropout=0.0,
+                normalize="l2"
+            )
+
+        x_inp, x_out = embedding_layer.in_out_tensors()
+
+        prediction = link_classification(
+            output_dim=1, output_act="sigmoid", edge_embedding_method="ip"
+        )(x_out)
+
+        model = Model(inputs=x_inp, outputs=prediction)
+
+        model.compile(
+            optimizer=optimizers.Adam(lr=1e-3),
+            loss=losses.binary_crossentropy,
+            metrics=[metrics.binary_accuracy],
+        )
+
+        train_generator = generator.flow(unsupervised_samples)
+
+        model.fit(
+            train_generator,
+            epochs=params["epochs"],
+            shuffle=True)
+
+        if model_name == "attri2vec":
+            x_inp_src = x_inp[0]
+        elif model_name == "GraphSAGE":
+            x_inp_src = x_inp[0::2]
+
+        x_out_src = x_out[0]
+
+        embedding_model = Model(inputs=x_inp_src, outputs=x_out_src)
+        return embedding_model
+
+    def _predict_embeddings(self, graph, batch_size=None, num_samples=None):
+        node_generator = _dispatch_node_generator(
             graph, self.model_name, batch_size, num_samples)
         node_embeddings = self._embedding_model.predict(node_generator)
         return pd.DataFrame(
             {"embedding": node_embeddings.tolist()}, index=graph.nodes())
 
-    def save(self, path, compress=True, save_graph=False):
-        """Save the embedder."""
-        # backup the graph and the model
-        graph_backup = self._graph
-        model_backup = self._embedding_model
-
-        # remove them for pickling
-        if save_graph is False:
-            self._graph = None
-        self._embedding_model = None
-
-        # create a dir
-        if not os.path.isdir(path):
-            os.mkdir(path)
-
-        # pickle picklable part of the embedder
-        with open(os.path.join(path, "emb.pkl"), "wb") as f:
-            pickle.dump(self, f)
-
-        # save the predictive model (using tensorflow)
-        if model_backup is not None:
-            model_backup.save(os.path.join(path, "model"))
-
-        self._graph = graph_backup
-        self._embedding_model = model_backup
-
-        if compress:
-            shutil.make_archive(path, 'zip', path)
-            shutil.rmtree(path)
+    @staticmethod
+    def _save_predictive_model(model, path):
+        model.save(path)
 
     @staticmethod
-    def load(path):
-        """Load a dumped embedder."""
-        decompressed = False
-        if re.match("(.+)\.zip", path):
-            # decompress
-            shutil.unpack_archive(
-                path,
-                extract_dir=re.match("(.+)\.zip", path).groups()[0])
-            path = re.match("(.+)\.zip", path).groups()[0]
-            decompressed = True
-
-        with open(os.path.join(path, "emb.pkl"), "rb") as f:
-            embedder = pickle.load(f)
-        embedder._embedding_model = load_model(
-            os.path.join(path, "model"),
-            compile=False)
-
-        if decompressed:
-            shutil.rmtree(path)
-
-        return embedder
-
-    def get_similar_nodes(self, node_id, number=10, node_subset=None):
-        """Get N most similar entities."""
-        embeddings = self.embeddings
-        if node_subset is not None:
-            # filter embeddings
-            embeddings = self.embeddings.loc[node_subset]
-        if embeddings.shape[0] < number:
-            number = embeddings.shape[0]
-        search_vec = self.embeddings.loc[node_id]["embedding"]
-        matrix = np.matrix(embeddings["embedding"].to_list())
-        closest_indices = cKDTree(matrix).query(search_vec, k=number)[1]
-        return embeddings.index[closest_indices].to_list()
+    def _load_predictive_model(path):
+        return load_model(path, compile=False)

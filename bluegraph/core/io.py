@@ -10,7 +10,7 @@ from pandas.api.types import is_numeric_dtype, is_string_dtype
 from bluegraph.core.utils import (_aggregate_values,
                                   element_has_type,
                                   str_to_set)
-from bluegraph.exceptions import PGFrameException, BlueGraphException
+from bluegraph.exceptions import BlueGraphException
 
 
 class PGFrame(ABC):
@@ -520,6 +520,9 @@ class PGFrame(ABC):
         with open("{}_nodes.csv".format(prefix), "w+") as f:
             f.write(node_header + node_repr)
 
+    class PGFrameException(BlueGraphException):
+        pass
+
 
 class PandasPGFrame(PGFrame):
     """Class for storing typed PGs as a collection of pandas DataFrames."""
@@ -588,7 +591,7 @@ class PandasPGFrame(PGFrame):
             prop_type = "category"
 
         if prop_type not in ["text", "numeric", "category"]:
-            raise PGFrameException(
+            raise PGFrame.PGFrameException(
                 f"Invalid property data type '{prop_type}', "
                 "allowed types 'text', 'numeric', 'category'")
         self._set_node_prop_type(prop_name, prop_type)
@@ -624,7 +627,7 @@ class PandasPGFrame(PGFrame):
             prop_type = "category"
 
         if prop_type not in ["text", "numeric", "category"]:
-            raise PGFrameException(
+            raise PGFrame.PGFrameException(
                 f"Invalid property data type '{prop_type}', "
                 "allowed types 'text', 'numeric', 'category'")
         self._set_edge_prop_type(prop_name, prop_type)

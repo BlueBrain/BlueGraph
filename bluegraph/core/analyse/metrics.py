@@ -1,16 +1,11 @@
 from abc import (ABC, abstractmethod)
 
 
-from bluegraph.exceptions import MetricProcessingException
+from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
 class MetricProcessor(ABC):
     """Abstract class for various graph metrics processor."""
-
-    def __init__(self, pgframe=None):
-        self.graph = None
-        if pgframe is not None:
-            self.graph = self._generate_graph(pgframe)
 
     @classmethod
     def from_graph_object(cls, graph_object):
@@ -60,7 +55,7 @@ class MetricProcessor(ABC):
                                     write_property=None):
         if write:
             if write_property is None:
-                raise MetricProcessingException(
+                raise MetricProcessor.MetricProcessingException(
                     "{} processing has the write option set to True, "
                     "the write property name must be specified".format(
                         metric_name.capitalize()))
@@ -104,3 +99,9 @@ class MetricProcessor(ABC):
             results["closeness"][weight] = self.closeness_centrality(
                 weight)
         return results
+
+    class MetricProcessingException(BlueGraphException):
+        pass
+
+    class MetricProcessingWarning(BlueGraphWarning):
+        pass
