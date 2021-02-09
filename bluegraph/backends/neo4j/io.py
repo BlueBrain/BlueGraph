@@ -88,20 +88,15 @@ def neo4j_to_pgframe(driver, node_label, edge_label):
     pass
 
 
-class Neo4jGraphProcessor(GraphProcessor):
+def generate_neo4j_driver(uri=None, username=None,
+                          password=None, driver=None):
+    if driver is None:
+        driver = GraphDatabase.driver(
+            uri, auth=(username, password))
+    return driver
 
-    @staticmethod
-    def generate_driver(pgframe=None, uri=None, username=None,
-                        password=None, driver=None, node_label=None,
-                        edge_label=None):
-        if driver is None:
-            driver = GraphDatabase.driver(
-                uri, auth=(username, password))
-        if pgframe is not None:
-            Neo4jGraphProcessor._generate_graph(
-                pgframe, driver=driver,
-                node_label=node_label, edge_label=edge_label)
-        return driver
+
+class Neo4jGraphProcessor(GraphProcessor):
 
     def __init__(self, pgframe=None, uri=None, username=None, password=None,
                  driver=None, node_label=None, edge_label=None):
@@ -113,10 +108,16 @@ class Neo4jGraphProcessor(GraphProcessor):
             raise Neo4jGraphProcessor.ProcessorException(
                 "Cannot initialize a Neo4jMetricProcessor: "
                 "edge label must be specified")
-        self.driver = self.generate_driver(
-            pgframe=pgframe, uri=uri, username=username,
-            password=password, driver=driver, node_label=node_label,
-            edge_label=edge_label)
+
+        self.driver = generate_neo4j_driver(
+            uri=uri, username=username,
+            password=password, driver=driver)
+
+        if pgframe is not None:
+            Neo4jGraphProcessor._generate_graph(
+                pgframe, driver=driver,
+                node_label=node_label, edge_label=edge_label)
+
         self.node_label = node_label
         self.edge_label = edge_label
 
@@ -253,7 +254,6 @@ class Neo4jGraphView(object):
                 f"       properties: '{distance}',\n"
                 if distance else ""
             )
-            node_prop_repr = ""
             if len(node_properties) > 0:
                 prop_list = ", ".join([
                     f"'{prop}'" for prop in node_properties])
@@ -291,4 +291,3 @@ class Neo4jGraphView(object):
             f"MATCH (start:{self.node_label} {{id: '{source}'}}), "
             f"(end:{self.node_label} {{id: '{target}'}})\n"
         )
-

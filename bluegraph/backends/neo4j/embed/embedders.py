@@ -6,7 +6,7 @@ import pandas as pd
 from bluegraph.core.embed.embedders import (ElementEmbedder,
                                             DEFAULT_EMBEDDING_DIMENSION)
 
-from ..io import Neo4jGraphProcessor, Neo4jGraphView
+from ..io import Neo4jGraphView, pgframe_to_neo4j
 
 
 NEO4J_NODE_EMBEDDING_CALLS = {
@@ -75,11 +75,9 @@ class Neo4jNodeEmbedder(ElementEmbedder):
                         password=None, driver=None,
                         node_label=None, edge_label=None):
         """Generate backend-specific graph object."""
-        driver = Neo4jGraphProcessor.generate_driver(
-            pgframe=pgframe, uri=uri, username=username,
-            password=password, driver=driver,
-            node_label=node_label, edge_label=edge_label)
-
+        driver = pgframe_to_neo4j(
+            pgframe=pgframe, uri=uri, username=username, password=password,
+            driver=driver, node_label=node_label, edge_label=edge_label)
         return Neo4jGraphView(driver, node_label, edge_label)
 
     @staticmethod
@@ -226,7 +224,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
     def fit_model(self, pgframe=None, uri=None, username=None, password=None,
                   driver=None, node_label=None, edge_label=None,
-                  edge_weight=None, write=False,
+                  graph_view=None, edge_weight=None, write=False,
                   write_property=False, **kwargs):
         """Train specified model on the provided graph."""
         if edge_weight is not None and self.model_name == "node2vec":
@@ -243,10 +241,13 @@ class Neo4jNodeEmbedder(ElementEmbedder):
                     "the write property name for saving embedding vectors "
                     "must be specified")
 
-        train_graph = self._generate_graph(
-            pgframe=pgframe, uri=uri, username=username,
-            password=password, driver=driver,
-            node_label=node_label, edge_label=edge_label)
+        if graph_view is None:
+            train_graph = self._generate_graph(
+                pgframe=pgframe, uri=uri, username=username,
+                password=password, driver=driver,
+                node_label=node_label, edge_label=edge_label)
+        else:
+            train_graph = graph_view
 
         params = self._dispatch_training_params(
             self.model_name, self.default_params, **kwargs)
@@ -274,7 +275,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
     def predict_embeddings(self, pgframe=None, uri=None, username=None,
                            password=None, driver=None, node_label=None,
-                           edge_label=None, edge_weight=None,
+                           edge_label=None, graph_view=None, edge_weight=None,
                            write=False, write_property=False,
                            **kwargs):
         """Predict embeddings of out-sample elements."""
@@ -289,10 +290,13 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             raise ElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
-        graph = self._generate_graph(
-            pgframe=pgframe, uri=uri, username=username,
-            password=password, driver=driver,
-            node_label=node_label, edge_label=edge_label)
+        if graph_view is None:
+            graph = self._generate_graph(
+                pgframe=pgframe, uri=uri, username=username,
+                password=password, driver=driver,
+                node_label=node_label, edge_label=edge_label)
+        else:
+            graph = graph_view
 
         node_embeddings = self._predict_embeddings(
             graph, edge_weight=edge_weight,
