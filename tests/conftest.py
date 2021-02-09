@@ -57,20 +57,14 @@ def neo4j_driver():
     driver = GraphDatabase.driver(
         NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     yield driver
-    query = "MATCH (n:TestNode) DETACH DELETE n"
+    cleanup_query = (
+        "MATCH (n) "
+        "WHERE any(l IN labels(n) WHERE l STARTS WITH 'Test') "
+        "DETACH DELETE n"
+    )
     session = driver.session()
-    session.run(query)
+    session.run(cleanup_query)
     session.close()
-
-
-@pytest.fixture(scope="session")
-def neo4j_test_node_label():
-    return "TestNode"
-
-
-@pytest.fixture(scope="session")
-def neo4j_test_edge_label():
-    return "TestEdge"
 
 
 @pytest.fixture(scope="session")
@@ -106,6 +100,52 @@ def node_embedding_test_graph():
         "Bob", "Eric", "Eric", "John", "Anna", "Anna", "Laura", "John", "John"
     ]
     weights = [1.0, 2.2, 0.3, 4.1, 1.5, 21.0, 1.0, 2.5, 7.5]
+    edges = list(zip(sources, targets))
+    frame = PandasPGFrame(nodes=nodes, edges=edges)
+
+    # Add properties
+
+    a = pd.DataFrame()
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "age": age
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "height": height
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "weight": weight
+        }, prop_type="numeric")
+
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "distance": weights
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+    return frame
+
+
+@pytest.fixture(scope="session")
+def node_embedding_prediction_test_graph():
+    nodes = [
+        "Marie", "Ivan", "Sarah", "Claire"
+    ]
+    age = [45, 10, 65, 38]
+    height = [194, 122, 156, 177]
+    weight = [82, 44, 59, 81]
+    sources = [
+        "Marie", "Marie", "Ivan", "Claire"
+    ]
+    targets = [
+        "Ivan", "Sarah", "Claire", "Sarah"
+    ]
+    weights = [2.5, 11.0, 0.5, 2.5]
     edges = list(zip(sources, targets))
     frame = PandasPGFrame(nodes=nodes, edges=edges)
 

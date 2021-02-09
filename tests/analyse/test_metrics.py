@@ -89,13 +89,12 @@ def test_gt_processor(random_pgframe):
     assert_approx_equal_metrics(cc, c)
 
 
-def test_neo4j_processor(random_pgframe, neo4j_driver, neo4j_test_node_label,
-                         neo4j_test_edge_label):
+def test_neo4j_processor(random_pgframe, neo4j_driver):
     processor = Neo4jMetricProcessor(
         pgframe=random_pgframe,
         driver=neo4j_driver,
-        node_label=neo4j_test_node_label,
-        edge_label=neo4j_test_edge_label)
+        node_label="TestNode",
+        edge_label="TestEdge")
     d, p, b, c = _benchmark_processor(processor)
 
     # Assert all the node props are present

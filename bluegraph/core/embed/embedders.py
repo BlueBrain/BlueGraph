@@ -49,7 +49,7 @@ class ElementEmbedder(ABC):
         pass
 
     @abstractmethod
-    def _predict_embeddings(self, graph, batch_size=None, num_samples=None):
+    def _predict_embeddings(self, graph, **kwargs):
         pass
 
     @staticmethod
@@ -130,22 +130,19 @@ class ElementEmbedder(ABC):
             embeddings = self.predict_embeddings(train_graph)
         return embeddings
 
-    def predict_embeddings(self, pgframe, batch_size=None, num_samples=None):
+    def predict_embeddings(self, pgframe, **kwargs):
         """Predict embeddings of out-sample elements."""
         if self._embedding_model is None:
-            raise ElementEmbedder.PredictingException(
+            raise ElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
-        input_graph = self._generate_graph(
-            pgframe, self._graph_configs)
+        input_graph = self._generate_graph(pgframe, self._graph_configs)
 
-        if batch_size is None:
-            batch_size = self.default_params["batch_size"]
-        if num_samples is None:
-            num_samples = self.default_params["num_samples"]
+        node_embeddings = self._predict_embeddings(input_graph, **kwargs)
+        node_embeddings = pd.DataFrame(
+            node_embeddings.items(), columns=["@id", "embedding"])
+        node_embeddings = node_embeddings.set_index("@id")
 
-        node_embeddings = self._predict_embeddings(
-            input_graph, batch_size, num_samples)
         return node_embeddings
 
     def save(self, path, compress=True, save_graph=False):
@@ -208,7 +205,7 @@ class ElementEmbedder(ABC):
         """Exception class for fitting errors."""
         pass
 
-    class PredictingException(BlueGraphException):
+    class PredictionException(BlueGraphException):
         """Exception class for fitting errors."""
         pass
 

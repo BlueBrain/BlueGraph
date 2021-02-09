@@ -253,14 +253,29 @@ class Neo4jGraphView(object):
                 f"       properties: '{distance}',\n"
                 if distance else ""
             )
+            node_prop_repr = ""
+            if len(node_properties) > 0:
+                prop_list = ", ".join([
+                    f"'{prop}'" for prop in node_properties])
+                node_projection = (
+                    "{\n"
+                    f"    {self.node_label}: {{\n"
+                    f"      label: '{self.node_label}',\n"
+                    f"      properties: [{prop_list}]\n"
+                    "   }\n"
+                    "  }"
+                )
+            else:
+                node_projection = f"'{self.node_label}'"
+
             selector = (
-                f"   nodeProjection: '{self.node_label}',\n"
-                "   relationshipProjection: {\n"
+                f"  nodeProjection: {node_projection},\n"
+                "  relationshipProjection: {\n"
                 f"    Edge: {{\n"
                 f"      type: '{self.edge_label}',\n{distance_selector}"
                 f"      orientation: 'UNDIRECTED'\n"
                 "    }\n"
-                "   }"
+                "  }"
             )
         else:
             node_query = self._get_nodes_query(return_ids=True)

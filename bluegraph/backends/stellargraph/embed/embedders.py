@@ -227,6 +227,11 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
         return embedding_model
 
     def _predict_embeddings(self, graph, batch_size=None, num_samples=None):
+        if batch_size is None:
+            batch_size = DEFAULT_STELLARGRAPH_PARAMS["batch_size"]
+        if num_samples is None:
+            num_samples = DEFAULT_STELLARGRAPH_PARAMS["num_samples"]
+
         node_generator = _dispatch_node_generator(
             graph, self.model_name, batch_size, num_samples)
         node_embeddings = self._embedding_model.predict(node_generator)
