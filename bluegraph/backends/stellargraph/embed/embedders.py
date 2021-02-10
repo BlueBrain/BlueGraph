@@ -56,7 +56,7 @@ def _dispatch_node_generator(graph, model_name, batch_size, num_samples):
     if model_name == "attri2vec":
         node_generator = Attri2VecNodeGenerator(
             graph, batch_size).flow(graph.nodes())
-    elif model_name == "GraphSAGE":
+    elif model_name == "graphsage":
         node_generator = GraphSAGENodeGenerator(
             graph, batch_size, num_samples).flow(graph.nodes())
     else:
@@ -78,7 +78,9 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
             pgframe,
             directed=graph_configs["directed"],
             include_type=graph_configs["include_type"],
-            feature_prop=graph_configs["feature_vector_prop"])
+            feature_props=graph_configs["feature_props"],
+            feature_vector_prop=graph_configs["feature_vector_prop"],
+        )
 
     @staticmethod
     def _dispatch_training_params(model_name, defaults, **kwargs):
@@ -112,13 +114,13 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
         generator = KGTripleGenerator(train_graph, params["batch_size"])
 
         # Create an embedding layer
-        if model_name == "DistMult":
+        if model_name == "distmult":
             embedding_layer = DistMult(
                 generator,
                 embedding_dimension=params["embedding_dimension"],
                 embeddings_regularizer=regularizers.l2(1e-7),
             )
-        elif model_name == "ComplEx":
+        elif model_name == "complex":
             embedding_layer = ComplEx(
                 generator,
                 embedding_dimension=params["embedding_dimension"],
@@ -149,10 +151,7 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
             train_generator, epochs=params["epochs"])
 
         embeddings = embedding_layer.embeddings()[0]
-
-        return pd.DataFrame(
-            {"embedding": embeddings.tolist()},
-            index=train_graph.nodes())
+        return embeddings
 
     @staticmethod
     def _fit_inductive_embedder(train_graph, params, model_name):
@@ -176,7 +175,7 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
                 generator=generator,
                 bias=False, normalize=None
             )
-        elif model_name == "GraphSAGE":
+        elif model_name == "graphsage":
             generator = GraphSAGELinkGenerator(
                 train_graph,
                 params["batch_size"],
@@ -218,7 +217,7 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
 
         if model_name == "attri2vec":
             x_inp_src = x_inp[0]
-        elif model_name == "GraphSAGE":
+        elif model_name == "graphsage":
             x_inp_src = x_inp[0::2]
 
         x_out_src = x_out[0]
@@ -226,7 +225,8 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
         embedding_model = Model(inputs=x_inp_src, outputs=x_out_src)
         return embedding_model
 
-    def _predict_embeddings(self, graph, batch_size=None, num_samples=None):
+    def _predict_embeddings(self, graph, batch_size=None, num_samples=None,
+                            **kwargs):
         if batch_size is None:
             batch_size = DEFAULT_STELLARGRAPH_PARAMS["batch_size"]
         if num_samples is None:
@@ -235,8 +235,8 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
         node_generator = _dispatch_node_generator(
             graph, self.model_name, batch_size, num_samples)
         node_embeddings = self._embedding_model.predict(node_generator)
-        return pd.DataFrame(
-            {"embedding": node_embeddings.tolist()}, index=graph.nodes())
+        res = dict(zip(graph.nodes(), node_embeddings.tolist()))
+        return res
 
     @staticmethod
     def _save_predictive_model(model, path):

@@ -2,20 +2,6 @@ from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
 from bluegraph.backends.neo4j import Neo4jNodeEmbedder, pgframe_to_neo4j, Neo4jGraphView
 
 
-IMPLEMENTED_EMBEDDERS = {
-    "stellargraph": [
-        "complex", "distmult", "attri2vec", "graphsage"
-    ],
-    "neo4j": [
-        "node2vec", "fastrp", "graphsage"
-    ]
-}
-
-
-def test_stellar_node_embedder():
-    pass
-
-
 def _execute(driver, query):
     session = driver.session()
     result = session.run(query)
@@ -31,6 +17,72 @@ def _get_embedding_props(neo4j_driver, node_label, prop_name):
     )
     result = _execute(neo4j_driver, query)
     return {el["node_id"]: el["emb"] for el in result}
+
+
+def test_stellar_node_embedder(node_embedding_test_graph,
+                               node_embedding_prediction_test_graph,):
+    embedder = StellarGraphNodeEmbedder("complex")
+    embedding = embedder.fit_model(
+        pgframe=node_embedding_test_graph,
+        embedding_dimension=6, epochs=5)
+    assert(len(embedding["embedding"].iloc[0]) == 6)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))
+
+    embedder = StellarGraphNodeEmbedder("distmult")
+    embedding = embedder.fit_model(
+        pgframe=node_embedding_test_graph,
+        embedding_dimension=10, epochs=5)
+    assert(len(embedding["embedding"].iloc[0]) == 10)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))
+
+    embedder = StellarGraphNodeEmbedder(
+        "attri2vec", feature_props=["age", "height", "weight"])
+    node_embedding_test_graph.nodes(raw_frame=True)
+    embedding = embedder.fit_model(
+        pgframe=node_embedding_test_graph,
+        embedding_dimension=3, epochs=5,
+        length=5, number_of_walks=3)
+    assert(len(embedding["embedding"].iloc[0]) == 3)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))
+
+    embeddings = embedder.predict_embeddings(
+        node_embedding_prediction_test_graph
+    )
+    assert(len(embeddings) == 4)
+    assert(
+        set(node_embedding_prediction_test_graph.nodes()) ==
+        set(embeddings.index))
+
+    embedder = StellarGraphNodeEmbedder(
+        "graphsage", feature_props=["age", "height", "weight"])
+    node_embedding_test_graph.nodes(raw_frame=True)
+    embedding = embedder.fit_model(
+        pgframe=node_embedding_test_graph,
+        embedding_dimension=3, epochs=5,
+        length=5, number_of_walks=3)
+    assert(len(embedding["embedding"].iloc[0]) == 3)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))
+
+    embeddings = embedder.predict_embeddings(
+        node_embedding_prediction_test_graph
+    )
+    assert(len(embeddings) == 4)
+    assert(
+        set(node_embedding_prediction_test_graph.nodes()) ==
+        set(embeddings.index))
+
+    embedder.save("stellar_sage_emedder")
+    embedder = StellarGraphNodeEmbedder.load(
+        "stellar_sage_emedder.zip")
+    embedder.info()
 
 
 def test_neo4j_node_embedder(node_embedding_test_graph,
@@ -122,4 +174,6 @@ def test_neo4j_node_embedder(node_embedding_test_graph,
         set(node_embedding_prediction_test_graph.nodes()) ==
         set(emb.keys()))
 
-    # TODO: test save and load
+    embedder.save("neo4j_sage_emedder")
+    embedder = Neo4jNodeEmbedder.load("neo4j_sage_emedder.zip")
+    embedder.info()

@@ -3,28 +3,34 @@ import pandas as pd
 
 import stellargraph as sg
 
-from bluegraph.core.io import GraphProcessor
-
 
 def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
-                            feature_prop=None):
+                            feature_vector_prop=None, feature_props=None):
     """Convert a PGFrame to a StellarGraph object."""
+    if feature_props is None:
+        feature_props = []
+
     feature_array = None
     if include_type:
         nodes = {}
         for t in pgframe.node_types():
             index = pgframe.nodes(typed_by=t)
-            if feature_prop:
+            if feature_vector_prop is not None:
                 feature_array = np.array(
                     pgframe.get_node_property_values(
-                        feature_prop,
-                        typed_by=t).to_list())
+                        feature_vector_prop, typed_by=t).to_list())
+            elif len("feature_props") > 0:
+                feature_array = pgframe.nodes(
+                    raw_frame=True, typed_by=t)[feature_props].to_numpy()
             nodes[t] = sg.IndexedArray(feature_array, index=index)
     else:
-        if feature_prop:
+        if feature_vector_prop is not None:
             feature_array = np.array(
                 pgframe.get_node_property_values(
-                    feature_prop).to_list())
+                    feature_vector_prop).to_list())
+        elif len("feature_props") > 0:
+            feature_array = pgframe.nodes(
+                raw_frame=True)[feature_props].to_numpy()
         nodes = sg.IndexedArray(feature_array, index=pgframe.nodes())
 
     if pgframe.number_of_edges() > 0:

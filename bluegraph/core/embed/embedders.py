@@ -122,12 +122,19 @@ class ElementEmbedder(ABC):
         if self.model_name in self._transductive_models:
             embeddings = self._fit_transductive_embedder(
                 train_graph, params, self.model_name)
-            embeddings = pd.DataFrame(
-                {"embedding": embeddings.tolist()}, index=self._graph.nodes())
+
+            if not isinstance(embeddings, pd.DataFrame):
+                embeddings = pd.DataFrame(
+                    {"embedding": embeddings.tolist()},
+                    index=train_graph.nodes())
         elif self.model_name in self._inductive_models:
             self._embedding_model = self._fit_inductive_embedder(
                 train_graph, params, self.model_name)
-            embeddings = self.predict_embeddings(train_graph)
+            embeddings = self._predict_embeddings(
+                train_graph, **kwargs)
+            embeddings = pd.DataFrame(
+                embeddings.items(), columns=["@id", "embedding"])
+            embeddings = embeddings.set_index("@id")
         return embeddings
 
     def predict_embeddings(self, pgframe, **kwargs):
@@ -163,7 +170,8 @@ class ElementEmbedder(ABC):
 
         # save the predictive model
         if model_backup is not None:
-            self._save_predictive_model(os.path.join(path, "model"))
+            self._save_predictive_model(
+                model_backup, os.path.join(path, "model"))
 
         self._embedding_model = model_backup
 
@@ -175,19 +183,18 @@ class ElementEmbedder(ABC):
     def load(path):
         """Load a dumped embedder."""
         decompressed = False
-        if re.match("(.+)\.zip", path):
+        if re.match(r"(.+)\.zip", path):
             # decompress
             shutil.unpack_archive(
                 path,
-                extract_dir=re.match("(.+)\.zip", path).groups()[0])
-            path = re.match("(.+)\.zip", path).groups()[0]
+                extract_dir=re.match(r"(.+)\.zip", path).groups()[0])
+            path = re.match(r"(.+)\.zip", path).groups()[0]
             decompressed = True
 
         with open(os.path.join(path, "emb.pkl"), "rb") as f:
             embedder = pickle.load(f)
-        embedder._embedding_model = ElementEmbedder._load_predictive_model(
+        embedder._embedding_model = embedder._load_predictive_model(
             os.path.join(path, "model"))
-
         if decompressed:
             shutil.rmtree(path)
 

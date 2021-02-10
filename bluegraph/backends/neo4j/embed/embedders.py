@@ -1,4 +1,5 @@
 import time
+import json
 import warnings
 
 import pandas as pd
@@ -216,11 +217,14 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
     @staticmethod
     def _save_predictive_model(model, path):
-        pass
+        with open(path, "w") as f:
+            json.dump({"catalogueModelId": model}, f)
 
     @staticmethod
     def _load_predictive_model(path):
-        pass
+        with open(path, "r") as f:
+            data = json.load(f)
+            return data["catalogueModelId"]
 
     def fit_model(self, pgframe=None, uri=None, username=None, password=None,
                   driver=None, node_label=None, edge_label=None,
@@ -307,12 +311,3 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             node_embeddings = node_embeddings.set_index("@id")
 
         return node_embeddings
-
-    def save(self, path, compress=True):
-        """Save the embedder."""
-        pass
-
-    @staticmethod
-    def load(path):
-        """Load a dumped embedder."""
-        pass
