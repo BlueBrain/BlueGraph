@@ -4,8 +4,9 @@ import pandas as pd
 import stellargraph as sg
 
 
-def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
-                            feature_vector_prop=None, feature_props=None):
+def pgframe_to_stellargraph(pgframe, directed=True, include_type=False,
+                            feature_vector_prop=None, feature_props=None,
+                            edge_weight=None):
     """Convert a PGFrame to a StellarGraph object."""
     if feature_props is None:
         feature_props = []
@@ -37,7 +38,7 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
         edges = pgframe.edges(
             raw_frame=True,
             include_index=True,
-            filter_props=lambda x: (x == "@type") if include_type else False,
+            filter_props=lambda x: ((x == "@type") if include_type else False) or x == edge_weight,
             rename_cols={'@source_id': 'source', "@target_id": "target"})
     else:
         edges = pd.DataFrame(columns=["source", "target"])
@@ -46,11 +47,13 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=True,
         graph = sg.StellarDiGraph(
             nodes=nodes,
             edges=edges,
+            edge_weight_column=edge_weight,
             edge_type_column="@type" if include_type else None)
     else:
         graph = sg.StellarGraph(
             nodes=nodes,
             edges=edges,
+            edge_weight_column=edge_weight,
             edge_type_column="@type" if include_type else None)
     return graph
 

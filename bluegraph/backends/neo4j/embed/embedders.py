@@ -81,14 +81,13 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             driver=driver, node_label=node_label, edge_label=edge_label)
         return Neo4jGraphView(driver, node_label, edge_label)
 
-    @staticmethod
-    def _dispatch_training_params(model_name, defaults, **kwargs):
+    def _dispatch_model_params(self, **kwargs):
         """Dispatch training parameters."""
         params = {}
         for k, v in kwargs.items():
-            if k not in NEO4j_PARAMS[model_name]:
+            if k not in NEO4j_PARAMS[self.model_name]:
                 warnings.warn(
-                    f"StellarGraphNodeEmbedder's model '{model_name}' "
+                    f"StellarGraphNodeEmbedder's model '{self.model_name}' "
                     f"does not support the training parameter '{k}', "
                     "the parameter will be ignored",
                     ElementEmbedder.FittingWarning)
@@ -101,11 +100,18 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
         return params
 
-    @staticmethod
-    def _fit_transductive_embedder(train_graph, params, model_name,
-                                   edge_weight=None,
+    def _fit_transductive_embedder(self, train_graph,
                                    write=False, write_property=None):
         """Fit transductive embedder (no model, just embeddings)."""
+        edge_weight = self.graph_configs["edge_weight"]
+        if edge_weight is not None and\
+           self.model_name == "node2vec":
+            warnings.warn(
+                "Weighted node2vec embedding for Neo4j graphs "
+                "is not implemented: computing the unweighted version",
+                ElementEmbedder.FittingWarning)
+            edge_weight = None
+
         node_edge_selector = train_graph.get_projection_query(edge_weight)
         weight_setter = (
             f"  relationshipWeightProperty: '{edge_weight}',\n"
@@ -113,17 +119,17 @@ class Neo4jNodeEmbedder(ElementEmbedder):
         )
         if write:
             query = (
-                f"CALL {NEO4J_NODE_EMBEDDING_CALLS[model_name]}.write({{\n" +
+                f"CALL {NEO4J_NODE_EMBEDDING_CALLS[self.model_name]}.write({{\n" +
                 f"{node_edge_selector},\n{weight_setter}"
-                f"    writeProperty: '{write_property}',\n{_generate_param_repr(params)}"
+                f"    writeProperty: '{write_property}',\n{_generate_param_repr(self.params)}"
                 "})\n"
                 "YIELD computeMillis"
             )
             train_graph.execute(query)
         else:
             query = (
-                f"CALL {NEO4J_NODE_EMBEDDING_CALLS[model_name]}.stream({{\n" +
-                f"{node_edge_selector},\n{weight_setter}{_generate_param_repr(params)}"
+                f"CALL {NEO4J_NODE_EMBEDDING_CALLS[self.model_name]}.stream({{\n" +
+                f"{node_edge_selector},\n{weight_setter}{_generate_param_repr(self.params)}"
                 "})\n"
                 "YIELD nodeId, embedding\n"
                 "RETURN gds.util.asNode(nodeId).id AS node_id, embedding"
@@ -135,12 +141,11 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             }
             return embedding
 
-    @staticmethod
-    def _fit_inductive_embedder(train_graph, params, model_name,
-                                feature_props=None, edge_weight=None):
+    def _fit_inductive_embedder(self, train_graph):
         """Fit inductive embedder (predictive model and embeddings)."""
+        edge_weight = self.graph_configs["edge_weight"]
         node_edge_selector = train_graph.get_projection_query(
-            edge_weight, node_properties=feature_props)
+            edge_weight, node_properties=self.graph_configs["feature_props"])
         weight_setter = (
             f"  relationshipWeightProperty: '{edge_weight}',\n"
             if edge_weight else ""
@@ -165,8 +170,10 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             )
             train_graph.execute(query)
 
-        if feature_props is None:
+        if self.graph_configs["feature_props"] is None:
             feature_props = []
+        else:
+            feature_props = self.graph_configs["feature_props"]
         featureProperties = "[{}]".format(
             ", ".join(f"'{p}'" for p in feature_props))
 
@@ -176,19 +183,20 @@ class Neo4jNodeEmbedder(ElementEmbedder):
         )
 
         train_query = (
-            f"CALL {NEO4J_NODE_EMBEDDING_CALLS[model_name]}.train({{\n"
+            f"CALL {NEO4J_NODE_EMBEDDING_CALLS[self.model_name]}.train({{\n"
             f"{node_edge_selector},\n{weight_setter}"
             f"  modelName: '{model_id}',\n"
-            f"  featureProperties: {featureProperties},\n{weight_setter}{_generate_param_repr(params)}"
+            f"  featureProperties: {featureProperties},\n{weight_setter}{_generate_param_repr(self.params)}"
             "})\n"
         )
         train_graph.execute(train_query)
         return model_id
 
-    def _predict_embeddings(self, graph, edge_weight=None,
+    def _predict_embeddings(self, graph,
                             write=False, write_property=None):
         node_edge_selector = graph.get_projection_query(
-            edge_weight, node_properties=self._graph_configs["feature_props"])
+            self.graph_configs["edge_weight"],
+            node_properties=self.graph_configs["feature_props"])
         if write:
             query = (
                 f"CALL {NEO4J_NODE_EMBEDDING_CALLS[self.model_name]}.write({{\n"
@@ -228,16 +236,9 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
     def fit_model(self, pgframe=None, uri=None, username=None, password=None,
                   driver=None, node_label=None, edge_label=None,
-                  graph_view=None, edge_weight=None, write=False,
-                  write_property=False, **kwargs):
+                  graph_view=None, write=False,
+                  write_property=False):
         """Train specified model on the provided graph."""
-        if edge_weight is not None and self.model_name == "node2vec":
-            warnings.warn(
-                "Weighted node2vec embedding for Neo4j graphs "
-                "is not implemented: computing the unweighted version",
-                ElementEmbedder.FittingWarning)
-            edge_weight = None
-
         if write:
             if write_property is None:
                 raise ElementEmbedder.FittingException(
@@ -253,13 +254,9 @@ class Neo4jNodeEmbedder(ElementEmbedder):
         else:
             train_graph = graph_view
 
-        params = self._dispatch_training_params(
-            self.model_name, self.default_params, **kwargs)
-
         if self.model_name in self._transductive_models:
             embeddings = self._fit_transductive_embedder(
-                train_graph, params, self.model_name,
-                edge_weight=edge_weight, write=write,
+                train_graph, write=write,
                 write_property=write_property)
             if embeddings:
                 embeddings = pd.DataFrame(
@@ -267,11 +264,10 @@ class Neo4jNodeEmbedder(ElementEmbedder):
                 embeddings = embeddings.set_index("@id")
         elif self.model_name in self._inductive_models:
             self._embedding_model = self._fit_inductive_embedder(
-                train_graph, params, self.model_name,
-                feature_props=self._graph_configs["feature_props"],
-                edge_weight=edge_weight)
+                train_graph)
             embeddings = self._predict_embeddings(
-                train_graph, write=write, write_property=write_property)
+                train_graph,
+                write=write, write_property=write_property)
             embeddings = pd.DataFrame(
                 embeddings.items(), columns=["@id", "embedding"])
             embeddings = embeddings.set_index("@id")
@@ -279,9 +275,8 @@ class Neo4jNodeEmbedder(ElementEmbedder):
 
     def predict_embeddings(self, pgframe=None, uri=None, username=None,
                            password=None, driver=None, node_label=None,
-                           edge_label=None, graph_view=None, edge_weight=None,
-                           write=False, write_property=False,
-                           **kwargs):
+                           edge_label=None, graph_view=None,
+                           write=False, write_property=False):
         """Predict embeddings of out-sample elements."""
         if write:
             if write_property is None:
@@ -303,8 +298,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             graph = graph_view
 
         node_embeddings = self._predict_embeddings(
-            graph, edge_weight=edge_weight,
-            write=write, write_property=write_property, **kwargs)
+            graph, write=write, write_property=write_property)
         if node_embeddings:
             node_embeddings = pd.DataFrame(
                 node_embeddings.items(), columns=["@id", "embedding"])

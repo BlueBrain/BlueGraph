@@ -64,8 +64,10 @@ class SemanticPGEncoder(ABC):
     def __init__(self, heterogeneous=False,
                  drop_types=False,
                  encode_types=False,
+                 edge_features=False,
                  categorical_encoding="multibin",
                  text_encoding="tfidf",
+                 text_encoding_max_dimension=128,
                  missing_numeric="drop",
                  imputation_strategy="mean",
                  standardize_numeric=True):
@@ -95,8 +97,10 @@ class SemanticPGEncoder(ABC):
         self.heterogeneous = heterogeneous
         self.drop_types = drop_types
         self.encode_types = encode_types
+        self.edge_features = edge_features
         self.categorical_encoding = categorical_encoding
         self.text_encoding = text_encoding
+        self.text_encoding_max_dimension = text_encoding_max_dimension
         self.missing_numeric = missing_numeric
         self.imputation_strategy = imputation_strategy
         self.standardize_numeric = standardize_numeric
@@ -104,36 +108,75 @@ class SemanticPGEncoder(ABC):
         self._node_encoders = {}
         self._edge_encoders = {}
 
-    def fit(self, pgframe):
+    def fit(self, pgframe, node_properties=None, edge_properties=None):
         """Fit encoders for node and edge properties."""
         if self.heterogeneous:
             for node_type in pgframe.node_types():
                 node_type_repr = _generate_type_repr(node_type)
                 self._node_encoders[node_type_repr] = {}
-                for prop in pgframe.node_properties(node_type):
+
+                if node_properties is None:
+                    # Include all node properties
+                    node_properties = {
+                        node_type: pgframe.node_properties(
+                            node_type=node_type)
+                    }
+                elif not isinstance(node_properties, dict):
+                    raise SemanticPGEncoder.EncodingException(
+                        "Encoder is heterogeneous, specified node properties "
+                        "should be a dictionary whose keys are node types "
+                        "and whose values are sets of properties to encode.")
+
+                for prop in node_properties[node_type]:
                     self._node_encoders[
                         node_type_repr][prop] = self._fit_encoder(
                             pgframe.nodes(
                                 typed_by=node_type, raw_frame=True), prop,
                         _get_encoder_type(pgframe, prop))
-            for edge_type in pgframe.edge_types():
-                edge_type_repr = _generate_type_repr(edge_type)
-                self._edge_encoders[edge_type_repr] = {}
-                for prop in pgframe.edge_properties(edge_type):
-                    self._edge_encoders[
-                        edge_type_repr][prop] = self._fit_encoder(
-                            pgframe.edges(
-                                typed_by=edge_type, raw_frame=True), prop,
-                            _get_encoder_type(pgframe, prop, is_edge=True))
+            if self.edge_features:
+                for edge_type in pgframe.edge_types():
+                    edge_type_repr = _generate_type_repr(edge_type)
+                    self._edge_encoders[edge_type_repr] = {}
+
+                    if edge_properties is None:
+                        # Include all the edge properties
+                        edge_properties = {
+                            edge_type: pgframe.edge_properties(
+                                edge_type=edge_type)
+                        }
+                    elif not isinstance(edge_properties, dict):
+                        raise SemanticPGEncoder.EncodingException(
+                            "Encoder is heterogeneous, specified edge properties "
+                            "should be a dictionary whose keys are edge types "
+                            "and whose values are sets of properties to encode.")
+
+                    for prop in edge_properties[edge_type]:
+                        self._edge_encoders[
+                            edge_type_repr][prop] = self._fit_encoder(
+                                pgframe.edges(
+                                    typed_by=edge_type, raw_frame=True), prop,
+                                _get_encoder_type(pgframe, prop, is_edge=True))
         else:
-            for prop in pgframe.node_properties(include_type=self.encode_types):
+            if node_properties is None:
+                # Include all node properties
+                node_properties = pgframe.node_properties(
+                    include_type=self.encode_types)
+
+            for prop in node_properties:
                 self._node_encoders[prop] = self._fit_encoder(
                     pgframe.nodes(raw_frame=True), prop,
                     _get_encoder_type(pgframe, prop))
-            for prop in pgframe.edge_properties(include_type=self.encode_types):
-                self._edge_encoders[prop] = self._fit_encoder(
-                    pgframe.edges(raw_frame=True), prop,
-                    _get_encoder_type(pgframe, prop, is_edge=True))
+
+            if self.edge_features:
+                if edge_properties is None:
+                    # Include all the edge properties
+                    edge_properties = pgframe.edge_properties(
+                        include_type=self.encode_types)
+
+                for prop in edge_properties:
+                    self._edge_encoders[prop] = self._fit_encoder(
+                        pgframe.edges(raw_frame=True), prop,
+                        _get_encoder_type(pgframe, prop, is_edge=True))
 
     def transform(self, pgframe):
         """Transform the input PGFrame."""
@@ -141,10 +184,12 @@ class SemanticPGEncoder(ABC):
             nodes=pgframe.nodes(), edges=pgframe.edges())
 
         if not self.drop_types:
-            transformed_pgframe.assign_node_types(
-                pgframe.get_node_typing())
-            transformed_pgframe.assign_edge_types(
-                pgframe.get_edge_typing())
+            if pgframe.has_node_types():
+                transformed_pgframe.assign_node_types(
+                    pgframe.get_node_typing())
+            if pgframe.has_edge_types():
+                transformed_pgframe.assign_edge_types(
+                    pgframe.get_edge_typing())
 
         def _aggregate_encoding_of(frame, encoder, aggregation_handler,
                                    is_edge=False, element_type=None):
@@ -200,13 +245,18 @@ class SemanticPGEncoder(ABC):
         # into a single large vector
         transformed_pgframe.aggregate_node_properties(
             self._concatenate_features, into="features")
-        transformed_pgframe.aggregate_edge_properties(
-            self._concatenate_features, into="features")
+
+        if self.edge_features:
+            transformed_pgframe.aggregate_edge_properties(
+                self._concatenate_features, into="features")
+
         return transformed_pgframe
 
-    def fit_transform(self, pgframe):
+    def fit_transform(self, pgframe, node_properties=None, edge_properties=None):
         """Fit the encoder and transform the input PGFrame."""
-        self.fit(pgframe)
+        self.fit(
+            pgframe, node_properties=node_properties,
+            edge_properties=edge_properties)
         return self.transform(pgframe)
 
 
@@ -230,7 +280,8 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         encoder = None
         if encoder_type == "text":
             if self.text_encoding == "tfidf":
-                encoder = self._fit_tfidf(frame[prop])
+                encoder = self._fit_tfidf(
+                    frame[prop], max_dim=self.text_encoding_max_dimension)
             elif self.text_encoding == "word2vec":
                 encoder = self._fit_word2vec(frame[prop])
         elif encoder_type == "category":
@@ -301,13 +352,13 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         return encoder
 
     @staticmethod
-    def _fit_tfidf(series, transform=False):
+    def _fit_tfidf(series, transform=False, max_dim=None):
         corpus = series[series.apply(lambda x: isinstance(x, str))]
         encoder = TfidfVectorizer(
             sublinear_tf=True,
             analyzer='word',
             stop_words='english',
-            max_features=64)
+            max_features=max_dim)
         encoder.fit(corpus)
         return encoder
 

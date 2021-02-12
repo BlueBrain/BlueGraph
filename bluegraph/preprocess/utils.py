@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 from scipy import sparse
 
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-# from gensim.models import Word2Vec
+from sklearn.model_selection import train_test_split
 
 
 def str_to_set(s):
@@ -138,3 +138,9 @@ class Word2VecModel(object):
     def fit_transform(self, input):
         """Fit and transform the text."""
         pass
+
+
+def graph_train_test_split(pgframe, test_size=None, random_state=42):
+    train_test_split(
+        pgframe._nodes, binarized_types,
+        test_size=test_size, random_state=42)

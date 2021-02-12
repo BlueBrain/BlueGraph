@@ -31,25 +31,22 @@ class ElementEmbedder(ABC):
         """Generate backend-specific graph object."""
         pass
 
-    @staticmethod
     @abstractmethod
-    def _dispatch_training_params(model_name, defaults, **kwargs):
+    def _dispatch_model_params(self, **kwargs):
         pass
 
-    @staticmethod
     @abstractmethod
-    def _fit_transductive_embedder(train_graph, params, model_name):
+    def _fit_transductive_embedder(self, train_graph):
         """Fit transductive embedder (no model, just embeddings)."""
         pass
 
-    @staticmethod
     @abstractmethod
-    def _fit_inductive_embedder(train_graph, params, model_name):
+    def _fit_inductive_embedder(self, train_graph):
         """Fit inductive embedder (predictive model and embeddings)."""
         pass
 
     @abstractmethod
-    def _predict_embeddings(self, graph, **kwargs):
+    def _predict_embeddings(self, graph):
         pass
 
     @staticmethod
@@ -63,7 +60,8 @@ class ElementEmbedder(ABC):
         pass
 
     def __init__(self, model_name, directed=False, include_type=False,
-                 feature_props=None, feature_vector_prop=None, default_params=None):
+                 feature_props=None, feature_vector_prop=None,
+                 edge_weight=None, **model_params):
         """Initialize StellarGraphEmbedder."""
         if model_name.lower() not in self._transductive_models and\
            model_name.lower() not in self._inductive_models:
@@ -74,15 +72,16 @@ class ElementEmbedder(ABC):
         self.model_name = model_name.lower()
 
         # Default training parameters
-        self.default_params = default_params
+        self.params = self._dispatch_model_params(**model_params)
 
         self._embedding_model = None
 
-        self._graph_configs = {
+        self.graph_configs = {
             "directed": directed,
             "include_type": include_type,
             "feature_props": feature_props,
-            "feature_vector_prop": feature_vector_prop
+            "feature_vector_prop": feature_vector_prop,
+            "edge_weight": edge_weight
         }
 
     def info(self):
@@ -107,45 +106,40 @@ class ElementEmbedder(ABC):
             f"Model name: '{self.model_name}' ("
             f"{model_type}){model_trained}")
         print("Graph configurations: ")
-        print(json.dumps(self._graph_configs, indent="     "))
-        print("Default model parameters: ")
-        print(json.dumps(self.default_params, indent="     "))
+        print(json.dumps(self.graph_configs, indent="     "))
+        print("Model parameters: ")
+        print(json.dumps(self.params, indent="     "))
 
-    def fit_model(self, pgframe, **kwargs):
+    def fit_model(self, pgframe):
         """Fit the embedding model."""
         train_graph = self._generate_graph(
-            pgframe, self._graph_configs)
-
-        params = self._dispatch_training_params(
-            self.model_name, self.default_params, **kwargs)
+            pgframe, self.graph_configs)
 
         if self.model_name in self._transductive_models:
-            embeddings = self._fit_transductive_embedder(
-                train_graph, params, self.model_name)
+            embeddings = self._fit_transductive_embedder(train_graph)
 
             if not isinstance(embeddings, pd.DataFrame):
                 embeddings = pd.DataFrame(
                     {"embedding": embeddings.tolist()},
                     index=train_graph.nodes())
         elif self.model_name in self._inductive_models:
-            self._embedding_model = self._fit_inductive_embedder(
-                train_graph, params, self.model_name)
-            embeddings = self._predict_embeddings(
-                train_graph, **kwargs)
+            self._embedding_model = self._fit_inductive_embedder(train_graph)
+            embeddings = self._predict_embeddings(train_graph)
             embeddings = pd.DataFrame(
                 embeddings.items(), columns=["@id", "embedding"])
             embeddings = embeddings.set_index("@id")
         return embeddings
 
-    def predict_embeddings(self, pgframe, **kwargs):
+    def predict_embeddings(self, pgframe):
         """Predict embeddings of out-sample elements."""
         if self._embedding_model is None:
             raise ElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
-        input_graph = self._generate_graph(pgframe, self._graph_configs)
+        input_graph = self._generate_graph(
+            pgframe, self.graph_configs)
 
-        node_embeddings = self._predict_embeddings(input_graph, **kwargs)
+        node_embeddings = self._predict_embeddings(input_graph)
         node_embeddings = pd.DataFrame(
             node_embeddings.items(), columns=["@id", "embedding"])
         node_embeddings = node_embeddings.set_index("@id")

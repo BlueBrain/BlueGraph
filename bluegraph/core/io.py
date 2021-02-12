@@ -60,6 +60,14 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
+    def has_node_types(self):
+        pass
+
+    @abstractmethod
+    def has_edge_types(self):
+        pass
+
+    @abstractmethod
     def nodes(self, typed_by=None, raw_frame=False):
         """Return a list of nodes."""
         pass
@@ -640,6 +648,12 @@ class PandasPGFrame(PGFrame):
     def _is_string_column(frame, prop):
         return is_string_dtype(frame[prop])
 
+    def has_node_types(self):
+        return "@type" in self._nodes.columns
+
+    def has_edge_types(self):
+        return "@type" in self._edges.columns
+
     def node_types(self, flatten=False):
         """Return a list of node types."""
         if flatten:
@@ -880,7 +894,7 @@ class PandasPGFrame(PGFrame):
 
         subgraph = PandasPGFrame()
         subgraph._nodes = self.filter_nodes(nodes)
-        subgraph._edges = self.ilter_edges(edges)
+        subgraph._edges = self.filter_edges(edges)
         return subgraph
 
     @classmethod

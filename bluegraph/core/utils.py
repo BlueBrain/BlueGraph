@@ -3,6 +3,15 @@ import math
 import pandas as pd
 
 
+def normalize_to_set(value):
+    if not isinstance(value, set):
+        if math.isnan(value):
+            return set()
+        elif isinstance(value, str) or not math.isnan(value):
+            return {value}
+    return value
+
+
 def _aggregate_values(values):
     value_set = set()
     for el in values:
@@ -17,6 +26,12 @@ def _aggregate_values(values):
     elif len(value_set) == 0:
         return math.nan
     return value_set
+
+
+def safe_intersection(set1, set2):
+    set1 = normalize_to_set(set1)
+    set2 = normalize_to_set(set2)
+    return set1.intersection(set2)
 
 
 def element_has_type(element_type, query_type):

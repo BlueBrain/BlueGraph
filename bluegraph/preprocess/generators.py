@@ -4,8 +4,19 @@ import pandas as pd
 import multiprocessing as mp
 import queue
 
+from bluegraph.core.utils import _aggregate_values, safe_intersection
 
 SENTINEL = "END"
+
+
+def schedule_scanning(task_queue, indices, n_workers):
+    """Schedule scanning work."""
+    for i in indices:
+        task_queue.put(i)
+    for _ in range(n_workers):
+        task_queue.put(SENTINEL)
+    task_queue.close()
+    task_queue.join_thread()
 
 
 def aggregate_index(x):
@@ -59,43 +70,55 @@ def mutual_information(co_freq, s_freq, t_freq, total_instances, mitype=None):
     return mi if mi > 0 else 0
 
 
-def compute_frequency(pfgrame, s, t, common_factors,
+def compute_frequency(pgframe, s, t, node_property, common_factors,
                       total_factor_instances,
                       factor_aggregator, reverse_edges):
     return len(common_factors)
 
 
-def _get_s_t_frequencies(pgframe, s, t, factor_aggregator,
+def _get_s_t_frequencies(pgframe, s, t, node_property, factor_aggregator,
                          reverse_edges):
-    if not reverse_edges:
-        s_targets = pgframe._edges.xs(s, level=0, axis=0)
-        t_targets = pgframe._edges.xs(t, level=0, axis=0)
+    if node_property is not None:
+        if factor_aggregator is None:
+            s_factors = pgframe._nodes.loc[s][node_property]
+            t_factors = pgframe._nodes.loc[t][node_property]
+        else:
+            s_factors = factor_aggregator(
+                pgframe._nodes.loc[s])
+            t_factors = factor_aggregator(
+                pgframe._nodes.loc[t])
+        s_freq = len(s_factors)
+        t_freq = len(t_factors)
     else:
-        s_targets = pgframe._edges.xs(s, level=1, axis=0)
-        t_targets = pgframe._edges.xs(t, level=1, axis=0)
+        if not reverse_edges:
+            s_targets = pgframe._edges.xs(s, level=0, axis=0)
+            t_targets = pgframe._edges.xs(t, level=0, axis=0)
+        else:
+            s_targets = pgframe._edges.xs(s, level=1, axis=0)
+            t_targets = pgframe._edges.xs(t, level=1, axis=0)
 
-    s_freq = len(factor_aggregator(s_targets))
-    t_freq = len(factor_aggregator(t_targets))
+        s_freq = len(factor_aggregator(s_targets))
+        t_freq = len(factor_aggregator(t_targets))
     return s_freq, t_freq
 
 
-def compute_ppmi(pgframe, s, t, common_factors,
+def compute_ppmi(pgframe, s, t, node_property, common_factors,
                  total_factor_instances,
                  factor_aggregator, reverse_edges):
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
-        pgframe, s, t, factor_aggregator, reverse_edges)
+        pgframe, s, t, node_property, factor_aggregator, reverse_edges)
 
     return mutual_information(
         co_freq, s_freq, t_freq, total_factor_instances)
 
 
-def compute_npmi(pgframe, s, t, common_factors,
+def compute_npmi(pgframe, s, t, node_property, common_factors,
                  total_factor_instances,
                  factor_aggregator, reverse_edges):
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
-        pgframe, s, t, factor_aggregator, reverse_edges)
+        pgframe, s, t, node_property, factor_aggregator, reverse_edges)
     return mutual_information(
         co_freq, s_freq, t_freq, total_factor_instances,
         mitype="normalized")
@@ -108,182 +131,253 @@ COOCCURRENCE_STATISTICS = {
 }
 
 
-def scan_targets(pfgrame, indices_to_nodes, source_index,
-                 factor_aggregator, compute_statistics, total_factor_instances,
-                 generated_edges, reverse_edges=False, limit=None):
-    """Scan possible co-occurrence targets for the input source term."""
-    edge_list = []
-    for target_index in range(source_index + 1, len(indices_to_nodes)):
-        s = indices_to_nodes[source_index]
-        t = indices_to_nodes[target_index]
+class CooccurrenceGenerator(object):
 
-        if not reverse_edges:
-            s_targets = pfgrame._edges.xs(s, level=0, axis=0)
-            t_targets = pfgrame._edges.xs(t, level=0, axis=0)
-        else:
-            s_targets = pfgrame._edges.xs(s, level=1, axis=0)
-            t_targets = pfgrame._edges.xs(t, level=1, axis=0)
+    def __init__(self, pgframe):
+        self.pgframe = pgframe
 
+    def _get_node_factors(self, s, t, node_property, factor_aggregator):
         if factor_aggregator is None:
-            factor_aggregator = aggregate_index
+            s_factors = self.pgframe._nodes.loc[s][node_property]
+            t_factors = self.pgframe._nodes.loc[t][node_property]
+        else:
+            s_factors = factor_aggregator(self.pgframe._nodes.loc[s])
+            t_factors = factor_aggregator(self.pgframe._nodes.loc[t])
+        return s_factors, t_factors
+
+    def _get_edge_factors(self, s, t, factor_aggregator, reverse_edges):
+        if not reverse_edges:
+            s_targets = self.pgframe._edges.xs(s, level=0, axis=0)
+            t_targets = self.pgframe._edges.xs(t, level=0, axis=0)
+        else:
+            s_targets = self.pgframe._edges.xs(s, level=1, axis=0)
+            t_targets = self.pgframe._edges.xs(t, level=1, axis=0)
 
         s_factors = factor_aggregator(s_targets)
         t_factors = factor_aggregator(t_targets)
+        return s_factors, t_factors
 
-        common_factors = s_factors.intersection(t_factors)
+    def _scan_targets(self, indices_to_nodes, node_property, source_index,
+                      factor_aggregator, compute_statistics,
+                      total_factor_instances,
+                      generated_edges, reverse_edges=False, limit=None):
+        """Scan possible co-occurrence targets for the input source term."""
+        edge_list = []
+        for target_index in range(source_index + 1, len(indices_to_nodes)):
+            s = indices_to_nodes[source_index]
+            t = indices_to_nodes[target_index]
 
-        if len(common_factors) > 0:
-            edge = {
-                "@source_id": s,
-                "@target_id": t,
-                "common_factors": common_factors
-            }
-
-            for stat in compute_statistics:
-                edge[stat] = COOCCURRENCE_STATISTICS[stat](
-                    pfgrame, s, t, common_factors,
-                    total_factor_instances,
-                    factor_aggregator, reverse_edges)
-
-            edge_list.append(edge)
-
-        if limit:
-            if len(generated_edges) + len(edge_list) == limit:
-                print("Reached the edge limit ({})".format(limit))
-                return edge_list
-
-    return edge_list
-
-
-def scanning_loop(pgframe, indices_to_nodes, factor_aggregator,
-                  compute_statistics, total_factor_instances,
-                  all_edges, reverse_edges, task_queue,
-                  generated_edges, limit=None):
-    """Main scanning loop of the edge scanner."""
-    first_scan = True
-
-    while True:
-        try:
-            source_index = task_queue.get(timeout=0.1)
-            if source_index == SENTINEL:
-                break
-        except queue.Empty:
-            pass
-        else:
-            if first_scan:
-                first_scan = False
-            edge_list = scan_targets(
-                pgframe, indices_to_nodes, source_index, factor_aggregator,
-                compute_statistics, total_factor_instances,
-                all_edges, reverse_edges, limit=limit)
-            generated_edges += edge_list
-
-
-def schedule_scanning(task_queue, indices, n_workers):
-    """Schedule scanning work."""
-    for i in indices:
-        task_queue.put(i)
-    for _ in range(n_workers):
-        task_queue.put(SENTINEL)
-    task_queue.close()
-    task_queue.join_thread()
-
-
-def generate_cooccurrence_edges(pgframe, edge_type=None,
-                                factor_aggregator=None,
-                                reverse_edges=False,
-                                compute_statistics=None,
-                                parallelize=False,
-                                cores=4, limit=None):
-
-    if compute_statistics is None:
-        compute_statistics = []
-        total_factor_instances = None
-    else:
-        if factor_aggregator is None:
-            if not reverse_edges:
-                targets = pgframe._edges[
-                            pgframe._edges["@type"] == edge_type
-                        ].index.get_level_values(1).unique()
+            if node_property is not None:
+                s_factors, t_factors = self._get_node_factors(
+                    s, t, node_property, factor_aggregator)
             else:
-                targets = pgframe._edges[
-                        pgframe._edges["@type"] == edge_type
-                    ].index.get_level_values(0).unique()
-            total_factor_instances = len(targets)
+                if factor_aggregator is None:
+                    factor_aggregator = aggregate_index
+                s_factors, t_factors = self._get_edge_factors(
+                    s, t, factor_aggregator, reverse_edges)
+
+            common_factors = safe_intersection(
+                s_factors, t_factors)
+
+            if len(common_factors) > 0:
+                edge = {
+                    "@source_id": s,
+                    "@target_id": t,
+                    "common_factors": common_factors
+                }
+
+                for stat in compute_statistics:
+                    edge[stat] = COOCCURRENCE_STATISTICS[stat](
+                        self.pgframe, s, t,
+                        node_property,
+                        common_factors,
+                        total_factor_instances,
+                        factor_aggregator,
+                        reverse_edges)
+
+                edge_list.append(edge)
+
+            if limit:
+                if len(generated_edges) + len(edge_list) == limit:
+                    print("Reached the edge limit ({})".format(limit))
+                    return edge_list
+
+        return edge_list
+
+    def _scanning_loop(self, indices_to_nodes, node_property,
+                       factor_aggregator, compute_statistics,
+                       total_factor_instances,
+                       all_edges, reverse_edges, task_queue,
+                       generated_edges, limit=None):
+        """Main scanning loop of the edge scanner."""
+        first_scan = True
+
+        while True:
+            try:
+                source_index = task_queue.get(timeout=0.1)
+                if source_index == SENTINEL:
+                    break
+            except queue.Empty:
+                pass
+            else:
+                if first_scan:
+                    first_scan = False
+                edge_list = self._scan_targets(
+                    indices_to_nodes, node_property, source_index,
+                    factor_aggregator, compute_statistics,
+                    total_factor_instances,
+                    all_edges, reverse_edges, limit=limit)
+                generated_edges += edge_list
+
+    def _generate_cooccurrence(self, sources,
+                               node_property,
+                               factor_aggregator,
+                               total_factor_instances,
+                               reverse_edges,
+                               compute_statistics,
+                               parallelize, cores, limit):
+        indices_to_nodes = {i: n for i, n in enumerate(sources)}
+
+        all_edges = []
+
+        total_pairs = (len(sources) * (len(sources) - 1)) / 2
+        print("Examining {} pairs of terms for co-occurrence...".format(
+            int(total_pairs)))
+
+        if parallelize:
+            # Create worker processes
+            if cores is None:
+                cores = 4
+            processes = []
+
+            task_queue = mp.Queue()
+
+            # Shared edge list
+            manager = mp.Manager()
+            generated_edges = manager.list()
+
+            # Each worker executes a scanning loop until the SENTIEL token
+            # is encountered
+            for i in range(cores):
+                process = mp.Process(
+                    target=self._scanning_loop,
+                    args=(
+                        indices_to_nodes,
+                        node_property,
+                        factor_aggregator,
+                        compute_statistics,
+                        total_factor_instances,
+                        all_edges,
+                        reverse_edges, task_queue,
+                        generated_edges, limit),
+                )
+                process.start()
+                processes.append(process)
+
+            # Initialize scheduler process
+            tasker_process = mp.Process(
+                target=schedule_scanning,
+                args=(task_queue, range(len(sources)), cores))
+            tasker_process.start()
+
+            tasker_process.join()
+
+            for worker_process in processes:
+                worker_process.join()
+            all_edges = list(generated_edges)
         else:
-            total_factor_instances = len(factor_aggregator(pgframe._edges))
-
-    if not reverse_edges:
-        sources = pgframe._edges[
-            pgframe._edges[
-                "@type"] == edge_type].index.get_level_values(0).unique()
-    else:
-        sources = pgframe._edges[
-            pgframe._edges[
-                "@type"] == edge_type].index.get_level_values(1).unique()
-
-    indices_to_nodes = {i: n for i, n in enumerate(sources)}
-
-    all_edges = []
-
-    total_pairs = (len(sources) * (len(sources) - 1)) / 2
-    print("Examining {} pairs of terms for co-occurrence...".format(
-        int(total_pairs)))
-
-    if parallelize:
-        # Create worker processes
-        if cores is None:
-            cores = 4
-        processes = []
-
-        task_queue = mp.Queue()
-
-        # Shared edge list
-        manager = mp.Manager()
-        generated_edges = manager.list()
-
-        # Each worker executes a scanning loop until the SENTIEL token
-        # is encountered
-        for i in range(cores):
-            process = mp.Process(
-                target=scanning_loop,
-                args=(
-                    pgframe, indices_to_nodes,
+            for source_index in range(len(sources)):
+                edges = self._scan_targets(
+                    indices_to_nodes,
+                    node_property, source_index,
                     factor_aggregator,
                     compute_statistics,
                     total_factor_instances,
-                    all_edges,
-                    reverse_edges, task_queue,
-                    generated_edges, limit),
-            )
-            process.start()
-            processes.append(process)
+                    all_edges, reverse_edges, limit=limit)
+                all_edges += edges
+                if len(all_edges) == limit:
+                    break
 
-        # Initialize scheduler process
-        tasker_process = mp.Process(
-            target=schedule_scanning,
-            args=(task_queue, range(len(sources)), cores))
-        tasker_process.start()
+        edge_frame = pd.DataFrame(all_edges)
+        edge_frame = edge_frame.set_index(
+            ["@source_id", "@target_id"])
+        return edge_frame
 
-        tasker_process.join()
+    def generate_from_nodes(self, node_property,
+                            node_type=None,
+                            factor_aggregator=None,
+                            total_factor_instances=None,
+                            compute_statistics=None,
+                            parallelize=False,
+                            cores=4, limit=None):
+        if compute_statistics is None:
+            compute_statistics = []
+            total_factor_instances = None
+        else:
+            # Compute total instances of the occurrence factor
+            # (needed for statistics)
+            if total_factor_instances is None:
+                if factor_aggregator is None:
+                    total_factor_instances = len(_aggregate_values(
+                        self.pgframe.nodes(
+                            raw_frame=True, typed_by=node_type)))
+                else:
+                    print("Computing total factor instances...")
+                    total_factor_instances = len(
+                        factor_aggregator(
+                            self.pgframe.nodes(
+                                raw_frame=True, typed_by=node_type)))
 
-        for worker_process in processes:
-            worker_process.join()
-        all_edges = list(generated_edges)
-    else:
-        for source_index in range(len(sources)):
-            edges = scan_targets(
-                pgframe, indices_to_nodes, source_index,
-                factor_aggregator,
-                compute_statistics,
-                total_factor_instances,
-                all_edges,
-                reverse_edges, limit=limit)
-            all_edges += edges
-            if len(all_edges) == limit:
-                break
+        sources = self.pgframe.nodes(typed_by=node_type)
 
-    edge_frame = pd.DataFrame(all_edges)
-    edge_frame = edge_frame.set_index(
-        ["@source_id", "@target_id"])
-    return edge_frame
+        return self._generate_cooccurrence(
+            sources, node_property, factor_aggregator,
+            total_factor_instances, None, compute_statistics,
+            parallelize, cores, limit)
+
+    def generate_from_edges(self, edge_type,
+                            factor_aggregator=None,
+                            total_factor_instances=None,
+                            reverse_edges=False,
+                            compute_statistics=None,
+                            parallelize=False,
+                            cores=4, limit=None):
+
+        if compute_statistics is None:
+            compute_statistics = []
+            total_factor_instances = None
+        else:
+            # Compute total instances of the occurrence factor
+            # (needed for statistics)
+            if total_factor_instances is None:
+                if factor_aggregator is None:
+                    if not reverse_edges:
+                        targets = self.pgframe._edges[
+                                    self.pgframe._edges["@type"] == edge_type
+                                ].index.get_level_values(1).unique()
+                    else:
+                        targets = self.pgframe._edges[
+                                self.pgframe._edges["@type"] == edge_type
+                            ].index.get_level_values(0).unique()
+                    if total_factor_instances is None:
+                        total_factor_instances = len(targets)
+                else:
+                    print("Computing total factor instances...")
+                    total_factor_instances = len(
+                        factor_aggregator(self.pgframe._edges))
+
+        if not reverse_edges:
+            sources = self.pgframe._edges[
+                self.pgframe._edges[
+                    "@type"] == edge_type].index.get_level_values(
+                        0).unique()
+        else:
+            sources = self.pgframe._edges[
+                self.pgframe._edges[
+                    "@type"] == edge_type].index.get_level_values(
+                        1).unique()
+
+        return self._generate_cooccurrence(
+            sources, None, factor_aggregator,
+            total_factor_instances, reverse_edges, compute_statistics,
+            parallelize, cores, limit)
