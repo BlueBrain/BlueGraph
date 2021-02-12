@@ -169,7 +169,8 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
         )
 
         generator = _dispatch_generator(
-            train_graph, self.model_name, self.params, generator_type="edge")
+            train_graph, self.model_name, self.params,
+            generator_type="edge")
         layer_sizes = _dispatch_layer_sizes(
             self.model_name, self.params)
         embedding_layer = _dispatch_inductive_layer(
