@@ -99,7 +99,7 @@ def generate_neo4j_driver(uri=None, username=None,
 class Neo4jGraphProcessor(GraphProcessor):
 
     def __init__(self, pgframe=None, uri=None, username=None, password=None,
-                 driver=None, node_label=None, edge_label=None):
+                 driver=None, node_label=None, edge_label=None, directed=True):
         if node_label is None:
             raise Neo4jGraphProcessor.ProcessorException(
                 "Cannot initialize a Neo4jMetricProcessor: "
@@ -112,6 +112,8 @@ class Neo4jGraphProcessor(GraphProcessor):
         self.driver = generate_neo4j_driver(
             uri=uri, username=username,
             password=password, driver=driver)
+
+        self.directed = directed
 
         if pgframe is not None:
             Neo4jGraphProcessor._generate_graph(
@@ -151,12 +153,13 @@ class Neo4jGraphView(object):
 
     def __init__(self, driver, node_label,
                  edge_label, nodes_to_exclude=None,
-                 edges_to_exclude=None):
+                 edges_to_exclude=None, directed=True):
         self.driver = driver
         self.node_label = node_label
         self.edge_label = edge_label
         self.nodes_to_exclude = nodes_to_exclude if nodes_to_exclude else []
         self.edges_to_exclude = edges_to_exclude if edges_to_exclude else []
+        self.directed = directed
 
     def execute(self, query):
         session = self.driver.session()
@@ -268,12 +271,14 @@ class Neo4jGraphView(object):
             else:
                 node_projection = f"'{self.node_label}'"
 
+            orientation = 'NATURAL' if self.directed else 'UNDIRECTED'
+
             selector = (
                 f"  nodeProjection: {node_projection},\n"
                 "  relationshipProjection: {\n"
                 f"    Edge: {{\n"
                 f"      type: '{self.edge_label}',\n{distance_selector}"
-                f"      orientation: 'UNDIRECTED'\n"
+                f"      orientation: '{orientation}'\n"
                 "    }\n"
                 "  }"
             )

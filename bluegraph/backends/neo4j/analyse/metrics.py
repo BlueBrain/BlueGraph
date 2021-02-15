@@ -39,6 +39,8 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
                     f"{metric_name.capitalize()} processing has the write "
                     "option set to True, "
                     "the write property name must be specified")
+
+            orientation = 'NATURAL' if self.directed else 'UNDIRECTED'
             query = (
                 f"""
                 CALL {function}.write({{
@@ -46,7 +48,7 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
                     relationshipProjection: {{
                        Edge: {{
                            type: '{self.edge_label}',
-                           orientation: 'UNDIRECTED'{property_projection}
+                           orientation: '{orientation}'{property_projection}
                        }}
                    }}{property_name},
                    writeProperty: '{write_property}'
@@ -56,13 +58,14 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
             )
             self.execute(query)
         else:
+            orientation = 'NATURAL' if self.directed else 'UNDIRECTED'
             query = (
                 f"""CALL {function}.stream({{
                     nodeProjection: '{self.node_label}',
                     relationshipProjection: {{
                         Edge: {{
                             type: '{self.edge_label}',
-                            orientation: 'UNDIRECTED'{property_projection}
+                            orientation: '{orientation}'{property_projection}
                         }}
                     }}{property_name}
                 }})

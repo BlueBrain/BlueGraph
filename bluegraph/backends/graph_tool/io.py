@@ -10,7 +10,7 @@ NUMERIC_TYPES = [
 ]
 
 
-def pgframe_to_graph_tool(pgframe, directed=False):
+def pgframe_to_graph_tool(pgframe, directed=True):
     """Create a graph-tool graph from the PGFrame."""
     graph = gt.Graph(directed=directed)
 
@@ -98,8 +98,8 @@ def graph_tool_to_pgframe(graph):
 class GTGraphProcessor(GraphProcessor):
 
     @staticmethod
-    def _generate_graph(pgframe):
-        return pgframe_to_graph_tool(pgframe)
+    def _generate_graph(pgframe, directed=True):
+        return pgframe_to_graph_tool(pgframe, directed=directed)
 
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""

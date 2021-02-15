@@ -170,7 +170,7 @@ def benchmark_path_finder(finder):
 
 
 def test_nx_paths(path_test_graph):
-    finder = NXPathFinder(path_test_graph)
+    finder = NXPathFinder(path_test_graph, directed=False)
     benchmark_path_finder(finder)
 
     res = finder.minimum_spanning_tree("distance")
@@ -188,7 +188,7 @@ def test_nx_paths(path_test_graph):
 
 
 def test_gt_paths(path_test_graph):
-    finder = GTPathFinder(path_test_graph)
+    finder = GTPathFinder(path_test_graph, directed=False)
     benchmark_path_finder(finder)
 
     res = finder.minimum_spanning_tree("distance")
@@ -212,7 +212,7 @@ def test_neo4j_paths(path_test_graph, neo4j_driver):
         pgframe=path_test_graph,
         driver=neo4j_driver,
         node_label="TestNode",
-        edge_label="TestEdge")
+        edge_label="TestEdge", directed=False)
     benchmark_path_finder(finder)
 
     finder.minimum_spanning_tree(

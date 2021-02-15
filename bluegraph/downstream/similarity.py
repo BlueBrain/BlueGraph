@@ -1,81 +1,122 @@
 import numpy as np
+import pandas as pd
 
-from sklearn.neighbors import KDTree
-from sklearn.metrics.pairwise import cosine_similarity
+import faiss
+import os
+
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
 class SimilarityProcessor(object):
 
-    def _compute_similarity_matrix(self, x, y=None):
-        if self.similarity == "cosine":
-            return cosine_similarity(x, y)
-        else:
-            raise ValueError(
-                f"Unknown similarity type '{self.simlarity}'")
+    def __init__(self, dimension, similarity="euclidean",
+                 initial_vectors=None, initial_index=None,
+                 n_segments=1):
+        if similarity not in ["euclidean", "dot", "cosine"]:
+            raise SimilarityProcessor.SimilarityException(
+                f"Unknown similarity measure '{similarity}'")
 
-    def __init__(self, embeddings, similarity="cosine", **kwargs):
-        self.embeddings = embeddings
-
-        if isinstance(embeddings["embedding"].iloc[0], list):
-            self.dimension = len(embeddings["embedding"].iloc[0])
-        elif isinstance(embeddings["embedding"].iloc[0], np.ndarray):
-            self.dimension = embeddings["embedding"].iloc[0].shape[0]
-
-        points = embeddings["embedding"].tolist()
+        self.dimension = dimension
         self.similarity = similarity
-        self.similarity_params = kwargs
-        self.similarity_matrix = self._compute_similarity_matrix(points)
+        self.n_segments = n_segments
 
-    def get_similar_points(self, vector=None, existing_index=None, k=10,
-                           add_to_index=False, new_point_index=None):
-        if existing_index is not None:
-            existing_integer_index = self.embeddings.index.get_loc(
-                existing_index)
+        if initial_index is not None:
+            self.index = pd.Index([])
+
+        self._initialize_model(initial_vectors)
+
+        if initial_vectors is not None:
+            self._add(initial_vectors, initial_index)
+
+    def _preprocess_vectors(self, vectors):
+        if not isinstance(vectors, np.ndarray):
+            vectors = np.array(vectors)
+        vectors = vectors.astype(np.float32)
+        if self.similarity == "cosine":
+            faiss.normalize_L2(vectors)
+        return vectors
+
+    def _query_existing(self, existing_indices, k=10):
+        if self.index is not None:
+            existing_indices = self.index.get_indexer(existing_indices)
+        x = [self._model.reconstruct(int(i)) for i in existing_indices]
+        return self._query_new(x, k)
+
+    def _query_new(self, vectors, k=10):
+        vectors = self._preprocess_vectors(vectors)
+        distance, int_index = self._model.search(vectors, k)
+        return distance, int_index
+
+    def _add(self, vectors, vector_indices=None):
+        vectors = self._preprocess_vectors(vectors)
+        if vector_indices is not None:
+            for i in vector_indices:
+                if i in self.index:
+                    raise SimilarityProcessor.IndexException(
+                        "Index '{}' already exists".format(i))
+            self.index = self.index.append(pd.Index(vector_indices))
+
+        self._model.add(vectors)
+
+    def _initialize_model(self, initial_vectors=None):
+
+        if self.similarity == "euclidean":
+            index = faiss.IndexFlatL2(self.dimension)
+            metric = faiss.METRIC_L2
+        elif self.similarity in ["dot", "cosine"]:
+            index = faiss.IndexFlatIP(self.dimension)
+            metric = faiss.METRIC_INNER_PRODUCT
+
+        if self.n_segments > 1:
+            self._model = faiss.IndexIVFFlat(
+                index, self.dimension, self.n_segments, metric)
+
+            if initial_vectors is None:
+                SimilarityProcessor.TrainException(
+                    "Initial vectors should be specified for "
+                    "Faiss segmented indexer "
+                )
+
+            initial_vectors = self._preprocess_vectors(initial_vectors)
+            self._model.train(initial_vectors)
+            self._model.make_direct_map()
         else:
-            if vector.shape[0] != self.dimension:
-                raise ValueError(
-                    f"Provided vector does not have a right dimension ({self.dimension})")
-            new_similarities = self._compute_similarity_matrix(
-                self.embeddings["embedding"].tolist(), [vector])
-            existing_integer_index = 0
+            self._model = index
 
+    def get_similar_points(self, vectors=None, vector_indices=None,
+                           existing_indices=None, k=10,
+                           add_to_index=False, new_point_index=None):
+        if existing_indices is not None:
+            distance, int_index = self._query_existing(existing_indices, k)
+        else:
+            if vectors.shape[1] != self.dimension:
+                raise SimilarityProcessor.QueryException(
+                    "Provided vector does not have a "
+                    f"right dimension ({self.dimension})")
             if add_to_index is True:
                 if new_point_index is None:
                     raise ValueError(
                         "Parameter 'add_to_index' is set to True, "
                         "'new_point_index' must be specified")
-                self.embeddings.loc[new_point_index, "embedding"] = vector
-                # Add a new vector along axis 1
-                new_similarity_matrix = np.concatenate(
-                    [self.similarity_matrix, new_similarities], axis=1)
+                self._add(vectors, vector_indices)
+            distance, int_index = self._query_new(vectors, k)
 
-                # Add a new vector along axis 0
-                self.similarity_matrix = np.concatenate([
-                    new_similarity_matrix,
-                    np.transpose(
-                        np.concatenate(
-                            [new_similarities, np.ones((1, 1))], axis=0))
-                ])
+        # Get indices
+        if self.index is not None:
+            indices = list(map(lambda x: self.index[x], int_index))
+        else:
+            indices = int_index
+        return indices, distance
 
-        similar_indices = self.similarity_matrix[
-            existing_integer_index].argsort()[-k:]  # [::-1]
-        return dict(zip(
-            self.embeddings.iloc[similar_indices].index,
-            self.similarity_matrix[existing_integer_index][similar_indices]
-        ))
+    class TrainException(Exception):
+        pass
 
+    class SimilarityException(Exception):
+        pass
 
-class ClosenessProcessor(object):
+    class IndexException(Exception):
+        pass
 
-    def __init__(self, embeddings, metric="minkowski", **kwargs):
-        self.embeddings = embeddings
-        points = embeddings["embedding"].tolist()
-        self.metric = metric
-        self.distance_params = kwargs
-        self.tree = KDTree(points, metric=metric, **kwargs)
-
-    def get_closest_points(self, vector=None, existing_index=None, k=10):
-        if vector is None and existing_index is not None:
-            vector = self.embeddings.loc[existing_index]["embedding"]
-        dist, ind = self.tree.query([vector], k=10)
-        return dict(zip(list(self.embeddings.index[ind[0]]), dist[0].tolist()))
+    class QueryException(Exception):
+        pass

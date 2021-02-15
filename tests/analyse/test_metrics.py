@@ -43,7 +43,7 @@ def assert_approx_equal_metrics(d1, d2):
 
 
 def test_nx_processor(random_pgframe):
-    processor = NXMetricProcessor(random_pgframe)
+    processor = NXMetricProcessor(random_pgframe, directed=False)
     d, p, b, c = _benchmark_processor(processor)
     props = []
     nx_object = processor.graph
@@ -64,7 +64,7 @@ def test_nx_processor(random_pgframe):
 
 
 def test_gt_processor(random_pgframe):
-    processor = GTMetricProcessor(random_pgframe)
+    processor = GTMetricProcessor(random_pgframe, directed=False)
     d, p, b, c = _benchmark_processor(processor)
     gt_object = processor.graph
     assert(
@@ -94,7 +94,8 @@ def test_neo4j_processor(random_pgframe, neo4j_driver):
         pgframe=random_pgframe,
         driver=neo4j_driver,
         node_label="TestNode",
-        edge_label="TestEdge")
+        edge_label="TestEdge",
+        directed=False)
     d, p, b, c = _benchmark_processor(processor)
 
     # Assert all the node props are present

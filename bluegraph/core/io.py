@@ -439,24 +439,21 @@ class PGFrame(ABC):
         nodes = self._nodes.apply(aggregate_nodes, axis=1).to_list()
         return nodes
 
-    def to_csv(self, path):
-        if not os.path.exists(path):
-            os.mkdir(path)
-        self._export_csv(self._nodes, os.path.join(path, "nodes.csv"))
-        self._export_csv(self._edges, os.path.join(path, "edges.csv"))
+    def to_csv(self, node_path, edge_path):
+        self._export_csv(self._nodes, node_path)
+        self._export_csv(self._edges, edge_path)
 
     @classmethod
-    def from_csv(cls, path, node_property_types=None, edge_property_types=None):
+    def from_csv(cls, node_path, edge_path=None,
+                 node_property_types=None, edge_property_types=None):
         graph = cls()
-        if os.path.exists(path):
-            graph._nodes = graph._load_csv(
-                os.path.join(path, "nodes.csv"),
-                index_col="@id")
-            graph._edges = graph._load_csv(
-                os.path.join(path, "edges.csv"),
-                index_col=["@source_id", "@target_id"])
-            # Set default node and edge types
-            graph._set_default_prop_types()
+        graph._nodes = graph._load_csv(
+            node_path, index_col="@id")
+
+        graph._edges = graph._load_csv(
+            edge_path, index_col=["@source_id", "@target_id"])
+        # Set default node and edge types
+        graph._set_default_prop_types()
         if node_property_types:
             graph._node_prop_types.update(node_property_types)
         if edge_property_types:
@@ -926,12 +923,14 @@ class SparkPGFrame(PGFrame):
 
 class GraphProcessor(ABC):
 
-    def __init__(self, pgframe):
-        self.graph = self._generate_graph(pgframe)
+    def __init__(self, pgframe, directed=True):
+        self.graph = self._generate_graph(
+            pgframe, directed=directed)
+        self.directed = directed
 
     @staticmethod
     @abstractmethod
-    def _generate_graph(pgframe):
+    def _generate_graph(pgframe, directed=True):
         pass
 
     @abstractmethod

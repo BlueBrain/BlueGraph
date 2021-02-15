@@ -8,7 +8,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
 
     def _get_identity_view(self):
         return Neo4jGraphView(
-            self.driver, self.node_label, self.edge_label)
+            self.driver, self.node_label, self.edge_label,
+            directed=self.directed)
 
     @staticmethod
     def _get_nodes(graph, properties=False):
@@ -75,7 +76,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
         return Neo4jGraphView(
             self.driver, self.node_label, self.edge_label,
             nodes_to_exclude=nodes_to_exclude,
-            edges_to_exclude=edges_to_exclude)
+            edges_to_exclude=edges_to_exclude,
+            directed=self.directed)
 
     @staticmethod
     def _generate_path_search_call(graph, source, target, procedure,
@@ -192,7 +194,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
         graph_view = Neo4jGraphView(
                 self.driver, self.node_label,
                 self.edge_label,
-                edges_to_exclude=[(source, target)] if exclude_edge else None)
+                edges_to_exclude=[(source, target)] if exclude_edge else None,
+                directed=self.directed)
         return self._compute_shortest_path(
             graph_view, source, target,
             distance=distance, exclude_edge=exclude_edge)
@@ -220,7 +223,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
         graph_view = Neo4jGraphView(
                 self.driver, self.node_label,
                 self.edge_label,
-                edges_to_exclude=[(source, target)] if exclude_edge else None)
+                edges_to_exclude=[(source, target)] if exclude_edge else None,
+                directed=self.directed)
         return self._compute_all_shortest_paths(
             graph_view, source, target, exclude_edge=exclude_edge,
             max_length=max_length)
@@ -278,7 +282,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             graph_view = Neo4jGraphView(
                 self.driver, self.node_label,
                 self.edge_label,
-                edges_to_exclude=[(source, target)] if exclude_edge else None)
+                edges_to_exclude=[(source, target)] if exclude_edge else None,
+                directed=self.directed)
             paths = self._compute_yen_shortest_paths(
                 graph_view, source, target, n=n,
                 distance=distance, exclude_edge=exclude_edge)

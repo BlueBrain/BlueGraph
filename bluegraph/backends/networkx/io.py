@@ -6,10 +6,14 @@ from bluegraph.core.io import GraphProcessor, PandasPGFrame
 
 def pgframe_to_networkx(pgframe, directed=True):
     """Create a NetworkX graph from the PGFrame."""
+    if directed:
+        create_using = nx.DiGraph
+    else:
+        create_using = nx.Graph
     graph = nx.from_pandas_edgelist(
         pgframe._edges.reset_index(),
         source="@source_id", target="@target_id",
-        edge_attr=True)
+        edge_attr=True, create_using=create_using)
     nx.set_node_attributes(graph, pgframe._nodes.to_dict("index"))
     return graph
 
@@ -40,8 +44,8 @@ def networkx_to_pgframe(nx_object):
 class NXGraphProcessor(GraphProcessor):
 
     @staticmethod
-    def _generate_graph(pgframe):
-        return pgframe_to_networkx(pgframe)
+    def _generate_graph(pgframe, directed=True):
+        return pgframe_to_networkx(pgframe, directed=directed)
 
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
