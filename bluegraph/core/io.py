@@ -1,7 +1,6 @@
 """Collection of data structures for representing property graphs as data frames."""
 from abc import ABC, abstractmethod
 
-import os
 import numpy as np
 
 import pandas as pd
@@ -37,6 +36,14 @@ class PGFrame(ABC):
 
     @abstractmethod
     def add_edge_properties(self, prop_column, prop_type=None):
+        pass
+
+    @abstractmethod
+    def remove_nodes(self, nodes_to_remove):
+        pass
+
+    @abstractmethod
+    def remove_edges(self, edges_to_remove):
         pass
 
     @staticmethod
@@ -139,6 +146,14 @@ class PGFrame(ABC):
     @abstractmethod
     def to_triples(self, predicate_prop="@type", include_type=True,
                    include_literals=True):
+        pass
+
+    @abstractmethod
+    def isolated_nodes(self):
+        pass
+
+    @abstractmethod
+    def remove_isolated_nodes(self):
         pass
 
     # -------------------- Concrete methods --------------------
@@ -637,6 +652,19 @@ class PandasPGFrame(PGFrame):
                 "allowed types 'text', 'numeric', 'category'")
         self._set_edge_prop_type(prop_name, prop_type)
 
+    def remove_nodes(self, nodes_to_remove):
+        # Remove nodes
+        self._nodes = self._nodes.loc[
+            ~self._nodes.index.isin(nodes_to_remove)]
+        # Detach edges
+        self.remove_edges(
+            self._edges.index.map(
+                lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove))
+
+    def remove_edges(self, edges_to_remove):
+        self._edges = self._edges.loc[
+            ~self._edges.index.isin(edges_to_remove)]
+
     @staticmethod
     def _is_numeric_column(frame, prop):
         return is_numeric_dtype(frame[prop])
@@ -911,6 +939,27 @@ class PandasPGFrame(PGFrame):
         graph._edge_prop_types = edge_prop_types
 
         return graph
+
+    def _edge_sources(self):
+        return self._edges.index.get_level_values(0).unique()
+
+    def _edge_targets(self):
+        return self._edges.index.get_level_values(1).unique()
+
+    def isolated_nodes(self):
+        nodes = self.nodes()
+        sources = self._edge_sources()
+        targets = self._edge_targets()
+        isolates = []
+        for n in nodes:
+            if n not in sources and n not in targets:
+                isolates.append(n)
+        return isolates
+
+    def remove_isolated_nodes(self):
+        isolates = self.isolated_nodes()
+        # Remove nodes
+        self._nodes = self._nodes.loc[~self._nodes.index.isin(isolates)]
 
 
 class SparkPGFrame(PGFrame):
