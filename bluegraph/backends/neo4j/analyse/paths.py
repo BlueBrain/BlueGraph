@@ -130,11 +130,12 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
                                     max_length=4):
         """Backend-dependent method for computing all the shortest paths."""
         exclude_statement = "WHERE length(path) > 1\n" if exclude_edge else ""
+        arrow = ">" if graph.directed else ""
         query = (
             graph._generate_st_match_query(source, target) +
             "WITH start, end\n"
             "MATCH path = allShortestPaths((start)-"
-            f"[:{graph.edge_label}*..{max_length}]-(end))\n{exclude_statement}"
+            f"[:{graph.edge_label}*..{max_length}]-{arrow}(end))\n{exclude_statement}"
             "RETURN [n IN nodes(path) | n.id] as path"
         )
         result = graph.execute(query)

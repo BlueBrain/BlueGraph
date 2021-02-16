@@ -59,7 +59,7 @@ class ElementEmbedder(ABC):
     def _load_predictive_model(path):
         pass
 
-    def __init__(self, model_name, directed=False, include_type=False,
+    def __init__(self, model_name, directed=True, include_type=False,
                  feature_props=None, feature_vector_prop=None,
                  edge_weight=None, **model_params):
         """Initialize StellarGraphEmbedder."""

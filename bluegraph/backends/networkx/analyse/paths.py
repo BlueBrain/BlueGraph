@@ -13,10 +13,19 @@ def handle_exclude_nx_edge(method):
             exclude_edge = kwargs["exclude_edge"]
 
         subgraph = graph
-        if exclude_edge and (source, target) in graph.edges():
-            subgraph = subgraph.edge_subgraph(
-                [e for e in subgraph.edges() if e != (source, target)]
-            )
+        if exclude_edge:
+            if nx.is_directed(graph):
+                if (source, target) in graph.edges():
+                    subgraph = subgraph.edge_subgraph(
+                        [e for e in subgraph.edges() if e != (source, target)]
+                    )
+            else:
+                if (source, target) in graph.edges() or\
+                   (target, source) in graph.edges():
+                    subgraph = subgraph.edge_subgraph([
+                        e for e in subgraph.edges()
+                        if e != (source, target) and e != (target, source)
+                    ])
 
         result = method(subgraph, source, target, **kwargs)
         return result

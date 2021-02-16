@@ -70,9 +70,9 @@ def neo4j_driver():
 @pytest.fixture(scope="session")
 def path_test_graph():
     nodes = ["A", "B", "C", "D", "E"]
-    sources = ["A", "A", "A", "A", "B", "C", "C", "E"]
-    targets = ["B", "C", "D", "E", "D", "B", "E", "D"]
-    weights = [3, 3, 8, 2, 3, 3, 4, 3]
+    sources = ["B", "A", "A", "A", "B", "C", "C", "E"]
+    targets = ["A", "C", "D", "E", "D", "B", "E", "D"]
+    weights = [2, 4, 8, 2, 2, 3, 4, 3]
     edges = list(zip(sources, targets))
     frame = PandasPGFrame(nodes=nodes, edges=edges)
     edge_weight = pd.DataFrame({

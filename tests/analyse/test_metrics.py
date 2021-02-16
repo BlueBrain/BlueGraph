@@ -1,4 +1,5 @@
 """Test the metrics package."""
+import math
 import pytest
 import networkx as nx
 
@@ -32,12 +33,16 @@ def _benchmark_processor(processor):
 
 def assert_approx_equal_metrics(d1, d2):
     assert(
+        set([k for k, v in d1.items() if math.isnan(v)]) ==
+        set([k for k, v in d2.items() if math.isnan(v)])
+    )
+    assert(
         {
             k: pytest.approx(v, rel=1e-4)
-            for k, v in d1.items()
+            for k, v in d1.items() if not math.isnan(v)
         } == {
             k: pytest.approx(v, rel=1e-4)
-            for k, v in d2.items()
+            for k, v in d2.items() if not math.isnan(v)
         }
     )
 
@@ -64,7 +69,7 @@ def test_nx_processor(random_pgframe):
 
 
 def test_gt_processor(random_pgframe):
-    processor = GTMetricProcessor(random_pgframe, directed=False)
+    processor = GTMetricProcessor(random_pgframe, directed=True)
     d, p, b, c = _benchmark_processor(processor)
     gt_object = processor.graph
     assert(

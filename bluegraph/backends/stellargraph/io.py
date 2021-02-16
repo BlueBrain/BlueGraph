@@ -60,4 +60,3 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=False,
 
 def stellargraph_to_pgframe(sg_object):
     pass
-
