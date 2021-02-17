@@ -540,6 +540,13 @@ class PGFrame(ABC):
         with open("{}_nodes.csv".format(prefix), "w+") as f:
             f.write(node_header + node_repr)
 
+    def density(self, directed=True):
+        total_edges = self.number_of_nodes() * (self.number_of_nodes() - 1)
+        if directed is False:
+            total_edges = total_edges / 2
+
+        return self.number_of_edges() / total_edges
+
     class PGFrameException(BlueGraphException):
         pass
 
@@ -770,8 +777,10 @@ class PandasPGFrame(PGFrame):
             columns.remove('@type')
         return columns
 
-    def get_node_property_values(self, prop, typed_by=None):
-        df = self._nodes
+    def get_node_property_values(self, prop, nodes=None, typed_by=None):
+        if nodes is None:
+            nodes = self.nodes()
+        df = self._nodes.loc[nodes]
         if typed_by is not None:
             if "@type" not in self._nodes:
                 return []
@@ -780,8 +789,10 @@ class PandasPGFrame(PGFrame):
                     lambda x: element_has_type(x, typed_by))]
         return df[prop]
 
-    def get_edge_property_values(self, prop, typed_by=None):
-        df = self._edges
+    def get_edge_property_values(self, prop, edges=None, typed_by=None):
+        if edges is None:
+            edges = self.nodes()
+        df = self._edges[edges]
         if typed_by is not None:
             if "@type" not in self._edges:
                 return []
@@ -898,7 +909,7 @@ class PandasPGFrame(PGFrame):
     def filter_edges(self, edges):
         return self._edges[self._edges.index.isin(edges)]
 
-    def subgraph(self, nodes=None, edges=None):
+    def subgraph(self, nodes=None, edges=None, remove_isolated_nodes=False):
         if nodes is not None:
             # construct the node-induced subgraph
             if edges is None:
@@ -920,6 +931,10 @@ class PandasPGFrame(PGFrame):
         subgraph = PandasPGFrame()
         subgraph._nodes = self.filter_nodes(nodes)
         subgraph._edges = self.filter_edges(edges)
+        subgraph._node_prop_types = {**self._node_prop_types}
+        subgraph._edge_prop_types = {**self._edge_prop_types}
+        if remove_isolated_nodes is True:
+            subgraph.remove_isolated_nodes()
         return subgraph
 
     @classmethod

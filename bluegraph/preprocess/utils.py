@@ -140,7 +140,11 @@ class Word2VecModel(object):
         pass
 
 
-def graph_train_test_split(pgframe, test_size=None, random_state=42):
-    train_test_split(
-        pgframe._nodes, binarized_types,
-        test_size=test_size, random_state=42)
+def graph_train_test_split(pgframe, test_size=None, random_state=42,
+                           split_edges=False):
+    if not split_edges:
+        train_nodes, test_nodes = train_test_split(
+            pgframe.nodes(), test_size=test_size, random_state=42)
+    else:
+        train_edges, test_edges = train_test_split(
+            pgframe.edges(), test_size=test_size, random_state=42)
