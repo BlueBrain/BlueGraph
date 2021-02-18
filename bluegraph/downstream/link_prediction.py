@@ -4,7 +4,30 @@ import math
 import numpy as np
 
 
-def generate_negative_edges(pgframe, p=0.5, directed=True, edges_to_exclude=None):
+def generate_negative_edges(pgframe, p=0.5, directed=True,
+                            edges_to_exclude=None):
+    """Generate false edges of the input PGFrame.
+
+    Parameters
+    ----------
+    pgframe : bluegraph.core.io.PGFrame
+        The input graph
+    p : float, optional
+        Fraction of graph edges to use as the number of false edges.
+        If the input graph has N edges, int(N * p) false edges will
+        be generated.
+    directed : bool, optional
+        Flag indicating whether the input graph should be interpreted as
+        directed.
+    edges_to_exclude : collection of tuples
+        Additional edges to exclude from generation (these edges are
+        not necessarily in the set of edges of the input graph).
+
+    Returns
+    -------
+    negative_edges : list of tuples
+        List of false edges
+    """
     if edges_to_exclude is None:
         edges_to_exclude = []
     n_edges = int((pgframe.number_of_edges() - len(edges_to_exclude)) * p)
@@ -34,7 +57,8 @@ def generate_negative_edges(pgframe, p=0.5, directed=True, edges_to_exclude=None
                 break
         if len(negative_edges) == n_edges:
             break
-    return list(negative_edges)
+    negative_edges = list(negative_edges)
+    return negative_edges
 
 
 def hadamard(u, v):
@@ -62,10 +86,10 @@ BINARY_OPERATORS = {
 
 
 class EdgePredictor(ElementClassifier):
-    """A minimal interface for a edge prediction model.
+    """Interface for edge prediction models.
 
-    This wrapper alows to build predictive models of PGFrame edges. Such
-    model distinguish between true and false edges.
+    This wrapper alows to build predictive models for PGFrame edges that
+    discriminate between true and false edges of the given node pairs.
     """
     def __init__(self, model, feature_vector_prop=None, feature_props=None,
                  operator="hadamard", directed=True):

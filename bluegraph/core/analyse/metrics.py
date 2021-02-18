@@ -5,7 +5,7 @@ from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
 class MetricProcessor(ABC):
-    """Abstract class for various graph metrics processor."""
+    """Abstract class for processing various graph metrics."""
 
     @classmethod
     def from_graph_object(cls, graph_object):

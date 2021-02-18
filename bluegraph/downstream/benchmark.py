@@ -9,8 +9,27 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+from sklearn.metrics import (recall_score,
+                             precision_score, roc_auc_score,
+                             f1_score, confusion_matrix)
 from sklearn.neighbors import KNeighborsClassifier
+
+
+def get_confusion_matrix(true_labels, predicted_label):
+    return confusion_matrix(
+        true_labels, predicted_label, normalize='true')
+
+
+def get_classification_scores(true_labels, predicted_label):
+    scores = {
+        "accuracy": sum(
+            predicted_label == predicted_label) / len(predicted_label),
+        "precision": precision_score(true_labels, predicted_label),
+        "recall": recall_score(true_labels, predicted_label),
+        "f1_score": f1_score(true_labels, predicted_label),
+        "roc_auc_score": roc_auc_score(true_labels, predicted_label)
+    }
+    return scores
 
 
 def transform_to_2d(node_embeddings):
@@ -194,20 +213,3 @@ def predict_links(graph, embedding, test_size=0.3, model_name="svm"):
     print("Link prediction model (fake vs true links): ")
     print("\t Macro F1-score: ", macro_f1)
     print("\t Micro F1-score: ", micro_f1)
-
-    print(macro_f1, micro_f1)
-
-
-    # def get_similar_nodes(self, node_id, number=10, node_subset=None):
-    #     """Get N most similar entities."""
-    #     embeddings = self.embeddings
-    #     if node_subset is not None:
-    #         # filter embeddings
-    #         embeddings = self.embeddings.loc[node_subset]
-    #     if embeddings.shape[0] < number:
-    #         number = embeddings.shape[0]
-    #     search_vec = self.embeddings.loc[node_id]["embedding"]
-    #     matrix = np.matrix(embeddings["embedding"].to_list())
-    #     closest_indices = cKDTree(matrix).query(search_vec, k=number)[1]
-    #     return embeddings.index[closest_indices].to_list()
-

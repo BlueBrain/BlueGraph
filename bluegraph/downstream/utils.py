@@ -4,7 +4,14 @@ import numpy as np
 
 
 class ElementClassifier(ABC):
+    """Interface for graph element classification models.
 
+    It wraps a predictive classification model provided by the user
+    and a set of configs that allow the user to fit the model
+    and make predictions on the input PGFrames. Its main goal is to
+    hide the details on converting element (node or edge) properties
+    into data tables that can be provided to the predictive model.
+    """
     def __init__(self, model, feature_vector_prop=None, feature_props=None,
                  **kwargs):
         self.model = model

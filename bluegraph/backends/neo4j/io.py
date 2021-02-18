@@ -6,6 +6,14 @@ from neo4j import GraphDatabase
 from bluegraph.core.io import GraphProcessor
 
 
+def execute(driver, query):
+    session = driver.session()
+    response = session.run(query)
+    result = response.data()
+    session.close()
+    return result
+
+
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
                      batch_size=10000):
@@ -16,11 +24,6 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
 
     if pgframe is None:
         return driver
-
-    def execute(query):
-        session = driver.session()
-        session.run(query)
-        session.close()
 
     def preprocess_value(v):
         if v == float("inf"):
@@ -53,7 +56,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         CREATE (n:{node_label})
         SET n += individual
         """)
-        execute(query)
+        execute(driver, query)
 
     # Create edges
     # Split edges into batches
@@ -80,12 +83,12 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         CREATE (n)-[r:{edge_label}]->(m)
         SET r += individual["props"]
         """)
-        execute(query)
+        execute(driver, query)
     return driver
 
 
 def neo4j_to_pgframe(driver, node_label, edge_label):
-    pass
+    raise NotImplementedError()
 
 
 def generate_neo4j_driver(uri=None, username=None,
@@ -97,6 +100,12 @@ def generate_neo4j_driver(uri=None, username=None,
 
 
 class Neo4jGraphProcessor(GraphProcessor):
+    """Neo4j graph processor.
+
+    The provided interface allows to communicate with an
+    instance of the Neo4j database, populate it with the
+    input PGFrames and read out PGFrames from the database.
+    """
 
     def __init__(self, pgframe=None, uri=None, username=None, password=None,
                  driver=None, node_label=None, edge_label=None, directed=True):
@@ -138,11 +147,7 @@ class Neo4jGraphProcessor(GraphProcessor):
             edge_label=edge_label)
 
     def execute(self, query):
-        session = self.driver.session()
-        response = session.run(query)
-        result = response.data()
-        session.close()
-        return result
+        return execute(self.driver, query)
 
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
@@ -150,7 +155,19 @@ class Neo4jGraphProcessor(GraphProcessor):
 
 
 class Neo4jGraphView(object):
+    """Neo4j persistent graph view.
 
+    This interface allows to create virtual views of a
+    persistent Neo4j graph. Such views are defined given a
+    node and edge labels which define subsets of nodes and edges
+    to consider. They also allow to filter specific nodes and edges,
+    as well as selecting whether the underlying graph is considered to
+    be directed or undirected. The main goal of creating such a graph
+    view is to be able to automatically generate queries operating on the
+    subgraph defined by the view.
+
+    TODO: make methods public
+    """
     def __init__(self, driver, node_label,
                  edge_label, nodes_to_exclude=None,
                  edges_to_exclude=None, directed=True):
@@ -162,11 +179,7 @@ class Neo4jGraphView(object):
         self.directed = directed
 
     def execute(self, query):
-        session = self.driver.session()
-        response = session.run(query)
-        result = response.data()
-        session.close()
-        return result
+        return execute(self.driver, query)
 
     def _get_nodes_query(self, return_ids=False):
         nodes_exclude_statement = ""

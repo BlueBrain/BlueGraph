@@ -986,6 +986,11 @@ class SparkPGFrame(PGFrame):
 
 
 class GraphProcessor(ABC):
+    """Abstract class for a graph processor.
+
+    The provided interface allows to convert PGFrames
+    into backend-specific graph objects and vice versa.
+    """
 
     def __init__(self, pgframe, directed=True):
         self.graph = self._generate_graph(
@@ -995,6 +1000,7 @@ class GraphProcessor(ABC):
     @staticmethod
     @abstractmethod
     def _generate_graph(pgframe, directed=True):
+        """Generate a graph object from the pgframe (backend specific)."""
         pass
 
     @abstractmethod
@@ -1004,6 +1010,7 @@ class GraphProcessor(ABC):
 
     @classmethod
     def from_graph_object(cls, graph_object):
+        """Initialize directly from the input graph object."""
         processor = cls()
         processor.graph = graph_object
         return processor

@@ -61,7 +61,9 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        "nexusforge"
+        "nexusforge",
+        "gensim",
+        "tensorflow"
     ],
     extras_require={
         "dev": [
@@ -90,8 +92,7 @@ setup(
             "neo4j"
         ],
         "stellargraph": [
-            "stellargraph",
-            "tensorflow"
+            "stellargraph"
         ]
     },
     classifiers=[

@@ -2,7 +2,7 @@ from .utils import ElementClassifier
 
 
 class NodeClassifier(ElementClassifier):
-    """A minimal wrapper around a classification model.
+    """Interface for node classification models.
 
     This wrapper alows to build classification models of PGFrame nodes.
     """

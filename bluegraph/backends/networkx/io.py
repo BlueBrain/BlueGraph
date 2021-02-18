@@ -19,6 +19,7 @@ def pgframe_to_networkx(pgframe, directed=True):
 
 
 def networkx_to_pgframe(nx_object):
+    """Create a PGFrame from the networkx object."""
     pgframe = PandasPGFrame(nodes=nx_object.nodes())
 
     aggregated_props = {}
@@ -42,6 +43,11 @@ def networkx_to_pgframe(nx_object):
 
 
 class NXGraphProcessor(GraphProcessor):
+    """NetworkX graph processor.
+
+    The provided interface allows to convert NetworkX objects
+    into PGFrames and vice versa.
+    """
 
     @staticmethod
     def _generate_graph(pgframe, directed=True):

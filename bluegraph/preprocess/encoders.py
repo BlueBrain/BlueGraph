@@ -19,7 +19,17 @@ from bluegraph.core.io import PandasPGFrame
 
 
 class SemanticPGEncoder(ABC):
-    """Abstract class for semantic property graph encoder."""
+    """Abstract class for semantic property graph encoder.
+
+    The encoder provides a wrapper for multiple heterogeneous
+    models for encoding various node/edge properties (of different
+    data types) into numerical vectors. It supports three types of
+    properties: categorical properties, text properties and
+    numerical properties.
+
+    TODO: Make it concrete by allowing to specify custom encoding
+    models for different property types (?)
+    """
 
     # ----------- Abstract methods ----------
 
@@ -261,7 +271,17 @@ class SemanticPGEncoder(ABC):
 
 
 class ScikitLearnPGEncoder(SemanticPGEncoder):
-    """Scikit-learn-based in-memory property graph encoder."""
+    """Scikit-learn-based in-memory property graph encoder.
+
+    The encoder provides a wrapper for multiple heterogeneous
+    models for encoding various node/edge properties of different
+    data types into numerical vectors. It supports the following
+    encoders:
+
+    - for categorical properties: MultiLabelBinarizer
+    - for text properties: TfIdf, word2vec
+    - for numerical properties: standard scaler
+    """
 
     # ---------------- Implementation of abstract methods --------------
     @staticmethod

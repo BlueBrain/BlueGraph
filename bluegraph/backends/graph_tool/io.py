@@ -54,6 +54,7 @@ def pgframe_to_graph_tool(pgframe, directed=True):
 
 
 def graph_tool_to_pgframe(graph):
+    """Create a PGFrame from the graph-tool object."""
     pgframe = PandasPGFrame(nodes=graph.vp["@id"])
     for k, v in graph.vp.items():
         if k != "@id":
@@ -96,6 +97,11 @@ def graph_tool_to_pgframe(graph):
 
 
 class GTGraphProcessor(GraphProcessor):
+    """graph-tool graph processor.
+
+    The provided interface allows to convert graph-tool objects
+    into PGFrames and vice versa.
+    """
 
     @staticmethod
     def _generate_graph(pgframe, directed=True):

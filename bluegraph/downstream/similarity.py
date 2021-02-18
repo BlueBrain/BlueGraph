@@ -4,11 +4,20 @@ import pandas as pd
 import faiss
 import os
 
-
+# This is to avoid a wierd Faiss segmentation fault (TODO: investigate)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 
 class SimilarityProcessor(object):
+    """Vector similarity processor.
+
+    This class allows to build vector similarity indices using
+    Faiss. In wraps the indices (names or IDs) of the points,
+    vector space and similarity measure configs. It also allows
+    to segment the search space into Voronoi cells (see example:
+    https://github.com/facebookresearch/faiss/wiki/Faster-search)
+    allowing to speed up the search.
+    """
 
     def __init__(self, dimension, similarity="euclidean",
                  initial_vectors=None, initial_index=None,
@@ -24,7 +33,7 @@ class SimilarityProcessor(object):
         if initial_index is not None:
             self.index = pd.Index([])
 
-        self._initialize_model(initial_vectors)
+        self._model = self._initialize_model(initial_vectors)
 
         if initial_vectors is not None:
             self._add(initial_vectors, initial_index)
@@ -49,7 +58,7 @@ class SimilarityProcessor(object):
             metric = faiss.METRIC_INNER_PRODUCT
 
         if self.n_segments > 1:
-            self._model = faiss.IndexIVFFlat(
+            model = faiss.IndexIVFFlat(
                 index, self.dimension, self.n_segments, metric)
 
             if initial_vectors is None:
@@ -59,10 +68,11 @@ class SimilarityProcessor(object):
                 )
 
             initial_vectors = self._preprocess_vectors(initial_vectors)
-            self._model.train(initial_vectors)
-            self._model.make_direct_map()
+            model.train(initial_vectors)
+            model.make_direct_map()
         else:
-            self._model = index
+            model = index
+        return model
 
     def _query_existing(self, existing_indices, k=10):
         if self.index is not None:
@@ -125,6 +135,12 @@ class SimilarityProcessor(object):
 
 
 class NodeSimilarityProcessor(object):
+    """Node similarity processor.
+
+    This class allows to build and query node similarity indices using
+    Faiss. In wraps the underlying graph object and the vector
+    similarity processor and provides.
+    """
 
     def __init__(self, pgframe, vector_property, similarity="euclidean"):
         self.graph = pgframe
@@ -154,7 +170,6 @@ class NodeSimilarityProcessor(object):
             for node in self.graph.nodes()
             if node not in self.processor.index
         ]
-        print(new_nodes)
         if len(new_nodes) > 0:
             self.processor._add(
                 vectors=self.graph.get_node_property_values(

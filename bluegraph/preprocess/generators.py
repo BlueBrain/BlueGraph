@@ -9,35 +9,17 @@ from bluegraph.core.utils import _aggregate_values, safe_intersection
 SENTINEL = "END"
 
 
-def schedule_scanning(task_queue, indices, n_workers):
-    """Schedule scanning work."""
-    for i in indices:
-        task_queue.put(i)
-    for _ in range(n_workers):
-        task_queue.put(SENTINEL)
-    task_queue.close()
-    task_queue.join_thread()
-
-
-def aggregate_index(x):
-    return set(x.index)
-
-
 def mutual_information(co_freq, s_freq, t_freq, total_instances, mitype=None):
     """Compute mutual information on a pair of terms.
-    occurrence_data : pandas.DataFrame
-        Dataframe containing term occurrence data, IDs of terms are given by
-        the index column of the data frame.
-    factor : str
-        Name of the column containing the term occurrence data (for example,
-        a set of unique scientific articles per each term in the index).
+    co_freq : int
+        Co-occurrence frequency of s & t
+    s_freq : int
+        Occurrence frequency of s
+    t_freq : int
+        Occurrence frequency of t
     total_instances : int
         Total number of all unique instances of the occurrence factor (for
         example, the total number of all scientific articles in the dataset).
-    s : str
-        Source term
-    t : str
-        Traget term
     mitype : str, optional
         Mutual information score type. Possible types 'expected', 'normalized',
         'pmi2', 'pmi3', by default, no normalization is applied (i.e. positive
@@ -70,9 +52,9 @@ def mutual_information(co_freq, s_freq, t_freq, total_instances, mitype=None):
     return mi if mi > 0 else 0
 
 
-def compute_frequency(pgframe, s, t, node_property, common_factors,
-                      total_factor_instances,
-                      factor_aggregator, reverse_edges):
+def _compute_frequency(pgframe, s, t, node_property, common_factors,
+                       total_factor_instances,
+                       factor_aggregator, reverse_edges):
     return len(common_factors)
 
 
@@ -102,9 +84,9 @@ def _get_s_t_frequencies(pgframe, s, t, node_property, factor_aggregator,
     return s_freq, t_freq
 
 
-def compute_ppmi(pgframe, s, t, node_property, common_factors,
-                 total_factor_instances,
-                 factor_aggregator, reverse_edges):
+def _compute_ppmi(pgframe, s, t, node_property, common_factors,
+                  total_factor_instances,
+                  factor_aggregator, reverse_edges):
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
         pgframe, s, t, node_property, factor_aggregator, reverse_edges)
@@ -113,9 +95,9 @@ def compute_ppmi(pgframe, s, t, node_property, common_factors,
         co_freq, s_freq, t_freq, total_factor_instances)
 
 
-def compute_npmi(pgframe, s, t, node_property, common_factors,
-                 total_factor_instances,
-                 factor_aggregator, reverse_edges):
+def _compute_npmi(pgframe, s, t, node_property, common_factors,
+                  total_factor_instances,
+                  factor_aggregator, reverse_edges):
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
         pgframe, s, t, node_property, factor_aggregator, reverse_edges)
@@ -125,13 +107,44 @@ def compute_npmi(pgframe, s, t, node_property, common_factors,
 
 
 COOCCURRENCE_STATISTICS = {
-    "frequency": compute_frequency,
-    "ppmi": compute_ppmi,
-    "npmi": compute_npmi
+    "frequency": _compute_frequency,
+    "ppmi": _compute_ppmi,
+    "npmi": _compute_npmi
 }
 
 
+def schedule_scanning(task_queue, indices, n_workers):
+    """Schedule scanning work."""
+    for i in indices:
+        task_queue.put(i)
+    for _ in range(n_workers):
+        task_queue.put(SENTINEL)
+    task_queue.close()
+    task_queue.join_thread()
+
+
+def aggregate_index(x):
+    return set(x.index)
+
+
 class CooccurrenceGenerator(object):
+    """Generator of co-occurrence edges from PGFrames.
+
+    This interface allows to inspect nodes of the wrapped graph
+    for their co-occurrence. The co-occurrence can be based on node
+    properties: two nodes co-occur when they share some property values.
+    For instance, two terms have common values in sets
+    of papers in which they occur, i.e. two terms co-occur in the same papers.
+    The co-occurrence can be also based on edge types: two nodes co-occur when
+    they both have an edge of the same type pointing to the same target node.
+    For example, two nodes representing terms have an edge of the type
+    'occursIn' pointing to the same node representing a paper. The class
+    generate edges between co-occurring nodes according to the input criteria
+    and computes a set of statistics (frequency, PPMI, NPMI) quantifying
+    their co-occurrence relationships.
+
+    TODO: does it need to be a class (?) Can we just make two utils (?)
+    """
 
     def __init__(self, pgframe):
         self.pgframe = pgframe
