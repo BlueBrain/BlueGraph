@@ -20,15 +20,26 @@ def get_confusion_matrix(true_labels, predicted_label):
         true_labels, predicted_label, normalize='true')
 
 
-def get_classification_scores(true_labels, predicted_label):
+def get_classification_scores(true_labels, predicted_labels, average="micro",
+                              multiclass=False):
     scores = {
         "accuracy": sum(
-            predicted_label == predicted_label) / len(predicted_label),
-        "precision": precision_score(true_labels, predicted_label),
-        "recall": recall_score(true_labels, predicted_label),
-        "f1_score": f1_score(true_labels, predicted_label),
-        "roc_auc_score": roc_auc_score(true_labels, predicted_label)
+            true_labels == predicted_labels) / len(predicted_labels),
+        "precision": precision_score(
+            true_labels, predicted_labels, average=average),
+        "recall": recall_score(
+            true_labels, predicted_labels, average=average),
+        "f1_score": f1_score(
+            true_labels, predicted_labels, average=average)
     }
+    if multiclass:
+        binarizer = MultiLabelBinarizer()
+        true_labels = binarizer.fit_transform(true_labels)
+        predicted_labels = binarizer.transform(predicted_labels)
+    scores["roc_auc_score"] = roc_auc_score(
+        true_labels, predicted_labels, average=average,
+        multi_class="ovr")
+
     return scores
 
 
