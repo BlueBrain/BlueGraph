@@ -791,8 +791,8 @@ class PandasPGFrame(PGFrame):
 
     def get_edge_property_values(self, prop, edges=None, typed_by=None):
         if edges is None:
-            edges = self.nodes()
-        df = self._edges[edges]
+            edges = self.edges()
+        df = self._edges.loc[edges]
         if typed_by is not None:
             if "@type" not in self._edges:
                 return []
