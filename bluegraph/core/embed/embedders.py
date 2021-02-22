@@ -14,7 +14,7 @@ from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 DEFAULT_EMBEDDING_DIMENSION = 64
 
 
-class ElementEmbedder(ABC):
+class GraphElementEmbedder(ABC):
     """Abstract class for a node/edge embedder."""
 
     @property
@@ -85,11 +85,6 @@ class ElementEmbedder(ABC):
         }
 
     def info(self):
-        """Print embedder info."""
-        title = f"'{self.__class__.__name__}' info"
-        print(title)
-        print("=" * len(title))
-
         model_type = (
             'transductive'
             if self.model_name in self._transductive_models
@@ -97,14 +92,33 @@ class ElementEmbedder(ABC):
         )
 
         trained = "True" if self._embedding_model else "False"
+
+        info = {
+            "interface": self.__class__.__name__,
+            "model_type": model_type,
+            "trained": trained,
+            "model_name": self.model_name,
+            "model_params": self.params,
+            "graph_configs": self.graph_configs
+        }
+        return info
+
+    def print_info(self):
+        """Print embedder info."""
+        info = self.info()
+        title = "'{}' info".format(info['interface'])
+        print(title)
+        print("=" * len(title))
+
         model_trained = (
-            f"\nTrained for prediction: {trained}"
-            if model_type == "inductive"
+            "\nTrained for prediction: {}".format(info["trained"])
+            if info["model_type"] == "inductive"
             else ""
         )
         print(
-            f"Model name: '{self.model_name}' ("
-            f"{model_type}){model_trained}")
+            "Model name: '{}' ({}){}".format(
+                self.model_name, info["model_type"], model_trained)
+        )
         print("Graph configurations: ")
         print(json.dumps(self.graph_configs, indent="     "))
         print("Model parameters: ")
@@ -146,7 +160,7 @@ class ElementEmbedder(ABC):
 
         return node_embeddings
 
-    def save(self, path, compress=True, save_graph=False):
+    def save(self, path, compress=False, save_graph=False):
         """Save the embedder."""
         # backup the model
         model_backup = self._embedding_model

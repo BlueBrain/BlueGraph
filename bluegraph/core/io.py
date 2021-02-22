@@ -1,6 +1,7 @@
 """Collection of data structures for representing property graphs as data frames."""
 from abc import ABC, abstractmethod
 
+import json
 import numpy as np
 
 import pandas as pd
@@ -14,6 +15,22 @@ from bluegraph.exceptions import BlueGraphException
 
 class PGFrame(ABC):
     """Class for storing typed property graphs as a collection of frames."""
+
+    def __init__(self, nodes=None, edges=None, default_prop_type='category'):
+
+        self._nodes = self._create_frame(["@id"])
+        self._edges = self._create_frame(["@source_id", "@target_id"])
+
+        self._node_prop_types = {}
+        self._edge_prop_types = {}
+
+        self.default_prop_type = default_prop_type
+
+        if nodes is not None:
+            self.add_nodes(nodes)
+
+        if edges is not None:
+            self.add_edges(edges)
 
     # ----------------- Abstract methods -----------------
 
@@ -156,23 +173,30 @@ class PGFrame(ABC):
     def remove_isolated_nodes(self):
         pass
 
+    @abstractmethod
+    def to_json(self):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_json(cls, json_data):
+        pass
+
+    @abstractmethod
+    def export_json(self, path):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def load_json(cls, path):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_frames(self, nodes, edges):
+        pass
+
     # -------------------- Concrete methods --------------------
-
-    def __init__(self, nodes=None, edges=None, default_prop_type='category'):
-
-        self._nodes = self._create_frame(["@id"])
-        self._edges = self._create_frame(["@source_id", "@target_id"])
-
-        self._node_prop_types = {}
-        self._edge_prop_types = {}
-
-        self.default_prop_type = default_prop_type
-
-        if nodes is not None:
-            self.add_nodes(nodes)
-
-        if edges is not None:
-            self.add_edges(edges)
 
     def _valid_node_prop_type(self, prop, prop_type):
         if prop_type == "text":
@@ -474,11 +498,6 @@ class PGFrame(ABC):
         if edge_property_types:
             graph._edge_prop_types.update(edge_property_types)
         return graph
-
-    @classmethod
-    @abstractmethod
-    def from_frames(self, nodes, edges):
-        pass
 
     def export_to_gephi(self, prefix, node_attr_mapping,
                         edge_attr_mapping, edge_filter=None):
@@ -975,6 +994,37 @@ class PandasPGFrame(PGFrame):
         isolates = self.isolated_nodes()
         # Remove nodes
         self._nodes = self._nodes.loc[~self._nodes.index.isin(isolates)]
+
+    def to_json(self):
+        nodes_json = self._nodes.reset_index().to_json(orient="records")
+        edges_json = self._edges.reset_index().to_json(orient="records")
+        return {
+            "nodes": nodes_json,
+            "edges": edges_json,
+            "node_property_types": self._node_prop_types,
+            "edge_property_types": self._edge_prop_types
+        }
+
+    @classmethod
+    def from_json(cls, json_data):
+        frame = cls()
+        frame._nodes = pd.read_json(json_data["nodes"]).set_index("@id")
+        frame._edges = pd.read_json(json_data["edges"]).set_index(
+            ["@source_id", "@target_id"])
+        frame._node_prop_types = json_data["node_property_types"]
+        frame._edge_prop_types = json_data["edge_property_types"]
+        return frame
+
+    def export_json(self, path):
+        data = self.to_json()
+        with open(path, "w") as f:
+            json.dump(data, f)
+
+    @classmethod
+    def load_json(cls, path):
+        with open(path, "r") as f:
+            data = json.load(f)
+            return PandasPGFrame.from_json(data)
 
 
 class SparkPGFrame(PGFrame):

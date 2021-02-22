@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 
-from bluegraph.core.embed.embedders import (ElementEmbedder,
+from bluegraph.core.embed.embedders import (GraphElementEmbedder,
                                             DEFAULT_EMBEDDING_DIMENSION)
 
 from ..io import Neo4jGraphView, pgframe_to_neo4j
@@ -66,7 +66,7 @@ def _generate_param_repr(params):
     return param_repr
 
 
-class Neo4jNodeEmbedder(ElementEmbedder):
+class Neo4jNodeEmbedder(GraphElementEmbedder):
 
     _transductive_models = ["node2vec", "fastrp"]
     _inductive_models = ["graphsage"]
@@ -90,7 +90,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
                     f"StellarGraphNodeEmbedder's model '{self.model_name}' "
                     f"does not support the training parameter '{k}', "
                     "the parameter will be ignored",
-                    ElementEmbedder.FittingWarning)
+                    GraphElementEmbedder.FittingWarning)
             else:
                 params[k] = v
 
@@ -109,7 +109,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
             warnings.warn(
                 "Weighted node2vec embedding for Neo4j graphs "
                 "is not implemented: computing the unweighted version",
-                ElementEmbedder.FittingWarning)
+                GraphElementEmbedder.FittingWarning)
             edge_weight = None
 
         node_edge_selector = train_graph.get_projection_query(edge_weight)
@@ -241,7 +241,7 @@ class Neo4jNodeEmbedder(ElementEmbedder):
         """Train specified model on the provided graph."""
         if write:
             if write_property is None:
-                raise ElementEmbedder.FittingException(
+                raise GraphElementEmbedder.FittingException(
                     "Fitting has the write option set to True, "
                     "the write property name for saving embedding vectors "
                     "must be specified")
@@ -280,13 +280,13 @@ class Neo4jNodeEmbedder(ElementEmbedder):
         """Predict embeddings of out-sample elements."""
         if write:
             if write_property is None:
-                raise ElementEmbedder.PredictionException(
+                raise GraphElementEmbedder.PredictionException(
                     "Prediction has the write option set to True, "
                     "the write property name for saving embedding vectors "
                     "must be specified")
 
         if self._embedding_model is None:
-            raise ElementEmbedder.PredictionException(
+            raise GraphElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
         if graph_view is None:

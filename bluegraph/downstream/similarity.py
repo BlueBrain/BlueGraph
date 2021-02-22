@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 
 import faiss
 import os
@@ -30,13 +31,35 @@ class SimilarityProcessor(object):
         self.similarity = similarity
         self.n_segments = n_segments
 
-        if initial_index is not None:
-            self.index = pd.Index([])
+        self.index = pd.Index([])
 
         self._model = self._initialize_model(initial_vectors)
 
         if initial_vectors is not None:
-            self._add(initial_vectors, initial_index)
+            self.add(initial_vectors, initial_index)
+
+    def info(self):
+        info = {
+            "similarity": self.similarity,
+            "dimension": self.dimension,
+            "segmented": True if self.n_segments and self.n_segments > 1 else False,
+        }
+        return info
+
+    def export(self, object_path, index_path):
+        model = self._model
+        self._model = None
+        with open(object_path, "wb") as f:
+            pickle.dump(self, f)
+        faiss.write_index(model, index_path)
+        self._model = model
+
+    @staticmethod
+    def load(object_path, index_path):
+        with open(object_path, "rb") as f:
+            processor = pickle.load(f)
+            processor._model = faiss.read_index(index_path)
+            return processor
 
     def _preprocess_vectors(self, vectors):
         if isinstance(vectors, pd.Series):
@@ -49,7 +72,6 @@ class SimilarityProcessor(object):
         return vectors
 
     def _initialize_model(self, initial_vectors=None):
-
         if self.similarity == "euclidean":
             index = faiss.IndexFlatL2(self.dimension)
             metric = faiss.METRIC_L2
@@ -74,18 +96,21 @@ class SimilarityProcessor(object):
             model = index
         return model
 
-    def _query_existing(self, existing_indices, k=10):
+    def get_vectors(self, existing_indices):
         if self.index is not None:
             existing_indices = self.index.get_indexer(existing_indices)
         x = [self._model.reconstruct(int(i)) for i in existing_indices]
-        return self._query_new(x, k)
+        return x
 
-    def _query_new(self, vectors, k=10):
+    def query_existing(self, existing_indices, k=10):
+        return self.query_new(self.get_vectors(existing_indices), k)
+
+    def query_new(self, vectors, k=10):
         vectors = self._preprocess_vectors(vectors)
         distance, int_index = self._model.search(vectors, k)
         return distance, int_index
 
-    def _add(self, vectors, vector_indices=None):
+    def add(self, vectors, vector_indices=None):
         vectors = self._preprocess_vectors(vectors)
         if vector_indices is not None:
             for i in vector_indices:
@@ -100,7 +125,7 @@ class SimilarityProcessor(object):
                            existing_indices=None, k=10,
                            add_to_index=False, new_point_index=None):
         if existing_indices is not None:
-            distance, int_index = self._query_existing(existing_indices, k)
+            distance, int_index = self.query_existing(existing_indices, k)
         else:
             if vectors.shape[1] != self.dimension:
                 raise SimilarityProcessor.QueryException(
@@ -111,8 +136,8 @@ class SimilarityProcessor(object):
                     raise ValueError(
                         "Parameter 'add_to_index' is set to True, "
                         "'new_point_index' must be specified")
-                self._add(vectors, vector_indices)
-            distance, int_index = self._query_new(vectors, k)
+                self.add(vectors, vector_indices)
+            distance, int_index = self.query_new(vectors, k)
 
         # Get indices
         if self.index is not None:

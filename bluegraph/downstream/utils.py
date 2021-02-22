@@ -1,6 +1,14 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import pandas as pd
+
+import os
+import re
+import pickle
+import shutil
+
+from .similarity import SimilarityProcessor
 
 
 class ElementClassifier(ABC):
@@ -62,3 +70,157 @@ class ElementClassifier(ABC):
             pgframe, predict_elements)
         data = self._generate_data_table(pgframe, predict_elements)
         return self.model.predict(data)
+
+
+class Preprocessor(ABC):
+    """Preprocessor inferface for EmbeddingPipeline."""
+
+    @abstractmethod
+    def info(self):
+        pass
+
+    @abstractmethod
+    def fit(self):
+        pass
+
+    @abstractmethod
+    def transform(self):
+        pass
+
+
+class Embedder(ABC):
+    """Embedder inferface for EmbeddingPipeline."""
+
+    @abstractmethod
+    def info(self):
+        pass
+
+    @abstractmethod
+    def fit_model(self):
+        pass
+
+
+class EmbeddingPipeline(object):
+
+    def __init__(self, preprocessor=None, embedder=None,
+                 embedding_table=None,
+                 similarity_processor=None):
+        self.preprocessor = preprocessor
+        self.embedder = embedder
+        self.embedding_table = embedding_table
+        self.similarity_processor = similarity_processor
+
+    def is_transductive(self):
+        return self.embedder is None or self.embedder._embedding_model is None
+
+    def is_inductive(self):
+        return self.embedder is not None and self.embedder._embedding_model is not None
+
+    def run_fitting(self, data):
+        # Encode
+        if self.preprocessor is not None:
+            self.preprocessor.fit(data)
+            train_data = self.preprocessor.transform(data)
+        else:
+            train_data = data
+        # Train the embedder
+        self.embedding_table = self.embedder.fit_model(train_data)
+        # Create a similarity processor
+        vectors =\
+            self.embedding_table["embedding"].tolist()
+        self.similarity_processor._initialize_model(vectors)
+        self.similarity_processor.add(vectors, self.embedding_table.index)
+        self.similarity_processor.index = self.embedding_table.index
+
+    def run_prediction(self, data):
+        pass
+
+    def retrieve_embeddings(self, indices):
+        if self.embedding_table is not None:
+            return self.embedding_table.loc[indices]["embedding"].tolist()
+        else:
+            return [
+                el.tolist()
+                for el in self.similarity_processor.get_vectors(indices)
+            ]
+
+    def get_similar_points(self, indices, k=10):
+        return self.similarity_processor.get_similar_points(
+            existing_indices=indices, k=k)
+
+    @classmethod
+    def load(cls, path, embedder_interface=None, embedder_ext="pkl"):
+        """Load a dumped embedding pipeline."""
+        decompressed = False
+        if re.match(r"(.+)\.zip", path):
+            # decompress
+            shutil.unpack_archive(
+                path,
+                extract_dir=re.match(r"(.+)\.zip", path).groups()[0])
+            path = re.match(r"(.+)\.zip", path).groups()[0]
+            decompressed = True
+
+        # Load the encoder
+        encoder = None
+        with open(os.path.join(path, "encoder.pkl"), "rb") as f:
+            encoder = pickle.load(f)
+
+        # Load the model
+        embedder = None
+        extension = f".{embedder_ext}" if embedder_ext else ""
+        if os.path.isfile(os.path.join(path, f"embedder{extension}")):
+            if embedder_interface is None:
+                with open(os.path.join(path, f"embedder{extension}"), "rb") as f:
+                    embedder = pickle.load(f)
+            else:
+                embedder = embedder_interface.load(
+                    os.path.join(path, "embedder.zip"))
+
+        # Load the embedding table
+        embedding_table = None
+        if os.path.isfile(os.path.join(path, "vectors.pkl")):
+            embedding_table = pd.read_pickle(
+                os.path.join(path, "vectors.pkl"))
+
+        # Load the similarity processor
+        similarity_processor = SimilarityProcessor.load(
+            os.path.join(path, "similarity.pkl"),
+            os.path.join(path, "index.faiss"))
+
+        pipeline = cls(
+            preprocessor=encoder,
+            embedder=embedder,
+            embedding_table=embedding_table,
+            similarity_processor=similarity_processor)
+
+        if decompressed:
+            shutil.rmtree(path)
+
+        return pipeline
+
+    def save(self, path, compress=False):
+
+        if not os.path.isdir(path):
+            os.mkdir(path)
+
+        # Save the encoder
+        with open(os.path.join(path, "encoder.pkl"), "wb") as f:
+            pickle.dump(self.preprocessor, f)
+
+        # Save the embedding model
+        self.embedder.save(
+            os.path.join(path, "embedder"), compress=True)
+
+        # Save the embedding table
+        self.embedding_table.to_pickle(
+            os.path.join(path, "vectors.pkl"))
+
+        # Save the similarity processor
+        if self.similarity_processor is not None:
+            self.similarity_processor.export(
+                os.path.join(path, "similarity.pkl"),
+                os.path.join(path, "index.faiss"))
+
+        if compress:
+            shutil.make_archive(path, 'zip', path)
+            shutil.rmtree(path)

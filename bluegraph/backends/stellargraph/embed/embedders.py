@@ -7,7 +7,7 @@ from stellargraph.data import UnsupervisedSampler
 from stellargraph.layer import link_classification
 from stellargraph.losses import graph_log_likelihood
 
-from bluegraph.core.embed.embedders import (ElementEmbedder,
+from bluegraph.core.embed.embedders import (GraphElementEmbedder,
                                             DEFAULT_EMBEDDING_DIMENSION)
 
 from .ml_utils import (_fit_node2vec,
@@ -66,7 +66,7 @@ LOSSES = {
 }
 
 
-class StellarGraphNodeEmbedder(ElementEmbedder):
+class StellarGraphNodeEmbedder(GraphElementEmbedder):
     """Embedder for StellarGraph library."""
 
     _transductive_models = [
@@ -106,7 +106,7 @@ class StellarGraphNodeEmbedder(ElementEmbedder):
                     f"StellarGraphNodeEmbedder's model '{self.model_name}' "
                     f"does not support the training parameter '{k}', "
                     "the parameter will be ignored",
-                    ElementEmbedder.FittingWarning)
+                    GraphElementEmbedder.FittingWarning)
             else:
                 params[k] = v
 

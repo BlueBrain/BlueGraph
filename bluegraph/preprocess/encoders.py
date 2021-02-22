@@ -71,10 +71,9 @@ class SemanticPGEncoder(ABC):
 
     # ----------- Concrete methods ----------
 
-    def __init__(self, heterogeneous=False,
-                 drop_types=False,
-                 encode_types=False,
-                 edge_features=False,
+    def __init__(self,  node_properties=None, edge_properties=None,
+                 heterogeneous=False, drop_types=False,
+                 encode_types=False, edge_features=False,
                  categorical_encoding="multibin",
                  text_encoding="tfidf",
                  text_encoding_max_dimension=128,
@@ -85,6 +84,8 @@ class SemanticPGEncoder(ABC):
 
         Parameters
         ----------
+        node_properties : list, optional
+        node_properties : list, optional
         heterogeneous : bool, optional
             Flag indicating if the feature space is heterogeneous accross
             different node/edge types. False by default.
@@ -116,28 +117,76 @@ class SemanticPGEncoder(ABC):
         self.standardize_numeric = standardize_numeric
 
         self._node_encoders = {}
+        if node_properties is not None:
+            if self.heterogeneous:
+                if not isinstance(node_properties, dict):
+                    raise SemanticPGEncoder.EncodingException(
+                        "Encoder is heterogeneous, specified node properties "
+                        "should be a dictionary whose keys are node types "
+                        "and whose values are sets of properties to encode.")
+                for t, props in node_properties.items():
+                    self._node_encoders[t] = {}
+                    for p in props:
+                        self._node_encoders[t][p] = None
+            else:
+                for p in node_properties:
+                    self._node_encoders[p] = None
         self._edge_encoders = {}
+        if edge_properties is not None:
+            if self.heterogeneous:
+                if not isinstance(edge_properties, dict):
+                    raise SemanticPGEncoder.EncodingException(
+                        "Encoder is heterogeneous, specified edge properties "
+                        "should be a dictionary whose keys are edge types "
+                        "and whose values are sets of properties to encode.")
+                for t, props in edge_properties.items():
+                    self._edge_encoders[t] = {}
+                    for p in props:
+                        self._edge_encoders[t][p] = None
+            else:
+                for p in edge_properties:
+                    self._edge_encoders[p] = None
 
-    def fit(self, pgframe, node_properties=None, edge_properties=None):
+    def info(self):
+        if self.heterogeneous:
+            node_properties = {}
+            for k, v in self._node_encoders.items():
+                node_properties[k] = list(v.keys())
+            edge_properties = None
+            if self.edge_features:
+                edge_properties = {}
+                for k, v in self._edge_encoders.items():
+                    edge_properties[k] = list(v.keys())
+        else:
+            node_properties = list(self._node_encoders.keys())
+            edge_properties = (
+                list(self._edge_encoders.keys())
+                if self.edge_features else None
+            )
+        info = {
+            "heterogeneous": self.heterogeneous,
+            "drop_types": self.drop_types,
+            "encode_types": self.encode_types,
+            "edge_features": self.edge_features,
+            "categorical_encoding": self.categorical_encoding,
+            "text_encoding": self.text_encoding,
+            "text_encoding_max_dimension": self.text_encoding_max_dimension,
+            "missing_numeric": self.missing_numeric,
+            "imputation_strategy": self.imputation_strategy,
+            "standardize_numeric": self.standardize_numeric,
+            "node_properties": node_properties,
+            "edge_properties": edge_properties
+        }
+        return info
+
+    def fit(self, pgframe):
         """Fit encoders for node and edge properties."""
         if self.heterogeneous:
             for node_type in pgframe.node_types():
                 node_type_repr = _generate_type_repr(node_type)
                 self._node_encoders[node_type_repr] = {}
 
-                if node_properties is None:
-                    # Include all node properties
-                    node_properties = {
-                        node_type: pgframe.node_properties(
-                            node_type=node_type)
-                    }
-                elif not isinstance(node_properties, dict):
-                    raise SemanticPGEncoder.EncodingException(
-                        "Encoder is heterogeneous, specified node properties "
-                        "should be a dictionary whose keys are node types "
-                        "and whose values are sets of properties to encode.")
-
-                for prop in node_properties[node_type]:
+                for prop in self._node_encoders[node_type]:
                     self._node_encoders[
                         node_type_repr][prop] = self._fit_encoder(
                             pgframe.nodes(
@@ -148,42 +197,20 @@ class SemanticPGEncoder(ABC):
                     edge_type_repr = _generate_type_repr(edge_type)
                     self._edge_encoders[edge_type_repr] = {}
 
-                    if edge_properties is None:
-                        # Include all the edge properties
-                        edge_properties = {
-                            edge_type: pgframe.edge_properties(
-                                edge_type=edge_type)
-                        }
-                    elif not isinstance(edge_properties, dict):
-                        raise SemanticPGEncoder.EncodingException(
-                            "Encoder is heterogeneous, specified edge properties "
-                            "should be a dictionary whose keys are edge types "
-                            "and whose values are sets of properties to encode.")
-
-                    for prop in edge_properties[edge_type]:
+                    for prop in self._edge_encoders[edge_type]:
                         self._edge_encoders[
                             edge_type_repr][prop] = self._fit_encoder(
                                 pgframe.edges(
                                     typed_by=edge_type, raw_frame=True), prop,
                                 _get_encoder_type(pgframe, prop, is_edge=True))
         else:
-            if node_properties is None:
-                # Include all node properties
-                node_properties = pgframe.node_properties(
-                    include_type=self.encode_types)
-
-            for prop in node_properties:
+            for prop in self._node_encoders:
                 self._node_encoders[prop] = self._fit_encoder(
                     pgframe.nodes(raw_frame=True), prop,
                     _get_encoder_type(pgframe, prop))
 
             if self.edge_features:
-                if edge_properties is None:
-                    # Include all the edge properties
-                    edge_properties = pgframe.edge_properties(
-                        include_type=self.encode_types)
-
-                for prop in edge_properties:
+                for prop in self._edge_encoders:
                     self._edge_encoders[prop] = self._fit_encoder(
                         pgframe.edges(raw_frame=True), prop,
                         _get_encoder_type(pgframe, prop, is_edge=True))
@@ -262,11 +289,9 @@ class SemanticPGEncoder(ABC):
 
         return transformed_pgframe
 
-    def fit_transform(self, pgframe, node_properties=None, edge_properties=None):
+    def fit_transform(self, pgframe):
         """Fit the encoder and transform the input PGFrame."""
-        self.fit(
-            pgframe, node_properties=node_properties,
-            edge_properties=edge_properties)
+        self.fit(pgframe)
         return self.transform(pgframe)
 
 
