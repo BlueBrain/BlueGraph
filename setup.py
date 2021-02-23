@@ -63,7 +63,8 @@ setup(
         "nltk",
         "nexusforge",
         "gensim",
-        "tensorflow"
+        "tensorflow",
+        "faiss"
     ],
     extras_require={
         "dev": [
