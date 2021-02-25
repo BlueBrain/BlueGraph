@@ -1,226 +1,106 @@
-from abc import ABC, abstractmethod
-
+"""Collection of utils for benchmarking embedding models."""
 import numpy as np
-import pandas as pd
 
-import os
-import re
-import pickle
-import shutil
+import matplotlib.pyplot as plt
 
-from .similarity import SimilarityProcessor
+from sklearn.manifold import TSNE
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import (recall_score,
+                             precision_score, roc_auc_score,
+                             f1_score, confusion_matrix)
 
 
-class ElementClassifier(ABC):
-    """Interface for graph element classification models.
+def get_confusion_matrix(true_labels, predicted_label):
+    return confusion_matrix(
+        true_labels, predicted_label, normalize='true')
 
-    It wraps a predictive classification model provided by the user
-    and a set of configs that allow the user to fit the model
-    and make predictions on the input PGFrames. Its main goal is to
-    hide the details on converting element (node or edge) properties
-    into data tables that can be provided to the predictive model.
-    """
-    def __init__(self, model, feature_vector_prop=None, feature_props=None,
-                 **kwargs):
-        self.model = model
-        self.feature_vector_prop = feature_vector_prop
-        self.feature_props = feature_props
 
-    def _concatenate_feature_props(self, pgframe, nodes):
-        if self.feature_props is None or len(self.feature_props) == 0:
-            raise ValueError
-        return pgframe.nodes(
-            raw_frame=True).loc[nodes, self.feature_props].to_numpy()
+def get_classification_scores(true_labels, predicted_labels, average="micro",
+                              multiclass=False):
+    scores = {
+        "accuracy": sum(
+            true_labels == predicted_labels) / len(predicted_labels),
+        "precision": precision_score(
+            true_labels, predicted_labels, average=average),
+        "recall": recall_score(
+            true_labels, predicted_labels, average=average),
+        "f1_score": f1_score(
+            true_labels, predicted_labels, average=average)
+    }
+    if multiclass:
+        binarizer = MultiLabelBinarizer()
+        true_labels = binarizer.fit_transform(true_labels)
+        predicted_labels = binarizer.transform(predicted_labels)
+    scores["roc_auc_score"] = roc_auc_score(
+        true_labels, predicted_labels, average=average,
+        multi_class="ovr")
 
-    def _get_node_features(self, pgframe, nodes):
-        if self.feature_vector_prop:
-            features = pgframe.get_node_property_values(
-                self.feature_vector_prop, nodes=nodes).tolist()
+    return scores
+
+
+def transform_to_2d(node_embeddings):
+    """Transform embeddings to the 2D space using TSNE."""
+    transformer = TSNE(n_components=2)
+    node_embeddings_2d = transformer.fit_transform(node_embeddings)
+    return node_embeddings_2d
+
+
+def cluster_nodes(node_embeddings, k=4):
+    """Cluser nodes in the embedding space."""
+    kmeans = KMeans(n_clusters=k, random_state=0).fit(node_embeddings)
+    return kmeans.labels_
+
+
+def plot_2d(pgframe, vector_prop=None, vectors=None, label_prop=None, labels=None,
+            title=None):
+    """Plot a 2D representation of nodes."""
+    if vectors is None:
+        if vector_prop is None:
+            raise ValueError(
+                "Vectors to plot are not specified: neither 'vector_prop' "
+                "nor 'vectors' is provided")
+        vectors = pgframe.get_node_property_values(vector_prop).to_list()
+
+    unlabeled = False
+    if labels is None:
+        if label_prop is not None:
+            labels = pgframe.get_node_property_values(label_prop).to_list()
         else:
-            features = self._concatenate_feature_props(pgframe, nodes)
-        return np.array(features)
+            labels = [0] * pgframe.number_of_nodes()
+            unlabeled = True
 
-    @abstractmethod
-    def _generate_train_elements(self, pgfame, elements=None):
-        pass
+    # Generate color map
+    unique_labels = set(labels)
+    cm = plt.get_cmap('gist_rainbow')
+    generated_colors = np.array([
+        cm(1. * i / len(unique_labels))
+        for i in range(len(unique_labels))
+    ])
+    np.random.shuffle(generated_colors)
 
-    @abstractmethod
-    def _generate_predict_elements(self, pgfame, elements=None):
-        pass
+    alpha = 1
+    fig, ax = plt.subplots(figsize=(7, 7))
 
-    @abstractmethod
-    def _generate_train_labels(self, pgframe, elements, label_prop=None):
-        pass
+    # create a scatter per node label
+    for i, l in enumerate(unique_labels):
+        indices = np.where(np.array(labels) == l)
+        ax.scatter(
+            vectors[indices, 0],
+            vectors[indices, 1],
+            c=[generated_colors[i]] * indices[0].shape[0],
+            cmap="jet",
+            s=50,
+            alpha=alpha,
+            label=l if not unlabeled else None
+        )
+    if not unlabeled:
+        ax.legend()
 
-    @abstractmethod
-    def _generate_data_table(self, pgframe, elements):
-        pass
-
-    def fit(self, pgframe, train_elements=None, labels=None, label_prop=None,
-            **kwargs):
-        train_elements = self._generate_train_elements(
-            pgframe, train_elements, **kwargs)
-        labels = self._generate_train_labels(
-            pgframe, train_elements, label_prop) if labels is None else labels
-        data = self._generate_data_table(pgframe, train_elements)
-        self.model.fit(data, labels)
-
-    def predict(self, pgframe, predict_elements=None):
-        predict_elements = self._generate_predict_elements(
-            pgframe, predict_elements)
-        data = self._generate_data_table(pgframe, predict_elements)
-        return self.model.predict(data)
-
-
-class Preprocessor(ABC):
-    """Preprocessor inferface for EmbeddingPipeline."""
-
-    @abstractmethod
-    def info(self):
-        pass
-
-    @abstractmethod
-    def fit(self):
-        pass
-
-    @abstractmethod
-    def transform(self):
-        pass
-
-
-class Embedder(ABC):
-    """Embedder inferface for EmbeddingPipeline."""
-
-    @abstractmethod
-    def info(self):
-        pass
-
-    @abstractmethod
-    def fit_model(self):
-        pass
-
-
-class EmbeddingPipeline(object):
-
-    def __init__(self, preprocessor=None, embedder=None,
-                 embedding_table=None,
-                 similarity_processor=None):
-        self.preprocessor = preprocessor
-        self.embedder = embedder
-        self.embedding_table = embedding_table
-        self.similarity_processor = similarity_processor
-
-    def is_transductive(self):
-        return self.embedder is None or self.embedder._embedding_model is None
-
-    def is_inductive(self):
-        return self.embedder is not None and self.embedder._embedding_model is not None
-
-    def run_fitting(self, data):
-        # Encode
-        if self.preprocessor is not None:
-            self.preprocessor.fit(data)
-            train_data = self.preprocessor.transform(data)
-        else:
-            train_data = data
-        # Train the embedder
-        self.embedding_table = self.embedder.fit_model(train_data)
-        # Create a similarity processor
-        vectors =\
-            self.embedding_table["embedding"].tolist()
-        self.similarity_processor._initialize_model(vectors)
-        self.similarity_processor.add(vectors, self.embedding_table.index)
-        self.similarity_processor.index = self.embedding_table.index
-
-    def run_prediction(self, data):
-        pass
-
-    def retrieve_embeddings(self, indices):
-        if self.embedding_table is not None:
-            return self.embedding_table.loc[indices]["embedding"].tolist()
-        else:
-            return [
-                el.tolist()
-                for el in self.similarity_processor.get_vectors(indices)
-            ]
-
-    def get_similar_points(self, indices, k=10):
-        return self.similarity_processor.get_similar_points(
-            existing_indices=indices, k=k)
-
-    @classmethod
-    def load(cls, path, embedder_interface=None, embedder_ext="pkl"):
-        """Load a dumped embedding pipeline."""
-        decompressed = False
-        if re.match(r"(.+)\.zip", path):
-            # decompress
-            shutil.unpack_archive(
-                path,
-                extract_dir=re.match(r"(.+)\.zip", path).groups()[0])
-            path = re.match(r"(.+)\.zip", path).groups()[0]
-            decompressed = True
-
-        # Load the encoder
-        encoder = None
-        with open(os.path.join(path, "encoder.pkl"), "rb") as f:
-            encoder = pickle.load(f)
-
-        # Load the model
-        embedder = None
-        extension = f".{embedder_ext}" if embedder_ext else ""
-        if os.path.isfile(os.path.join(path, f"embedder{extension}")):
-            if embedder_interface is None:
-                with open(os.path.join(path, f"embedder{extension}"), "rb") as f:
-                    embedder = pickle.load(f)
-            else:
-                embedder = embedder_interface.load(
-                    os.path.join(path, "embedder.zip"))
-
-        # Load the embedding table
-        embedding_table = None
-        if os.path.isfile(os.path.join(path, "vectors.pkl")):
-            embedding_table = pd.read_pickle(
-                os.path.join(path, "vectors.pkl"))
-
-        # Load the similarity processor
-        similarity_processor = SimilarityProcessor.load(
-            os.path.join(path, "similarity.pkl"),
-            os.path.join(path, "index.faiss"))
-
-        pipeline = cls(
-            preprocessor=encoder,
-            embedder=embedder,
-            embedding_table=embedding_table,
-            similarity_processor=similarity_processor)
-
-        if decompressed:
-            shutil.rmtree(path)
-
-        return pipeline
-
-    def save(self, path, compress=False):
-
-        if not os.path.isdir(path):
-            os.mkdir(path)
-
-        # Save the encoder
-        with open(os.path.join(path, "encoder.pkl"), "wb") as f:
-            pickle.dump(self.preprocessor, f)
-
-        # Save the embedding model
-        self.embedder.save(
-            os.path.join(path, "embedder"), compress=True)
-
-        # Save the embedding table
-        self.embedding_table.to_pickle(
-            os.path.join(path, "vectors.pkl"))
-
-        # Save the similarity processor
-        if self.similarity_processor is not None:
-            self.similarity_processor.export(
-                os.path.join(path, "similarity.pkl"),
-                os.path.join(path, "index.faiss"))
-
-        if compress:
-            shutil.make_archive(path, 'zip', path)
-            shutil.rmtree(path)
+    title = (
+        title
+        if title is not None
+        else "2D visualization of the input node representation"
+    )
+    ax.set_title(title)
+    plt.show()

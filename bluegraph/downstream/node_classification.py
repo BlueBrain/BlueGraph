@@ -1,4 +1,4 @@
-from .utils import ElementClassifier
+from .data_structures import ElementClassifier
 
 
 class NodeClassifier(ElementClassifier):
