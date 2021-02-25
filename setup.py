@@ -61,6 +61,7 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
+        # "networkx",
         "nexusforge",
         "gensim",
         "tensorflow"

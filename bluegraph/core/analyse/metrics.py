@@ -21,16 +21,6 @@ class MetricProcessor(ABC):
         pass
 
     @abstractmethod
-    def _yeild_node_property(self, new_property):
-        """Return dictionary containing the node property values."""
-        pass
-
-    @abstractmethod
-    def _write_node_property(self, new_property, property_name):
-        """Write node property values to the graph."""
-        pass
-
-    @abstractmethod
     def degree_centrality(self, weight=None, write=False):
         """Compute (weighted) degree centrality."""
         pass
@@ -49,19 +39,6 @@ class MetricProcessor(ABC):
     def closeness_centrality(self, distance, write=False):
         """Compute (weighted) closeness centrality."""
         pass
-
-    def _dispatch_processing_result(self, new_property, metric_name,
-                                    write=False,
-                                    write_property=None):
-        if write:
-            if write_property is None:
-                raise MetricProcessor.MetricProcessingException(
-                    "{} processing has the write option set to True, "
-                    "the write property name must be specified".format(
-                        metric_name.capitalize()))
-            self._write_node_property(new_property, write_property)
-        else:
-            return self._yeild_node_property(new_property)
 
     @abstractmethod
     def get_pgframe(self):

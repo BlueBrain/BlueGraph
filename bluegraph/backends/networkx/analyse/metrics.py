@@ -8,15 +8,6 @@ from ..io import NXGraphProcessor
 class NXMetricProcessor(NXGraphProcessor, MetricProcessor):
     """Class for metric processing based on NetworkX graphs."""
 
-    def _yeild_node_property(self, new_property):
-        """Return dictionary containing the node property values."""
-        return new_property
-
-    def _write_node_property(self, new_property, property_name):
-        """Write node property values to the graph."""
-        nx.set_node_attributes(
-            self.graph, new_property, property_name)
-
     def density(self):
         return nx.density(self.graph)
 

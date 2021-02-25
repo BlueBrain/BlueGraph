@@ -138,6 +138,14 @@ class Neo4jGraphProcessor(GraphProcessor):
         raise Neo4jGraphProcessor.ProcessorException(
             "Neo4jMetricProcessor cannot be initialized from a graph object")
 
+    def _yeild_node_property(self, new_property):
+        """Return dictionary containing the node property values."""
+        pass
+
+    def _write_node_property(self, new_property, property_name):
+        """Write node property values to the graph."""
+        pass
+
     @staticmethod
     def _generate_graph(pgframe, driver=None,
                         node_label=None, edge_label=None, directed=True):

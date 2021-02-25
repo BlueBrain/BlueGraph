@@ -1058,6 +1058,29 @@ class GraphProcessor(ABC):
         """Get a new pgframe object from the wrapped graph object."""
         pass
 
+    @abstractmethod
+    def _yeild_node_property(self, new_property):
+        """Return dictionary containing the node property values."""
+        pass
+
+    @abstractmethod
+    def _write_node_property(self, new_property, property_name):
+        """Write node property values to the graph."""
+        pass
+
+    def _dispatch_processing_result(self, new_property, metric_name,
+                                    write=False,
+                                    write_property=None):
+        if write:
+            if write_property is None:
+                raise GraphProcessor.ProcessingException(
+                    "{} processing has the write option set to True, "
+                    "the write property name must be specified".format(
+                        metric_name.capitalize()))
+            self._write_node_property(new_property, write_property)
+        else:
+            return self._yeild_node_property(new_property)
+
     @classmethod
     def from_graph_object(cls, graph_object):
         """Initialize directly from the input graph object."""

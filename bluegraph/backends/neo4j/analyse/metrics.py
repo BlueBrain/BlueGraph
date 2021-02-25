@@ -8,19 +8,6 @@ from ..io import Neo4jGraphProcessor
 class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
     """Class for metric processing based on Neso4j graphs."""
 
-    def _yeild_node_property(self, new_property):
-        """Return dictionary containing the node property values."""
-        pass
-
-    def _write_node_property(self, new_property, property_name):
-        """Write node property values to the graph."""
-        pass
-
-    def _dispatch_processing_result(self, new_property, metric_name,
-                                    write=False,
-                                    write_property=None):
-        pass
-
     def _run_gdc_query(self, function, metric_name, weight=None,
                        write=False, write_property=None,
                        score_name="score"):

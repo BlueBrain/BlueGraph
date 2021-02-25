@@ -1,9 +1,11 @@
-import pytest
+import networkx as nx
 import numpy as np
 import pandas as pd
+import pytest
 
 from bluegraph.core.io import PandasPGFrame
 
+from bluegraph.backends.networkx.io import networkx_to_pgframe
 
 from neo4j import GraphDatabase
 
@@ -175,3 +177,9 @@ def node_embedding_prediction_test_graph():
     })
     frame.add_edge_properties(edge_weight, prop_type="numeric")
     return frame
+
+
+@pytest.fixture(scope="session")
+def community_test_graph():
+    nx_graph = nx.karate_club_graph()
+    return networkx_to_pgframe(nx_graph)

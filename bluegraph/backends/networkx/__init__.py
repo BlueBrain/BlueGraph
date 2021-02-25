@@ -6,5 +6,6 @@ from blugraph.networkx import NXPathFinder
 """
 from .analyse.metrics import NXMetricProcessor
 from .analyse.paths import NXPathFinder
+from .analyse.communities import NXCommunityDetector
 
 from .io import (pgframe_to_networkx, networkx_to_pgframe)

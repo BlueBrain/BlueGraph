@@ -110,3 +110,12 @@ class GTGraphProcessor(GraphProcessor):
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
         return graph_tool_to_pgframe(self.graph)
+
+    def _yeild_node_property(self, new_property):
+        """Return dictionary containing the node property values."""
+        return dict(
+            zip(list(self.graph.vertex_properties["@id"]), new_property.a))
+
+    def _write_node_property(self, new_property, property_name):
+        """Write node property values to the graph."""
+        self.graph.vertex_properties[property_name] = new_property

@@ -10,10 +10,11 @@ def pgframe_to_networkx(pgframe, directed=True):
         create_using = nx.DiGraph
     else:
         create_using = nx.Graph
+    edge_attr = True if len(pgframe.edge_properties()) > 0 else None
     graph = nx.from_pandas_edgelist(
         pgframe._edges.reset_index(),
         source="@source_id", target="@target_id",
-        edge_attr=True, create_using=create_using)
+        edge_attr=edge_attr, create_using=create_using)
     nx.set_node_attributes(graph, pgframe._nodes.to_dict("index"))
     return graph
 
@@ -56,3 +57,12 @@ class NXGraphProcessor(GraphProcessor):
     def _generate_pgframe(self, node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
         return networkx_to_pgframe(self.graph)
+
+    def _yeild_node_property(self, new_property):
+        """Return dictionary containing the node property values."""
+        return new_property
+
+    def _write_node_property(self, new_property, property_name):
+        """Write node property values to the graph."""
+        nx.set_node_attributes(
+            self.graph, new_property, property_name)
