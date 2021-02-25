@@ -2,16 +2,16 @@
 build/
 dist/
 .pytest_cache
-*/__pycache__
-*/*/__pycache__
-*/*/*/__pycache__
-*/*/*/*/__pycache__
+__pycache__
 kganalytics/notebooks/data/gephi*
 *.ipynb_checkpoints/
+docs/_build/
 *.DS_Store
 *_edge_list.pkl
 *_node_list.pkl
 examples/data/cooccurrence_graph.json
+examples/data/gephi*
+examples/data/attri2vec_test_model.zip
 cord19kg/examples/data/Glucose_risk_3000_papers.csv
 cord19kg/examples/data/NCIT_ontology_linking.csv
 cord19kg/examples/data/NCIT_ontology_linking_3000_papers.csv
@@ -20,3 +20,4 @@ cord19kg/examples/data/_MACOSX/*
 cord19kg/examples/config/forge-config.yml
 cord19kg/examples/models/neuroshapes/
 cord19kg/examples/data/output_graphs/*
+__MACOSX/
