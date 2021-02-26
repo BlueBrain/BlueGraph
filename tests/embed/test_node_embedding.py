@@ -84,7 +84,7 @@ def test_stellar_node_embedder(node_embedding_test_graph,
         set(node_embedding_prediction_test_graph.nodes()) ==
         set(embeddings.index))
 
-    embedder.save("stellar_sage_emedder")
+    embedder.save("stellar_sage_emedder", compress=True)
     embedder = StellarGraphNodeEmbedder.load(
         "stellar_sage_emedder.zip")
     embedder.info()
@@ -238,6 +238,6 @@ def test_neo4j_node_embedder(node_embedding_test_graph,
         set(node_embedding_prediction_test_graph.nodes()) ==
         set(emb.keys()))
 
-    embedder.save("neo4j_sage_emedder")
+    embedder.save("neo4j_sage_emedder", compress=True)
     embedder = Neo4jNodeEmbedder.load("neo4j_sage_emedder.zip")
     embedder.info()

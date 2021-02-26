@@ -49,7 +49,7 @@ class CommunityDetector(ABC):
 
     def detect_communities(self, strategy="louvain", weight=None,
                            n_communities=2, intermediate=False,
-                           write=False, write_property=None):
+                           write=False, write_property=None, **kwargs):
         """Detect community partition using the input strategy."""
         if strategy == "louvain":
             partition = self._run_louvain(weight=weight)
@@ -57,16 +57,19 @@ class CommunityDetector(ABC):
             partition = self._run_girvan_newman(
                 weight=weight, n_communities=n_communities,
                 intermediate=intermediate)
+        elif strategy == "lpa":
+            partition = self._run_label_propagation(
+                weight=weight)
+        elif strategy == "hierarchical":
+            partition = self._run_hierarchical_clustering(
+                weight=weight, n_communities=n_communities, **kwargs)
+        else:
+            raise CommunityDetector.PartitionError(
+                f"Unknown community detection strategy '{strategy}'")
         return self._dispatch_processing_result(
             partition, "Community", write, write_property)
 
     def evaluate_parition(self, partition, metric="modularity", weight=None):
-        # Modularity
-        # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.quality.modularity.html#networkx.algorithms.community.quality.modularity
-        # Performance
-        # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.quality.performance.html#networkx.algorithms.community.quality.performance
-        # Coverage
-        # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.quality.coverage.html#networkx.algorithms.community.quality.coverage
         if metric == "modularity":
             return self._compute_modularity(partition, weight=weight)
         elif metric == "performance":

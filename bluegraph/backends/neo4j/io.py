@@ -146,6 +146,43 @@ class Neo4jGraphProcessor(GraphProcessor):
         """Write node property values to the graph."""
         pass
 
+    def _get_adjacency_matrix(self, nodes, weight=None):
+        weight_expr = f"r.{weight}" if weight is not None else 1
+        query = (
+            f"MATCH (n:{self.node_label})\n"
+            "WITH n\n"
+            "ORDER by n.id\n"
+            "WITH COLLECT(n) AS nodes\n"
+            "UNWIND nodes AS n1\n"
+            "UNWIND nodes AS n2\n"
+            f"OPTIONAL MATCH (n1)-[r:{self.edge_label}]->(n2)\n"
+            f"WITH n1, n2, CASE WHEN r is null THEN 0 ELSE {weight_expr} END AS overlap\n"
+            "ORDER BY n1.id, n2.id\n"
+            "RETURN n1.id as node_id, COLLECT(overlap) as adjacency\n"
+            "ORDER BY n1.id"
+        )
+        result = execute(self.driver, query)
+        result_dict = {
+            record["node_id"]: record["adjacency"]
+            for record in result
+        }
+        return [result_dict[str(n)] for n in nodes]
+
+    def _get_node_property_values(self, prop, nodes):
+        query = (
+            f"MATCH (n:{self.node_label})\n"
+            f"RETURN n.id as node_id, n.{prop} as prop"
+        )
+        result = execute(self.driver, query)
+        result_dict = {
+            record["node_id"]: record["prop"]
+            for record in result
+        }
+        return [
+            result_dict[str(n)]
+            for n in nodes
+        ]
+
     @staticmethod
     def _generate_graph(pgframe, driver=None,
                         node_label=None, edge_label=None, directed=True):

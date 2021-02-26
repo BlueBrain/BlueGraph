@@ -1,6 +1,6 @@
 import pandas as pd
 import graph_tool as gt
-
+from graph_tool.spectral import adjacency
 
 from bluegraph.core.io import PandasPGFrame, GraphProcessor
 
@@ -119,3 +119,9 @@ class GTGraphProcessor(GraphProcessor):
     def _write_node_property(self, new_property, property_name):
         """Write node property values to the graph."""
         self.graph.vertex_properties[property_name] = new_property
+
+    def _get_adjacency_matrix(self, nodes, weight=None):
+        return adjacency(self.graph, weight=weight)
+
+    def _get_node_property_values(self, prop, nodes):
+        return self.graph.vp[prop]

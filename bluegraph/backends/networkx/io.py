@@ -1,4 +1,6 @@
 import networkx as nx
+from networkx.linalg.graphmatrix import adjacency_matrix
+
 import pandas as pd
 
 from bluegraph.core.io import GraphProcessor, PandasPGFrame
@@ -66,3 +68,11 @@ class NXGraphProcessor(GraphProcessor):
         """Write node property values to the graph."""
         nx.set_node_attributes(
             self.graph, new_property, property_name)
+
+    def _get_adjacency_matrix(self, nodes, weight=None):
+        return adjacency_matrix(self.graph, nodelist=nodes, weight=weight)
+
+    def _get_node_property_values(self, prop, nodes):
+        attrs = nx.get_node_attributes(self.graph, prop)
+        props = [attrs[n] for n in nodes]
+        return props

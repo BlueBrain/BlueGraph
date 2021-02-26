@@ -8,6 +8,8 @@ from networkx.algorithms.community.label_propagation import asyn_lpa_communities
 from networkx.algorithms.community.quality import (performance,
                                                    coverage)
 
+from sklearn.cluster import AgglomerativeClustering
+
 from bluegraph.core.analyse.communities import CommunityDetector
 from ..io import NXGraphProcessor
 
@@ -26,6 +28,18 @@ def _get_community_sets(partition):
 def heaviest(weight, G):
     u, v, w = max(G.edges(data="weight"), key=itemgetter(2))
     return (u, v)
+
+
+def community_sets_to_dict(communities, nodes):
+    partition = {}
+    for i, community in enumerate(communities):
+        members = itemgetter(*community)(nodes)
+        try:
+            len(members)
+        except TypeError:
+            members = [members]
+        partition.update({n: i for n in members})
+    return partition
 
 
 class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
@@ -53,14 +67,8 @@ class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
         nodes = list(self.graph.nodes())
         if intermediate is False:
             # take the last iteration of the algo
-            partition = {}
-            for i, community in enumerate(layered_communities[-1]):
-                members = itemgetter(*community)(nodes)
-                try:
-                    len(members)
-                except TypeError:
-                    members = [members]
-                partition.update({n: i for n in members})
+            partition = community_sets_to_dict(
+                layered_communities[-1], nodes)
         else:
             # take all the interation of the algo
             partition = {n: [] for n in nodes}
@@ -70,14 +78,37 @@ class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
                         partition[el].append(i)
         return partition
 
-    def _run_hierarchical_clustering(self):
-        pass
+    def _run_hierarchical_clustering(self, weight=None, n_communities=2,
+                                     feature_vectors=None,
+                                     feature_vector_prop=None,
+                                     linkage="ward",
+                                     connectivity=True):
+        nodes = list(self.graph.nodes())
+        if feature_vectors is None:
+            if feature_vector_prop is None:
+                raise ValueError()
+            feature_vectors = self._get_node_property_values(
+                feature_vector_prop, nodes)
+
+        if connectivity is True:
+            connectivity_matrix = self._get_adjacency_matrix(
+                nodes, weight=weight)
+        model = AgglomerativeClustering(linkage=linkage,
+                                        connectivity=connectivity_matrix,
+                                        n_clusters=n_communities)
+        model.fit(feature_vectors)
+        clusters = model.labels_
+        return {n: clusters[i] for i, n in enumerate(nodes)}
 
     def _run_stochastic_block_model(self):
-        pass
+        raise CommunityDetector.PartitionError(
+            "Stochastic block model is not implemented "
+            "for NetworkX-based graphs")
 
     def _run_label_propagation(self, weight=None):
-        asyn_lpa_communities(self.graph, weight=weight)
+        communities = asyn_lpa_communities(self.graph, weight=weight)
+        return community_sets_to_dict(
+            communities, list(self.graph.nodes()))
 
     def _compute_modularity(self, partition, weight=None):
         return community_louvain.modularity(

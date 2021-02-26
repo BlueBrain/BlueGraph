@@ -56,7 +56,7 @@ def test_nx_processor(random_pgframe):
         props = nx_object.nodes[n].keys()
         break
     assert(
-        set(props) == set(["degree", "pagerank", "betweenness", "closeness"]))
+        set(props) == set(["degree", "weight", "pagerank", "betweenness", "closeness"]))
 
     assert_approx_equal_metrics(
         nx.get_node_attributes(nx_object, "degree"), d)
@@ -74,7 +74,7 @@ def test_gt_processor(random_pgframe):
     gt_object = processor.graph
     assert(
         set(gt_object.vertex_properties.keys()) ==
-        set(["@id", "degree", "pagerank", "betweenness", "closeness"]))
+        set(["@id", "weight", "degree", "pagerank", "betweenness", "closeness"]))
 
     dd = dict(zip(
         gt_object.vertex_properties["@id"],
@@ -103,12 +103,17 @@ def test_neo4j_processor(random_pgframe, neo4j_driver):
         directed=False)
     d, p, b, c = _benchmark_processor(processor)
 
+    processor._get_adjacency_matrix(
+        random_pgframe.nodes(), weight="mi")
+    processor._get_node_property_values(
+        "weight", random_pgframe.nodes())
+
     # Assert all the node props are present
     query = "MATCH (n:TestNode) RETURN keys(n) AS props LIMIT 1"
     result = processor.execute(query)
     assert(
         set(result[0]["props"]) == set(
-            ["id", "degree", "pagerank", "betweenness", "closeness"]))
+            ["id", "weight", "degree", "pagerank", "betweenness", "closeness"]))
 
     # Assert written props are equal to the streamed props
     query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.degree as degree"

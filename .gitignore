@@ -21,3 +21,4 @@ cord19kg/examples/config/forge-config.yml
 cord19kg/examples/models/neuroshapes/
 cord19kg/examples/data/output_graphs/*
 __MACOSX/
+*.zip

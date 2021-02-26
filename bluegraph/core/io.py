@@ -1068,6 +1068,14 @@ class GraphProcessor(ABC):
         """Write node property values to the graph."""
         pass
 
+    @abstractmethod
+    def _get_adjacency_matrix(self, nodes, weight=None):
+        pass
+
+    @abstractmethod
+    def _get_node_property_values(self, prop, nodes):
+        pass
+
     def _dispatch_processing_result(self, new_property, metric_name,
                                     write=False,
                                     write_property=None):

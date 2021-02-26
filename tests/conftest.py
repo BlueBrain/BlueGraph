@@ -1,3 +1,4 @@
+import os
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -47,6 +48,14 @@ def random_pgframe():
     edges_df = edges.set_index(["@source_id", "@target_id"])
 
     frame = PandasPGFrame(nodes=nodes, edges=edges_df.index)
+
+    frame.add_node_properties(
+        pd.DataFrame({
+            "@id": nodes,
+            "weight": np.random.rand(n_nodes)
+        }))
+    frame.node_prop_as_numeric("weight")
+
     frame.add_edge_properties(edges_df["mi"])
     frame.edge_prop_as_numeric("mi")
     frame.add_edge_properties(edges_df["distance"])
@@ -181,5 +190,6 @@ def node_embedding_prediction_test_graph():
 
 @pytest.fixture(scope="session")
 def community_test_graph():
-    nx_graph = nx.karate_club_graph()
-    return networkx_to_pgframe(nx_graph)
+    frame = PandasPGFrame.load_json(
+        "tests/zachari_karate_club.json")
+    return frame
