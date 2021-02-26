@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 
+from sklearn.cluster import AgglomerativeClustering
+
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
 # Algos to support
-# - Hierarchical clustering
+# - Hierarchical clustering (backend-independent)
 # - Girvan–Newman algorithm
 # - Modulatity maximization (Louvain / RenEEL)
 # - Statistical inference (stochastic block model)
@@ -13,10 +15,6 @@ from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 class CommunityDetector(ABC):
     """Abstract class for a community detector."""
-
-    @abstractmethod
-    def _run_hierarchical_clustering(self):
-        pass
 
     @abstractmethod
     def _run_louvain(self, weight=None):
@@ -46,6 +44,28 @@ class CommunityDetector(ABC):
     @abstractmethod
     def _compute_coverage(self, partition, weight=None):
         pass
+
+    def _run_hierarchical_clustering(self, weight=None, n_communities=2,
+                                     feature_vectors=None,
+                                     feature_vector_prop=None,
+                                     linkage="ward",
+                                     connectivity=True):
+        nodes = self.graph.nodes()
+        if feature_vectors is None:
+            if feature_vector_prop is None:
+                raise ValueError()
+            feature_vectors = self._get_node_property_values(
+                feature_vector_prop, nodes)
+
+        if connectivity is True:
+            connectivity_matrix = self._get_adjacency_matrix(
+                nodes, weight=weight)
+        model = AgglomerativeClustering(linkage=linkage,
+                                        connectivity=connectivity_matrix,
+                                        n_clusters=n_communities)
+        model.fit(feature_vectors)
+        clusters = model.labels_
+        return {n: clusters[i] for i, n in enumerate(nodes)}
 
     def detect_communities(self, strategy="louvain", weight=None,
                            n_communities=2, intermediate=False,

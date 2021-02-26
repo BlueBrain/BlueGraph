@@ -8,8 +8,6 @@ from networkx.algorithms.community.label_propagation import asyn_lpa_communities
 from networkx.algorithms.community.quality import (performance,
                                                    coverage)
 
-from sklearn.cluster import AgglomerativeClustering
-
 from bluegraph.core.analyse.communities import CommunityDetector
 from ..io import NXGraphProcessor
 
@@ -77,28 +75,6 @@ class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
                     for el in community:
                         partition[el].append(i)
         return partition
-
-    def _run_hierarchical_clustering(self, weight=None, n_communities=2,
-                                     feature_vectors=None,
-                                     feature_vector_prop=None,
-                                     linkage="ward",
-                                     connectivity=True):
-        nodes = list(self.graph.nodes())
-        if feature_vectors is None:
-            if feature_vector_prop is None:
-                raise ValueError()
-            feature_vectors = self._get_node_property_values(
-                feature_vector_prop, nodes)
-
-        if connectivity is True:
-            connectivity_matrix = self._get_adjacency_matrix(
-                nodes, weight=weight)
-        model = AgglomerativeClustering(linkage=linkage,
-                                        connectivity=connectivity_matrix,
-                                        n_clusters=n_communities)
-        model.fit(feature_vectors)
-        clusters = model.labels_
-        return {n: clusters[i] for i, n in enumerate(nodes)}
 
     def _run_stochastic_block_model(self):
         raise CommunityDetector.PartitionError(
