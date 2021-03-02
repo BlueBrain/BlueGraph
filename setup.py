@@ -24,7 +24,7 @@ with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="bbg_analytics",
+    name="bluegraph",
     author="Blue Brain Project, EPFL",
     version="0.1.0",
     use_scm_version={
