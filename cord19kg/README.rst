@@ -12,6 +12,34 @@ The package contains a set of tools for interactive exploration and analysis of 
 Interactive applications
 ------------------------
 
+The entity curation app allows to view the input data table with entity occurrences, their occurrence frequency, type, etc. It also allows to link the data to the ontology (provided the input linking table), filter entities by their name, frequency and type. The following figure illustrates a snippet of the curation app:
+
+.. image:: ./examples/figures/curation_app.png
+  :width: 800
+  :alt: Curation app snippet
+
+The graph visualization app allows to view the generated co-occurrence graphs as minimal spanning trees, perform visual inspection of its nodes and edges, as well as perform visual analytics:
+
+- filter nodes and edges;
+- associate node sizes and edge thinkness values with different node/edge statistics;
+- group and filter nodes by different criteria (entity type, communitities detected using co-occurrence frequency and mutual information);
+- search for paths between different entities.
+
+The application provides a set of interactive capabilities for examining the data associated to the nodes and edges of the underlying graphs. For example, given a selected node, it allows the user to:
+
+- access the definition of the corresponding entity from the provided ontology linking;
+- view the papers that mention the entity;
+- inspect raw entities that ontology linking has mapped to a given entity;
+- access the set of nearest neighbors with the highest mutual information scores.
+
+It also allows to edit the underlying graph objects or their visualization displayed in the app.
+
+The following figure illustrates a snippet of the curation app:
+
+.. image:: ./examples/figures/graph_vis_app.png
+  :width: 800
+  :alt: Visualization app snippet
+
 
 Examples and tutorials
 ----------------------
