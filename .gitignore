@@ -2,6 +2,7 @@
 build/
 dist/
 kganalytics/notebooks/data/gephi*
+kganalytics/notebooks/data/nasa.json
 *.ipynb_checkpoints/
 *.DS_Store
 *_edge_list.pkl
