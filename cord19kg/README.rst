@@ -12,11 +12,17 @@ The package contains a set of tools for interactive exploration and analysis of 
 Interactive applications
 ------------------------
 
+Curation app
+^^^^^^^^^^^^
+
 The entity curation app allows to view the input data table with entity occurrences, their occurrence frequency, type, etc. It also allows to link the data to the ontology (provided the input linking table), filter entities by their name, frequency and type. The following figure illustrates a snippet of the curation app:
 
 .. image:: ./examples/figures/curation_app.png
   :width: 800
   :alt: Curation app snippet
+
+Graph visualization app
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The graph visualization app allows to view the generated co-occurrence graphs as minimal spanning trees, perform visual inspection of its nodes and edges, as well as perform visual analytics:
 
