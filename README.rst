@@ -1,6 +1,6 @@
-================
-Blue Brain Graph
-================
+==========
+Blue Graph
+==========
 
 |Travis_badge|
 
