@@ -1,6 +1,6 @@
-================
-Blue Brain Graph
-================
+==========
+Blue Graph
+==========
 
 |Travis_badge|
 
@@ -60,6 +60,13 @@ Finally, the :code:`generate_10000_networks.py` `script <https://github.com/Blue
 Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
 
 
+Licensing
+---------
+- Blue Graph is distributed under the LGPLv3 license.
+- Included example scripts and notebooks (`BlueGraph/kganalytics/notebooks <https://github.com/BlueBrain/BlueBrainGraph/tree/master/kganalytics/notebooks>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the 3-Clause BSD License.
+- Data files provided in the repository are distributed under the X license.
+
+
 Aknowledgements
 ---------------
 
@@ -67,3 +74,6 @@ This project has received funding from the EPFL Blue Brain Project (funded by th
 
 .. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueBrainGraph.svg?branch=master
     :target: https://travis-ci.com/BlueBrain/BlueBrainGraph
+
+
+COPYRIGHT 2020–2021, Blue Brain Project/EPFL
