@@ -9,6 +9,18 @@ The package contains a set of tools for interactive exploration and analysis of 
 - dataset saving/loading from `Nexus <https://bluebrainnexus.io/>`_.
 
 
+.. _installation:
+
+Installation
+------------
+
+To install the :code:`cord19kg` package alongside with all its dependencies, run
+
+.. code-block::
+
+  pip install bluegraph[cord19kg]
+
+
 Interactive applications
 ------------------------
 
@@ -49,6 +61,8 @@ The following figure illustrates a snippet of the curation app:
 
 Examples and tutorials
 ----------------------
+
+To be able to run examples and tutorials, please, install the :code:`cord19kg` package (see the installation instructions above).
 
 The :code:`cord19kg` packages provides `examples <https://github.com/BlueBrain/BlueBrainGraph/tree/refactoring/cord19kg/examples>`_ of CORD-19-specific co-occurrence analysis. We recommend starting from the `Co-occurrence analysis tutorial <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/notebooks/Co-occurrence%20analysis%20tutorial.ipynb>`_ notebook providing a simple starting example (including a small guide to the visualization app interface).
 
