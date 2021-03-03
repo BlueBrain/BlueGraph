@@ -1,6 +1,6 @@
 The example notebooks in this folder are distributed with the 3-clause BSD license.
 
-See file AUTHORS.txt for further details.
+See file AUTHORS.rst for further details.
 
 COPYRIGHT 2020–2021, Blue Brain Project/EPFL
 
