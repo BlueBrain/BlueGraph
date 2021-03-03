@@ -1069,6 +1069,10 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
+    def get_nodes(self):
+        pass
+
+    @abstractmethod
     def _get_adjacency_matrix(self, nodes, weight=None):
         pass
 

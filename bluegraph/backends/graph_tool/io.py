@@ -125,3 +125,6 @@ class GTGraphProcessor(GraphProcessor):
 
     def _get_node_property_values(self, prop, nodes):
         return self.graph.vp[prop]
+
+    def get_nodes(self):
+        return list(self.graph.vp["@id"])

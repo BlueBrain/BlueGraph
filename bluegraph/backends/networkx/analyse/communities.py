@@ -43,7 +43,7 @@ def community_sets_to_dict(communities, nodes):
 class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
     """NetworkX-based community detection interface."""
 
-    def _run_louvain(self, weight=None):
+    def _run_louvain(self, weight=None, **kwargs):
         """Detect node communities using Louvain algo."""
         weight = "weight" if weight is None else weight
         partition = community_louvain.best_partition(
@@ -76,12 +76,12 @@ class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
                         partition[el].append(i)
         return partition
 
-    def _run_stochastic_block_model(self):
+    def _run_stochastic_block_model(self, **kwargs):
         raise CommunityDetector.PartitionError(
             "Stochastic block model is not implemented "
             "for NetworkX-based graphs")
 
-    def _run_label_propagation(self, weight=None):
+    def _run_label_propagation(self, weight=None, **kwargs):
         communities = asyn_lpa_communities(self.graph, weight=weight)
         return community_sets_to_dict(
             communities, list(self.graph.nodes()))

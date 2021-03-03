@@ -16,8 +16,16 @@ from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 class CommunityDetector(ABC):
     """Abstract class for a community detector."""
 
+    _strategies = {
+        "louvain": "_run_louvain",
+        "girvan-newman": "_run_girvan_newman",
+        "sbm": "_run_stochastic_block_model",
+        "lpa": "_run_label_propagation",
+        "hierarchical": "_run_hierarchical_clustering"
+    }
+
     @abstractmethod
-    def _run_louvain(self, weight=None):
+    def _run_louvain(self, weight=None, **kwargs):
         pass
 
     @abstractmethod
@@ -26,11 +34,11 @@ class CommunityDetector(ABC):
         pass
 
     @abstractmethod
-    def _run_stochastic_block_model(self):
+    def _run_stochastic_block_model(self, **kwargs):
         pass
 
     @abstractmethod
-    def _run_label_propagation(self):
+    def _run_label_propagation(self, **kwargs):
         pass
 
     @abstractmethod
@@ -49,8 +57,8 @@ class CommunityDetector(ABC):
                                      feature_vectors=None,
                                      feature_vector_prop=None,
                                      linkage="ward",
-                                     connectivity=True):
-        nodes = self.graph.nodes()
+                                     connectivity=True, **kwargs):
+        nodes = self.get_nodes()
         if feature_vectors is None:
             if feature_vector_prop is None:
                 raise ValueError()
@@ -71,21 +79,12 @@ class CommunityDetector(ABC):
                            n_communities=2, intermediate=False,
                            write=False, write_property=None, **kwargs):
         """Detect community partition using the input strategy."""
-        if strategy == "louvain":
-            partition = self._run_louvain(weight=weight)
-        elif strategy == "girvan-newman":
-            partition = self._run_girvan_newman(
-                weight=weight, n_communities=n_communities,
-                intermediate=intermediate)
-        elif strategy == "lpa":
-            partition = self._run_label_propagation(
-                weight=weight)
-        elif strategy == "hierarchical":
-            partition = self._run_hierarchical_clustering(
-                weight=weight, n_communities=n_communities, **kwargs)
-        else:
+        if strategy not in CommunityDetector._strategies.keys():
             raise CommunityDetector.PartitionError(
                 f"Unknown community detection strategy '{strategy}'")
+        partition = getattr(self, CommunityDetector._strategies[strategy])(
+            weight=weight, n_communities=n_communities,
+            intermediate=intermediate, **kwargs)
         return self._dispatch_processing_result(
             partition, "Community", write, write_property)
 

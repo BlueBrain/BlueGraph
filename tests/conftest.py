@@ -1,14 +1,13 @@
-import os
-import networkx as nx
-import numpy as np
-import pandas as pd
-import pytest
-
 from bluegraph.core.io import PandasPGFrame
 
-from bluegraph.backends.networkx.io import networkx_to_pgframe
-
 from neo4j import GraphDatabase
+
+import numpy as np
+
+import pandas as pd
+
+import pytest
+
 
 # Neo4j credentials (should be moved to some config files or env vars)
 NEO4J_URI = "bolt://localhost:7687"

@@ -198,6 +198,11 @@ class Neo4jGraphProcessor(GraphProcessor):
         """Get a new pgframe object from the wrapped graph object."""
         return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)
 
+    def get_nodes(self):
+        query = f"MATCH (n:{self.node_label}) RETURN n.id as node_id"
+        result = self.execute(query)
+        return [record["node_id"] for record in result]
+
 
 class Neo4jGraphView(object):
     """Neo4j persistent graph view.
@@ -354,3 +359,4 @@ class Neo4jGraphView(object):
             f"MATCH (start:{self.node_label} {{id: '{source}'}}), "
             f"(end:{self.node_label} {{id: '{target}'}})\n"
         )
+

@@ -76,3 +76,6 @@ class NXGraphProcessor(GraphProcessor):
         attrs = nx.get_node_attributes(self.graph, prop)
         props = [attrs[n] for n in nodes]
         return props
+
+    def get_nodes(self):
+        return list(self.graph.nodes())

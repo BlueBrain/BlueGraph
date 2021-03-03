@@ -2,7 +2,7 @@ import warnings
 
 from bluegraph.core.analyse.metrics import MetricProcessor
 
-from ..io import Neo4jGraphProcessor
+from ..io import Neo4jGraphProcessor, Neo4jGraphView
 
 
 class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
@@ -11,15 +11,14 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
     def _run_gdc_query(self, function, metric_name, weight=None,
                        write=False, write_property=None,
                        score_name="score"):
-        """Compute (weighted) degree centrality."""
-        property_projection = (
-            f",\nproperties: '{weight}'"
-            if weight else ""
-        )
-        property_name = (
-            f",\nrelationshipWeightProperty: '{weight}'"
-            if weight else ""
-        )
+        """Run a query for computing various centrality measures."""
+        graph_view = Neo4jGraphView(
+            self.driver, self.node_label,
+            self.edge_label, directed=self.directed)
+
+        node_edge_selector = graph_view.get_projection_query(
+            weight)
+
         if write:
             if write_property is None:
                 raise MetricProcessor.MetricProcessingException(
@@ -27,17 +26,10 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
                     "option set to True, "
                     "the write property name must be specified")
 
-            orientation = 'NATURAL' if self.directed else 'UNDIRECTED'
             query = (
                 f"""
                 CALL {function}.write({{
-                    nodeProjection: '{self.node_label}',
-                    relationshipProjection: {{
-                       Edge: {{
-                           type: '{self.edge_label}',
-                           orientation: '{orientation}'{property_projection}
-                       }}
-                   }}{property_name},
+                   {node_edge_selector},\n
                    writeProperty: '{write_property}'
                 }})
                 YIELD createMillis
@@ -45,16 +37,9 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
             )
             self.execute(query)
         else:
-            orientation = 'NATURAL' if self.directed else 'UNDIRECTED'
             query = (
                 f"""CALL {function}.stream({{
-                    nodeProjection: '{self.node_label}',
-                    relationshipProjection: {{
-                        Edge: {{
-                            type: '{self.edge_label}',
-                            orientation: '{orientation}'{property_projection}
-                        }}
-                    }}{property_name}
+                    {node_edge_selector}
                 }})
                 YIELD nodeId, {score_name}
                 RETURN gds.util.asNode(nodeId).id AS node_id, {score_name} AS {
