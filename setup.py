@@ -27,7 +27,6 @@ with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
 setup(
     name="bluegraph",
     author="Blue Brain Project, EPFL",
-    version="0.1.0",
     use_scm_version={
         "write_to": "kganalytics/version.py",
         "write_to_template": "__version__ = '{version}'\n",
