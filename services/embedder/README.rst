@@ -29,9 +29,11 @@ Using Docker
 First, build the docker image:
 
 ::
+
 	docker build . -f service/embedder/Dockerfile
 
 Then, run the container by passing your nexus token env variable using the :code:`--env` parameter.
 
 ::
+
 	docker run <image> --env NEXUS_TOKEN=$NEXUS_TOKEN
