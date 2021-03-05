@@ -1,0 +1,9 @@
+numpy
+pandas
+sklearn
+scipy
+matplotlib
+nltk
+nexusforge
+gensim
+tensorflow
