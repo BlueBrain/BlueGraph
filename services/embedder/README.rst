@@ -13,8 +13,8 @@ On its starting the service requires Nexus authentication, in order to fetch ava
 
   export NEXUS_TOKEN=<your_token>
 
-From the source
-^^^^^^^^^^^^^^^
+Run from the source
+^^^^^^^^^^^^^^^^^^^
 
 Simply execute
 
@@ -23,8 +23,8 @@ Simply execute
 	flask run
 
 
-Using Docker
-^^^^^^^^^^^^
+Run using Docker
+^^^^^^^^^^^^^^^^
 
 First, build the docker image:
 
