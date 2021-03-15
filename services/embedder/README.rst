@@ -36,4 +36,4 @@ Then, run the container by passing your nexus token env variable using the :code
 
 ::
 
-	docker run <image> --env NEXUS_TOKEN=$NEXUS_TOKEN
+	docker run --env NEXUS_TOKEN=$NEXUS_TOKEN -p 5000:5000 <image>
