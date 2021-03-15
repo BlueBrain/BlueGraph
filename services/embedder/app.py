@@ -45,21 +45,12 @@ def digest_model_data(model_resource):
 
 def _retrieve_models():
     """Retrieve all models from the catalog."""
-    query = """
-        SELECT ?id
-        WHERE {
-            ?id a <https://bbp.epfl.ch/nexus/v1/resources/dke/embedder_catalog/_/EmbeddingModel>;
-                <https://bluebrain.github.io/nexus/vocabulary/deprecated> false.
-        }
-    """
-    resources = app.forge.sparql(query, limit=1000)
-
+    resources = app.forge.search({"type": "EmbeddingModel"})
     # Check if the download folder exists
     if not os.path.exists(app.config["DOWNLOAD_DIR"]):
         os.makedirs(app.config["DOWNLOAD_DIR"])
 
     for resource in resources:
-        resource = app.forge.retrieve(resource.id)
         app.models[resource.name] = {
             "data": digest_model_data(resource),
         }
