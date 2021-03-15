@@ -51,5 +51,5 @@ COPY ./setup.py .
 EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
-RUN source /venv/bin/activate && pip install --no-cache-dir . 
-ENTRYPOINT source /venv/bin/activate && python app.py
+RUN source /venv/bin/activate && pip install --no-cache-dir .[stellargraph]
+ENTRYPOINT source /venv/bin/activate && flask run --host=0.0.0.0
