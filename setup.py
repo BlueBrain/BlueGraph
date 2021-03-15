@@ -25,7 +25,7 @@ setup(
     author="Blue Brain Project, EPFL",
     version="0.2.0",
     use_scm_version={
-        "write_to": "kganalytics/version.py",
+        "write_to": "bluegraph/version.py",
         "write_to_template": "__version__ = '{version}'\n",
     },
     description="Knowledge Graphs analytics.",
@@ -61,7 +61,6 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        # "networkx",
         "nexusforge",
         "gensim",
         "tensorflow"
