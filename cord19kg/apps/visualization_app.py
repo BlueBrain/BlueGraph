@@ -1666,8 +1666,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
     res = []
     npmi_message = None
 
-    paper_lookup = visualization_app._graphs[
-        visualization_app._current_graph]["paper_lookup"]
+    paper_lookup = visualization_app._graphs[showgraph]["paper_lookup"]
 
     if button_id == "tapNode" and datanode:
         definition = ""
@@ -1719,6 +1718,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
         modal_buttons = [
             dbc.Button(label, id="open-body-scroll", color="primary")
         ]
+    print(papers)
 
     papers_in_kg = None
     if len(papers) > 0:
