@@ -15,7 +15,7 @@
 """Collection of utils for CORD-19 analysis apps."""
 import copy
 
-from kganalytics.utils import merge_attrs
+# from kganalytics.utils import merge_attrs
 from cord19kg.utils import CORD_ATTRS_RESOLVER
 
 
