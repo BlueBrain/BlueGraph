@@ -14,6 +14,7 @@
 
 """Module containing utils for COVID-19 network generation and analysis."""
 import ast
+import math
 import operator
 import pickle
 
@@ -24,14 +25,42 @@ from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
-from kganalytics.network_generation import generate_cooccurrence_network
-from kganalytics.metrics import compute_all_metrics
+from bluegraph.core.io import PandasPGFrame
+from bluegraph.preprocess import CooccurrenceGenerator
+from bluegraph.backends.networkx import (NXMetricProcessor,
+                                         NXCommunityDetector,
+                                         NXPathFinder,
+                                         networkx_to_pgframe)
+from bluegraph.backends.neo4j import (Neo4jMetricProcessor,
+                                      Neo4jCommunityDetector,
+                                      Neo4jPathFinder,
+                                      neo4j_to_pgframe)
+from bluegraph.backends.graph_tool import (GTMetricProcessor,
+                                           GTCommunityDetector,
+                                           GTPathFinder,
+                                           graph_tool_to_pgframe)
 
-from kganalytics.export import (save_nodes,
-                                save_network)
 
-from kganalytics.paths import minimum_spanning_tree
-
+BACKEND_MAPPING = {
+    "networkx": {
+        "metrics": NXMetricProcessor,
+        "communities": NXCommunityDetector,
+        "paths": NXPathFinder,
+        "to_pgframes": networkx_to_pgframe
+    },
+    "neo4j": {
+        "metrics": Neo4jMetricProcessor,
+        "communities": Neo4jCommunityDetector,
+        "paths": Neo4jPathFinder,
+        "to_pgframes": neo4j_to_pgframe
+    },
+    "graph_tool": {
+        "metrics": GTMetricProcessor,
+        "communities": GTCommunityDetector,
+        "paths": GTPathFinder,
+        "to_pgframes": graph_tool_to_pgframe
+    }
+}
 
 NON_ASCII_REPLACE = {
     "α": "alpha",
@@ -435,9 +464,10 @@ def merge_with_ontology_linking(occurence_data,
 def generate_cooccurrence_analysis(occurrence_data, factor_counts,
                                    type_data=None, min_occurrences=1,
                                    n_most_frequent=None, keep=None,
-                                   factors=None, cores=None,
+                                   factors=None, cores=8,
                                    graph_dump_prefix=None,
-                                   communities=True, remove_zero_mi=False):
+                                   communities=True, remove_zero_mi=False,
+                                   backend="networkx", driver=None, node_label=None, edge_label=None):
     """Generate co-occurrence analysis.
 
     This utility executes the entire pipeline of the co-occurrence analysis:
@@ -499,19 +529,22 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         Dictionary whose keys are factor names and whose values are
         minimum spanning trees of generated co-occurrence networks.
     """
+    def compute_distance(x):
+        return 1 / x if x > 0 else math.inf
+
     # Filter entities that occur only once (only in one paragraph, usually
     # represent noisy terms)
     if "paragraph" in factors:
         occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
             lambda x: len(x) >= min_occurrences)]
-        occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(
-            lambda x: len(x))
+        occurrence_data["paragraph_frequency"] = occurrence_data[
+            "paragraph"].apply(lambda x: len(x))
     if "section" in factors:
-        occurrence_data["section_frequency"] = occurrence_data["section"].apply(
-            lambda x: len(x))
+        occurrence_data["section_frequency"] = occurrence_data[
+            "section"].apply(lambda x: len(x))
     if "paper" in factors:
-        occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(
-            lambda x: len(x))
+        occurrence_data["paper_frequency"] = occurrence_data[
+            "paper"].apply(lambda x: len(x))
 
     graphs = {}
     trees = {}
@@ -520,73 +553,107 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         print("Factor: {}".format(f))
         print("-------------------------------")
 
-        if cores is None:
-            cores = 8
-        graph = generate_cooccurrence_network(
-            occurrence_data,
-            f,
-            factor_counts[f],
-            n_most_frequent=n_most_frequent,
-            dump_path=(
-                "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
-                if graph_dump_prefix else None
-            ),
-            keep=keep,
-            parallelize=True,
-            cores=cores)
+        # Build a PGFrame from the occurrence data
+        graph = PandasPGFrame()
+        entity_nodes = occurrence_data.index
+        graph.add_nodes(entity_nodes)
+        graph.add_node_types({n: "Entity" for n in entity_nodes})
+        graph.add_node_properties(occurrence_data[f], prop_type="category")
+        graph.add_node_properties(
+            occurrence_data["{}_frequency".format(f)], prop_type="numeric")
 
-        if graph is not None:
-            graphs[f] = graph
-        else:
-            return None, None
-        print()
+        # Select most frequent nodes
+        if n_most_frequent:
+            nodes_to_include = graph._nodes.nlargest(
+                n_most_frequent, "{}_frequency".format(f)).index
+            graph = graph.subgraph(nodes=nodes_to_include)
+
+        # Generate co-occurrence edges
+        generator = CooccurrenceGenerator(graph)
+        edges = generator.generate_from_nodes(
+            f, total_factor_instances=factor_counts[f],
+            compute_statistics=["frequency", "ppmi", "npmi"],
+            parallelize=True, cores=cores)
 
         # Remove edges with zero mutual information
         if remove_zero_mi:
-            edges_to_remove = [
-                e
-                for e in graphs[f].edges()
-                if graphs[f].edges[e]["ppmi"] == 0
-            ]
-            for s, t in edges_to_remove:
-                graphs[f].remove_edge(s, t)
+            edges = edges[edges["ppmi"] > 0]
+
+        graph._edges = edges
+        graph.edge_prop_as_numeric("frequency")
+        graph.edge_prop_as_numeric("ppmi")
+        graph.edge_prop_as_numeric("npmi")
+
+        npmi_distance = edges["npmi"].apply(compute_distance)
+        npmi_distance.name = "distance_npmi"
+        graph.add_edge_properties(npmi_distance, "numeric")
 
         # Set entity types
         if type_data is not None:
-            type_dict = type_data.to_dict()["type"]
-            nx.set_node_attributes(
-                graphs[f],
-                type_dict,
-                "entity_type")
+            graph.add_node_properties(
+                type_data.reset_index().rename(
+                    columns={
+                        "entity": "@id",
+                        "type": "entity_type"
+                    }).set_index("@id"),
+                prop_type="category")
 
-        # Set factors as attrs
-        nx.set_node_attributes(
-            graphs[f],
-            occurrence_data["paper"].apply(lambda x: list(x)).to_dict(),
-            "paper")
+        # Set factors as props
+        graph.add_node_properties(
+            occurrence_data["paper"].apply(lambda x: list(x)),
+            prop_type="category")
 
-        compute_all_metrics(
-            graphs[f],
+        graphs[f] = graph
+
+        if backend == "neo4j":
+            processor = BACKEND_MAPPING[backend]["metrics"](
+                graph, driver, node_label, edge_label, directed=False)
+            com_detector_cls = BACKEND_MAPPING[backend]["communities"](
+                graph, driver, node_label, edge_label, directed=False)
+            path_finder = BACKEND_MAPPING[backend]["paths"](
+                graph, driver, node_label, edge_label, directed=False)
+        else:
+            processor = BACKEND_MAPPING[backend]["metrics"](
+                graph, directed=False)
+            com_detector = BACKEND_MAPPING[backend]["communities"](
+                graph, directed=False)
+            path_finder = BACKEND_MAPPING[backend]["paths"](
+                graph, directed=False)
+
+        # Compute centralities
+        all_metrics = processor.compute_all_node_metrics(
             degree_weights=["frequency"],
-            betweenness_weights=[],
-            community_weights=["frequency", "npmi"] if communities else [],
-            print_summary=True)
+            pagerank_weights=["frequency"])
 
-        # Compute a spanning tree
-        print("Computing the minimum spanning tree...")
-        trees[f] = minimum_spanning_tree(graphs[f], weight="distance_npmi")
-        nx.set_node_attributes(
-            trees[f],
-            type_dict,
-            "entity_type")
+        for metrics, data in all_metrics.items():
+            for weight, values in data.items():
+                prop = pd.DataFrame(
+                    values.items(), columns=["@id", f"{metrics}_{weight}"])
+                graph.add_node_properties(prop, prop_type="numeric")
 
+        # Compute communitites
+        frequency_partition = com_detector.detect_communities(
+            strategy="louvain", weight="frequency")
+        prop = pd.DataFrame(
+            frequency_partition.items(),
+            columns=["@id", "community_frequency"])
+        graph.add_node_properties(prop, prop_type="numeric")
+
+        npmi_partition = com_detector.detect_communities(
+            strategy="louvain", weight="npmi")
+        prop = pd.DataFrame(
+            npmi_partition.items(), columns=["@id", "community_npmi"])
+        graph.add_node_properties(prop, prop_type="numeric")
+
+        # Compute minimum spanning tree
+        tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
+        tree_pgframe = BACKEND_MAPPING[backend]["to_pgframes"](tree)
+        trees[f] = tree_pgframe
+
+        # Dump the generated PGFrame
         if graph_dump_prefix:
-            save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
-
-        if graph_dump_prefix:
-            save_nodes(
-                graphs[f],
-                "{}_{}_node_list.pkl".format(graph_dump_prefix, f))
+            graph.export_json(f"{graph_dump_prefix}_{f}_graph.json")
+            tree_pgframe.export_json(f"{graph_dump_prefix}_{f}_tree.json")
 
     return graphs, trees
 

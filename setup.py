@@ -46,6 +46,14 @@ setup(
         "gensim",
         "tensorflow"
     ],
+    package_data={
+        'cord19kg.apps': [
+            'assets/*',
+            'assets/fontawesome-5.15.1-web/',
+            'assets/fontawesome-5.15.1-web/css/*',
+            'assets/fontawesome-5.15.1-web/webfonts/*'
+        ]
+    },
     extras_require={
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
