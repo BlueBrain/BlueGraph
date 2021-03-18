@@ -57,7 +57,7 @@ class MetricProcessor(ABC):
         if betweenness_weights is None:
             betweenness_weights = []
         if closeness_weights is None:
-            closeness_weights
+            closeness_weights = []
 
         results = {
             "degree": {},
@@ -67,12 +67,12 @@ class MetricProcessor(ABC):
         }
         for weight in degree_weights:
             results["degree"][weight] = self.degree_centrality(weight)
-        for weight in degree_weights:
+        for weight in pagerank_weights:
             results["pagerank"][weight] = self.pagerank_centrality(weight)
-        for weight in degree_weights:
+        for weight in betweenness_weights:
             results["betweenness"][weight] = self.betweenness_centrality(
                 weight)
-        for weight in degree_weights:
+        for weight in closeness_weights:
             results["closeness"][weight] = self.closeness_centrality(
                 weight)
         return results
