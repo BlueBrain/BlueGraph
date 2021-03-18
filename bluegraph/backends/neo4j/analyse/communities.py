@@ -39,10 +39,11 @@ class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
                   {node_edge_selector}
                 }})
                 YIELD nodeId, communityId
+                RETURN gds.util.asNode(nodeId).id AS node_id, communityId
                 """
             )
             result = self.execute(query)
-            return {record["nodeId"]: record["communityId"] for record in result}
+            return {record["node_id"]: record["communityId"] for record in result}
 
     def _run_louvain(self, weight=None, write=False, write_property=None,
                      **kwargs):

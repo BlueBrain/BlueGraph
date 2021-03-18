@@ -113,8 +113,10 @@ class GTGraphProcessor(GraphProcessor):
 
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
+        if isinstance(new_property, gt.VertexPropertyMap):
+            new_property = new_property.a
         return dict(
-            zip(list(self.graph.vertex_properties["@id"]), new_property.a))
+            zip(list(self.graph.vertex_properties["@id"]), new_property))
 
     def _write_node_property(self, new_property, property_name):
         """Write node property values to the graph."""

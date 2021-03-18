@@ -1,9 +1,10 @@
 import math
 import numpy as np
+import pandas as pd
 
 from neo4j import GraphDatabase
 
-from bluegraph.core.io import GraphProcessor
+from bluegraph.core.io import GraphProcessor, PandasPGFrame
 
 
 def execute(driver, query):
@@ -14,13 +15,19 @@ def execute(driver, query):
     return result
 
 
+def generate_neo4j_driver(uri=None, username=None,
+                          password=None, driver=None):
+    if driver is None:
+        driver = GraphDatabase.driver(
+            uri, auth=(username, password))
+    return driver
+
+
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
                      batch_size=10000):
     """Write the property graph to the Neo4j databse."""
-    if not driver:
-        driver = GraphDatabase.driver(
-            uri, auth=(username, password))
+    driver = generate_neo4j_driver(uri, username, password, driver)
 
     if pgframe is None:
         return driver
@@ -87,16 +94,40 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
     return driver
 
 
-def neo4j_to_pgframe(driver, node_label, edge_label):
-    raise NotImplementedError()
+def neo4j_to_pgframe(uri=None, username=None, password=None,
+                     driver=None, node_label=None, edge_label=None):
+    driver = generate_neo4j_driver(uri, username, password, driver)
+    # Get nodes and their properties
+    query = (
+        f"MATCH (n:{node_label}) RETURN n as node"
+    )
+    result = execute(driver, query)
 
+    nodes_frame = pd.DataFrame([record["node"] for record in result]).rename(
+        columns={"id": "@id"})
+    nodes_frame["@id"] = nodes_frame["@id"].apply(str)
+    nodes_frame = nodes_frame.set_index("@id")
 
-def generate_neo4j_driver(uri=None, username=None,
-                          password=None, driver=None):
-    if driver is None:
-        driver = GraphDatabase.driver(
-            uri, auth=(username, password))
-    return driver
+    # Get edges and their properties
+    query = (
+        f"""MATCH (n:{node_label})-[r:{edge_label}]->(m:{node_label})
+        RETURN n.id as source_id, m.id as target_id, properties(r) as edge
+        """
+    )
+    result = execute(driver, query)
+    edges_frame = pd.DataFrame([
+        {
+            **record["edge"],
+            "@source_id": record["source_id"],
+            "@target_id": record["target_id"]
+        }
+        for record in result
+    ])
+    edges_frame["@source_id"] = edges_frame["@source_id"].apply(str)
+    edges_frame["@target_id"] = edges_frame["@target_id"].apply(str)
+    edges_frame = edges_frame.set_index(["@source_id", "@target_id"])
+
+    return PandasPGFrame.from_frames(nodes=nodes_frame, edges=edges_frame)
 
 
 class Neo4jGraphProcessor(GraphProcessor):

@@ -23,8 +23,8 @@ def _get_community_sets(partition):
     return community_sets
 
 
-def heaviest(weight, G):
-    u, v, w = max(G.edges(data="weight"), key=itemgetter(2))
+def heaviest(weight, graph):
+    u, v, w = max(graph.edges(data=weight), key=itemgetter(2))
     return (u, v)
 
 

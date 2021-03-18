@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -33,26 +33,7 @@ setup(
     long_description_content_type="text/x-rst",
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueBrainGraph",
-    packages=[
-        "bluegraph",
-        "bluegraph.core",
-        "bluegraph.core.analyse",
-        "bluegraph.core.embed",
-        "bluegraph.preprocess",
-        "bluegraph.backends",
-        "bluegraph.backends.networkx",
-        "bluegraph.backends.networkx.analyse",
-        "bluegraph.backends.graph_tool",
-        "bluegraph.backends.graph_tool.analyse",
-        "bluegraph.backends.neo4j",
-        "bluegraph.backends.neo4j.analyse",
-        "bluegraph.backends.stellargraph",
-        "bluegraph.backends.stellargraph.embed",
-        "bluegraph.downstream",
-        "bluegraph.preprocess",
-        "cord19kg",
-        "cord19kg.apps"
-    ],
+    packages=find_packages(),
     python_requires=">=3.6",
     install_requires=[
         "numpy",

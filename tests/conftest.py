@@ -191,4 +191,18 @@ def node_embedding_prediction_test_graph():
 def community_test_graph():
     frame = PandasPGFrame.load_json(
         "tests/zachari_karate_club.json")
+
+    sources = [s for s, _ in frame.edges()]
+    targets = [t for _, t in frame.edges()]
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "strength": [
+            el if el > 0 else 0
+            for el in np.random.normal(
+                loc=0.5, scale=0.5, size=frame.number_of_edges())
+        ]
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+
     return frame

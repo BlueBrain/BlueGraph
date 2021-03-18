@@ -338,19 +338,19 @@ def generate_curation_table(data):
 
     result_data = result_data.reset_index()
     result_data["paper_frequency"] = result_data[
-        "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
+        "paper"].transform(lambda x: len([str(p).split(":")[0] for p in x]))
     result_data["paper"] = result_data[
-        "paper"].transform(lambda x:  list(x))
+        "paper"].transform(lambda x: list(x))
     result_data["paragraph"] = result_data[
-        "paragraph"].transform(lambda x:  list(x))
+        "paragraph"].transform(lambda x: list(x))
     result_data["section"] = result_data[
-        "section"].transform(lambda x:  list(x))
+        "section"].transform(lambda x: list(x))
     result_data["raw_entity_types"] = result_data[
         "entity_type"].transform(list)
     result_data["raw_frequency"] = result_data["entity_type"].apply(len)
     result_data["entity_type"] = result_data[
         "entity_type"].transform(
-            lambda x:  ", ".join(list(set(x))))
+            lambda x: ", ".join(list(set(x))))
     return result_data, counts
 
 

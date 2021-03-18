@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 
 from bluegraph.core import PandasPGFrame
+from bluegraph.backends.neo4j.io import pgframe_to_neo4j, neo4j_to_pgframe
+from bluegraph.backends.stellargraph.io import (pgframe_to_stellargraph,
+                                                stellargraph_to_pgframe)
 
 
 def test_pandas_pg_creation():
@@ -38,3 +41,21 @@ def test_pandas_pg_creation():
     frame.edge_prop_as_numeric("weight")
     assert(frame.is_numeric_node_prop("weight"))
     assert(frame.is_numeric_edge_prop("weight"))
+
+
+def test_neo4j_io(random_pgframe, neo4j_driver):
+    pgframe_to_neo4j(
+        random_pgframe, driver=neo4j_driver,
+        node_label="TestIONode", edge_label="TestIOEdge")
+    frame = neo4j_to_pgframe(
+        driver=neo4j_driver,
+        node_label="TestIONode", edge_label="TestIOEdge")
+    assert(frame.number_of_nodes() == random_pgframe.number_of_nodes())
+    assert(frame.number_of_edges() == random_pgframe.number_of_edges())
+
+
+def test_stellargraph_io(random_pgframe):
+    sg_object = pgframe_to_stellargraph(random_pgframe)
+    frame = stellargraph_to_pgframe(sg_object)
+    assert(frame.number_of_nodes() == random_pgframe.number_of_nodes())
+    assert(frame.number_of_edges() == random_pgframe.number_of_edges())

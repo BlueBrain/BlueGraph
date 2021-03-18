@@ -3,6 +3,8 @@ import pandas as pd
 
 import stellargraph as sg
 
+from bluegraph.core.io import PandasPGFrame
+
 
 def pgframe_to_stellargraph(pgframe, directed=True, include_type=False,
                             feature_vector_prop=None, feature_props=None,
@@ -59,4 +61,37 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=False,
 
 
 def stellargraph_to_pgframe(sg_object):
-    pass
+    # Create nodes data frame
+    node_dicts = []
+    node_ids = sg_object.nodes()
+    if sg_object.node_types != {"default"}:
+        for node_type in sg_object.node_types:
+            node_ids = sg_object.nodes(node_type=node_type)
+            features = sg_object.node_features(node_ids, node_type=node_type)
+            for node_id, node_features in zip(node_ids, features):
+                node_dict = {"@id": node_id, "@type": node_type}
+                if len(node_features) > 0:
+                    node_dict["features"] = node_features
+                node_dicts.append(node_dict)
+    else:
+        features = sg_object.node_features(node_ids)
+        for node_id, node_features in zip(node_ids, features):
+            node_dict = {"@id": node_id}
+            if len(node_features) > 0:
+                node_dict["features"] = node_features
+            node_dicts.append(node_dict)
+
+    nodes = pd.DataFrame(node_dicts).set_index("@id")
+    # Create edges data frame
+    edge_dicts = [
+        {"@source_id": s, "@target_id": t, "@type": etype, "weight": weight}
+        for s, t, etype, weight in
+        zip(
+            sg_object._nodes.ids.from_iloc(sg_object._edges.sources),
+            sg_object._nodes.ids.from_iloc(sg_object._edges.targets),
+            sg_object._edges.type_of_iloc(slice(None)),
+            sg_object._edges.weights
+        )
+    ]
+    edges = pd.DataFrame(edge_dicts).set_index(["@source_id", "@target_id"])
+    return PandasPGFrame.from_frames(nodes=nodes, edges=edges)

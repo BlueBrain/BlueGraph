@@ -1,5 +1,4 @@
 """Main embedding service app."""
-import re
 import json
 import os
 # import jwt
@@ -9,8 +8,8 @@ from flask import Flask, request
 from kgforge.core import KnowledgeGraphForge
 # from kgforge.specializations.resources import Dataset
 
-from bluegraph.core import GraphElementEmbedder
 from bluegraph.downstream import EmbeddingPipeline
+from bluegraph.core import GraphElementEmbedder
 
 
 # def _retrieve_token(request):
@@ -75,7 +74,8 @@ app = Flask(__name__)
 app.config.from_pyfile('configs/app_config.py')
 
 app.forge = KnowledgeGraphForge(
-    app.config["FORGE_CONFIG"], token=os.environ["NEXUS_TOKEN"])
+    app.config["FORGE_CONFIG"],
+    token=os.environ["NEXUS_TOKEN"])
 
 app.models = {}
 _retrieve_models()

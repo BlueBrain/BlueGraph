@@ -4,6 +4,7 @@ import networkx as nx
 from bluegraph.core.analyse.communities import CommunityDetector
 from bluegraph.backends.networkx import NXCommunityDetector
 from bluegraph.backends.neo4j import Neo4jCommunityDetector
+from bluegraph.backends.graph_tool import GTCommunityDetector
 
 
 def _benchmark_comminities(detector, community_test_graph):
@@ -14,6 +15,15 @@ def _benchmark_comminities(detector, community_test_graph):
     assert(
         len(louvain_partition) == community_test_graph.number_of_nodes())
     assert(len(set(louvain_partition.values())) == 4)
+    assert(
+        set([str(n) for n in louvain_partition.keys()]) ==
+        set([str(n) for n in community_test_graph.nodes()]))
+
+    # Weighted version
+    weighted_louvain_partition = detector.detect_communities(
+        strategy="louvain", weight="strength")
+    assert(
+        len(weighted_louvain_partition) == community_test_graph.number_of_nodes())
 
     # Write version
     detector.detect_communities(
@@ -27,6 +37,12 @@ def _benchmark_comminities(detector, community_test_graph):
     detector.evaluate_parition(gn_2_partition, metric="performance")
     assert(
         len(gn_2_partition) == community_test_graph.number_of_nodes())
+
+    # Weighted version
+    weighted_gn_2_partition = detector.detect_communities(
+        strategy="girvan-newman", weight="strength")
+    assert(
+        len(weighted_gn_2_partition) == community_test_graph.number_of_nodes())
 
     # Write version
     detector.detect_communities(
@@ -52,6 +68,15 @@ def _benchmark_comminities(detector, community_test_graph):
         assert(
             len(gn_inter_partition) == community_test_graph.number_of_nodes())
         assert(len(list(gn_inter_partition.values())[0]) > 0)
+
+        # Weighted version
+        weighted_gn_inter_partition = detector.detect_communities(
+            strategy="girvan-newman", weight="strength", n_communities=4,
+            intermediate=True)
+        assert(
+            len(weighted_gn_inter_partition) ==
+            community_test_graph.number_of_nodes())
+
     except TypeError:
         pass
 
@@ -72,6 +97,13 @@ def _benchmark_comminities(detector, community_test_graph):
         len(lpa_partition) == community_test_graph.number_of_nodes())
     assert(len(set(lpa_partition.values())) >= 1)
 
+    # Weighted version
+    weighted_lpa_partition = detector.detect_communities(
+        strategy="lpa", weight="strength")
+    assert(
+        len(weighted_lpa_partition) ==
+        community_test_graph.number_of_nodes())
+
     # Write version
     detector.detect_communities(
         strategy="lpa", write=True, write_property="lpa_community")
@@ -84,6 +116,16 @@ def _benchmark_comminities(detector, community_test_graph):
     assert(
         len(hierarchical_partition) == community_test_graph.number_of_nodes())
     assert(len(set(hierarchical_partition.values())) == 5)
+
+    # Weighted version
+    weighted_hierarchical_partition = detector.detect_communities(
+        strategy="hierarchical",
+        feature_vectors=np.random.rand(
+            community_test_graph.number_of_nodes(), 3),
+        n_communities=5, weight="strength")
+    assert(
+        len(weighted_hierarchical_partition) ==
+        community_test_graph.number_of_nodes())
 
     # Write version
     detector.detect_communities(
@@ -99,8 +141,6 @@ def _benchmark_comminities(detector, community_test_graph):
 
 
 def test_nx_communities(community_test_graph):
-    # TODO:
-    # - test weighted version
     coms = NXCommunityDetector(community_test_graph, directed=False)
     l, g2, g4, lpa, h = _benchmark_comminities(coms, community_test_graph)
     nx_object = coms.graph
@@ -136,13 +176,12 @@ def test_neo4j_communities(community_test_graph, neo4j_driver):
     coms = Neo4jCommunityDetector(
         pgframe=community_test_graph,
         driver=neo4j_driver,
-        node_label="TestNode",
-        edge_label="TestEdge", directed=False)
+        node_label="TestCommunityNode",
+        edge_label="TestCommunityEdge", directed=False)
     l, g2, g4, lpa, h = _benchmark_comminities(coms, community_test_graph)
-    # partition = coms.detect_communities(strategy="louvain")
-    # print(partition)
+
     # Assert all the node props are present
-    query = "MATCH (n:TestNode) RETURN keys(n) AS props LIMIT 1"
+    query = "MATCH (n:TestCommunityNode) RETURN keys(n) AS props LIMIT 1"
     result = coms.execute(query)
     # assert(
     #     set([
@@ -154,10 +193,33 @@ def test_neo4j_communities(community_test_graph, neo4j_driver):
     #         "h_community"]).issubset(set(result[0]["props"])))
 
     # Assert written props are equal to the streamed props
-    query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.louvain_community as louvain_community"
+    query = "MATCH (n:TestCommunityNode) RETURN n.id AS node_id, n.louvain_community as louvain_community"
     result = coms.execute(query)
     assert(
         len(set(l.values())) ==
         len(set(
-            {record["node_id"]: record["louvain_community"] for record in result}.values()))
+            {
+                record["node_id"]: record["louvain_community"]
+                for record in result
+            }.values()))
     )
+
+
+def test_gt_communities(community_test_graph):
+    coms = GTCommunityDetector(community_test_graph, directed=False)
+    partition = coms.detect_communities(strategy="sbm")
+    assert(
+        len(partition) == community_test_graph.number_of_nodes())
+    assert(len(set(partition.values())) == 1)
+    partition = coms.detect_communities(strategy="sbm", min_communities=4)
+    assert(
+        len(partition) == community_test_graph.number_of_nodes())
+    assert(len(set(partition.values())) == 4)
+
+    partition = coms.detect_communities(strategy="sbm", nested=True)
+    assert(
+        len(partition) == community_test_graph.number_of_nodes())
+    partition = coms.detect_communities(
+        strategy="sbm", nested=True, min_communities=4)
+    assert(
+        len(partition) == community_test_graph.number_of_nodes())
