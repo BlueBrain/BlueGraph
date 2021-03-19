@@ -52,7 +52,15 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
+    def remove_node_properties(self, prop_column):
+        pass
+
+    @abstractmethod
     def add_edge_properties(self, prop_column, prop_type=None):
+        pass
+
+    @abstractmethod
+    def remove_edge_properties(self, prop_column):
         pass
 
     @abstractmethod
@@ -194,6 +202,11 @@ class PGFrame(ABC):
     @classmethod
     @abstractmethod
     def from_frames(self, nodes, edges):
+        pass
+
+    @abstractmethod
+    def copy(self):
+        """Copy the PGFrame."""
         pass
 
     # -------------------- Concrete methods --------------------
@@ -642,6 +655,9 @@ class PandasPGFrame(PGFrame):
                 "allowed types 'text', 'numeric', 'category'")
         self._set_node_prop_type(prop_name, prop_type)
 
+    def remove_node_properties(self, prop_column):
+        self._nodes = self._nodes.drop(columns=[prop_column])
+
     def add_edge_properties(self, prop_column, prop_type=None):
         if not isinstance(prop_column, pd.DataFrame):
             prop_column = pd.DataFrame(prop_column)
@@ -677,6 +693,9 @@ class PandasPGFrame(PGFrame):
                 f"Invalid property data type '{prop_type}', "
                 "allowed types 'text', 'numeric', 'category'")
         self._set_edge_prop_type(prop_name, prop_type)
+
+    def remove_edge_properties(self, prop_column):
+        self._edges = self._edges.drop(columns=[prop_column])
 
     def remove_nodes(self, nodes_to_remove):
         # Remove nodes
@@ -956,6 +975,17 @@ class PandasPGFrame(PGFrame):
             subgraph.remove_isolated_nodes()
         return subgraph
 
+    def copy(self):
+        """Create a copy of the pgframe."""
+        nodes_copy = graph._nodes.copy()
+        edges_copy = graph._edges.copy()
+
+        node_prop_types = graph._node_prop_types.copy()
+        edge_prop_types = graph._edge_prop_types.copy()
+        return PandasPGFrame.from_frames(
+            nodes_copy, edges_copy,
+            node_prop_types, edge_prop_types)
+
     @classmethod
     def from_frames(cls, nodes, edges,
                     node_prop_types=None, edge_prop_types=None):
@@ -1042,9 +1072,12 @@ class GraphProcessor(ABC):
     into backend-specific graph objects and vice versa.
     """
 
-    def __init__(self, pgframe, directed=True):
-        self.graph = self._generate_graph(
-            pgframe, directed=directed)
+    def __init__(self, pgframe=None, directed=True):
+        if pgframe is not None:
+            self.graph = self._generate_graph(
+                pgframe, directed=directed)
+        else:
+            self.graph = None
         self.directed = directed
 
     @staticmethod

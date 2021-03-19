@@ -14,7 +14,7 @@ class GTCommunityDetector(GTGraphProcessor, CommunityDetector):
     def _run_louvain(self, **kwargs):
         raise CommunityDetector.PartitionError(
             "Louvain algorithm is not implemented "
-            "for Neo4j-based graphs")
+            "for graph-tool-based graphs")
 
     def _run_girvan_newman(self, weight=None, n_communitites=2,
                            intermediate=False):

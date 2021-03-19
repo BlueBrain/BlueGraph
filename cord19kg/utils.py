@@ -467,7 +467,8 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
                                    factors=None, cores=8,
                                    graph_dump_prefix=None,
                                    communities=True, remove_zero_mi=False,
-                                   backend="networkx", driver=None, node_label=None, edge_label=None):
+                                   backend="networkx", driver=None,
+                                   node_label=None, edge_label=None):
     """Generate co-occurrence analysis.
 
     This utility executes the entire pipeline of the co-occurrence analysis:
@@ -563,6 +564,7 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
             occurrence_data["{}_frequency".format(f)], prop_type="numeric")
 
         # Select most frequent nodes
+        nodes_to_include = None
         if n_most_frequent:
             nodes_to_include = graph._nodes.nlargest(
                 n_most_frequent, "{}_frequency".format(f)).index
@@ -579,7 +581,7 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         if remove_zero_mi:
             edges = edges[edges["ppmi"] > 0]
 
-        graph._edges = edges
+        graph._edges = edges.drop(columns=["common_factors"])
         graph.edge_prop_as_numeric("frequency")
         graph.edge_prop_as_numeric("ppmi")
         graph.edge_prop_as_numeric("npmi")
@@ -598,9 +600,14 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
                     }).set_index("@id"),
                 prop_type="category")
 
-        # Set factors as props
+        # Set papers as props
+        graph.remove_node_properties(f)
+        if nodes_to_include is not None:
+            paper_data = occurrence_data.loc[nodes_to_include, "paper"]
+        else:
+            paper_data = occurrence_data["paper"]
         graph.add_node_properties(
-            occurrence_data["paper"].apply(lambda x: list(x)),
+            paper_data.apply(lambda x: list(x)),
             prop_type="category")
 
         graphs[f] = graph
@@ -608,7 +615,7 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         if backend == "neo4j":
             processor = BACKEND_MAPPING[backend]["metrics"](
                 graph, driver, node_label, edge_label, directed=False)
-            com_detector_cls = BACKEND_MAPPING[backend]["communities"](
+            com_detector = BACKEND_MAPPING[backend]["communities"](
                 graph, driver, node_label, edge_label, directed=False)
             path_finder = BACKEND_MAPPING[backend]["paths"](
                 graph, driver, node_label, edge_label, directed=False)
@@ -628,7 +635,8 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         for metrics, data in all_metrics.items():
             for weight, values in data.items():
                 prop = pd.DataFrame(
-                    values.items(), columns=["@id", f"{metrics}_{weight}"])
+                    values.items(),
+                    columns=["@id", "{}_{}".format(metrics, weight)])
                 graph.add_node_properties(prop, prop_type="numeric")
 
         # Compute communitites
@@ -652,8 +660,9 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
 
         # Dump the generated PGFrame
         if graph_dump_prefix:
-            graph.export_json(f"{graph_dump_prefix}_{f}_graph.json")
-            tree_pgframe.export_json(f"{graph_dump_prefix}_{f}_tree.json")
+            graph.export_json("{}_{}_graph.json".format(graph_dump_prefix, f))
+            tree_pgframe.export_json(
+                "{}_{}_tree.json".format(graph_dump_prefix, f))
 
     return graphs, trees
 
@@ -788,10 +797,12 @@ def link_ontology(linking, type_mapping, curated_table):
         linking_df=linking.rename(columns={"mention": "entity"}))
 
     linked_table = linked_table.reset_index()
-    linked_table["paper_frequency"] = linked_table["paper"].apply(lambda x: len(x))
+    linked_table["paper_frequency"] = linked_table["paper"].apply(
+        lambda x: len(x))
     linked_table["paper"] = linked_table["paper"].apply(lambda x: list(x))
     linked_table["section"] = linked_table["section"].apply(lambda x: list(x))
-    linked_table["paragraph"] = linked_table["paragraph"].apply(lambda x: list(x))
+    linked_table["paragraph"] = linked_table["paragraph"].apply(
+        lambda x: list(x))
 
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(
@@ -805,9 +816,10 @@ def link_ontology(linking, type_mapping, curated_table):
 
 def generate_paper_lookup(graph):
     paper_table = {}
-    for n in graph.nodes():
-        if "paper" in graph.nodes[n]:
-            paper_table[n] = list(graph.nodes[n]["paper"])
+    paper_table = graph.get_node_property_values("paper")
+    # for n in graph.nodes():
+    #     if "paper" in graph.nodes[n]:
+    #         paper_table[n] = list(graph.nodes[n]["paper"])
     return paper_table
 
 
@@ -858,3 +870,112 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
+
+def merge_attrs(target_attrs, collection_of_attrs, attr_resolver,
+                attrs_to_ignore=None):
+    """Merge two attribute dictionaries into the target using the input resolver.
+    Parameters
+    ----------
+    target_attrs : dict
+        Target dictionary with attributes (the other attributes will be
+        merged into it)
+    collection_of_attrs : iterable of dict
+        Collection of dictionaries to merge into the target dictionary
+    attr_resolver : dict
+        Dictionary containing attribute resolvers, its keys are attribute
+        names and its values are functions applied to the set of attribute
+        values in order to resolve this set to a single value
+    attrs_to_ignore : iterable, optional
+        Set of attributes to ignore (will not be included in the merged
+        node or edges incident to this merged node)
+    """
+    if attrs_to_ignore is None:
+        attrs_to_ignore = []
+
+    all_keys = set(
+        sum([list(attrs.keys()) for attrs in collection_of_attrs], []))
+
+    for k in all_keys:
+        if k not in attrs_to_ignore:
+            if k in attr_resolver:
+                target_attrs[k] = attr_resolver[k](
+                    ([target_attrs[k]] if k in target_attrs else []) + [
+                        attrs[k] for attrs in collection_of_attrs if k in attrs
+                    ]
+                )
+            else:
+                target_attrs[k] = None
+
+
+def merge_nodes(graph, nodes_to_merge, new_name=None, attr_resolver=None,
+                copy=False):
+    """Merge the input set of nodes.
+    Parameters
+    ----------
+    graph : nx.Graph
+        Input graph object
+    nodes_to_merge: iterable
+        Collection of node IDs to merge
+    new_name : str, optional
+        New name to use for the result of merging
+    attr_resolver : dict, optional
+        Dictionary containing attribute resolvers, its keys are attribute
+        names and its values are functions applied to the set of attribute
+        values in order to resolve this set to a single value
+    copy : bool, optional
+        Flag indicating whether the merging should be performed in-place or
+        by creating a copy of the input graph
+    Returns
+    -------
+    graph : nx.Graph
+        Resulting graph (references to the input graph, if `copy` is False,
+        or to another object if `copy` is True).
+    """
+    if copy:
+        graph = graph.copy()
+
+    if len(nodes_to_merge) < 2:
+        raise ValueError("At least two nodes are required for merging")
+
+    if attr_resolver is None:
+        raise ValueError("Attribute resolver should be provided")
+
+    # We merge everything into the target node
+    if new_name is None:
+        new_name = nodes_to_merge[0]
+
+    if new_name not in graph.nodes():
+        nx.relabel_nodes(graph, {nodes_to_merge[0]: new_name}, copy=False)
+        nodes_to_merge = nodes_to_merge[1:]
+
+    target_node = new_name
+    other_nodes = [n for n in nodes_to_merge if n != target_node]
+
+    # Resolve node attrs
+    merge_attrs(
+        graph.nodes[target_node],
+        [graph.nodes[n] for n in other_nodes],
+        attr_resolver)
+
+    # Merge edges
+    edge_attrs = {}
+
+    for n in other_nodes:
+        neighbors = graph.neighbors(n)
+        for neighbor in neighbors:
+            if neighbor != target_node and neighbor not in other_nodes:
+                if neighbor in edge_attrs:
+                    edge_attrs[neighbor].append(graph.edges[n, neighbor])
+                else:
+                    edge_attrs[neighbor] = [graph.edges[n, neighbor]]
+
+    for k, v in edge_attrs.items():
+        target_neighbors = graph.neighbors(target_node)
+        if k not in target_neighbors:
+            graph.add_edge(target_node, k)
+        merge_attrs(graph.edges[target_node, k], v, attr_resolver)
+
+    for n in other_nodes:
+        graph.remove_node(n)
+
+    return graph

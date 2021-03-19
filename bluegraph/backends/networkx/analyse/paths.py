@@ -1,4 +1,4 @@
-from bluegraph.core.analyse.paths import PathFinder
+from bluegraph.core.analyse.paths import PathFinder, graph_elements_from_paths
 
 from ..io import NXGraphProcessor
 
@@ -69,6 +69,12 @@ class NXPathFinder(NXGraphProcessor, PathFinder):
                 [e for e in subgraph.edges() if e not in edges_to_exclude]
             )
 
+        return subgraph
+
+    def get_subgraph_from_paths(self, paths):
+        """Get a subgraph given the input paths."""
+        nodes, edges = graph_elements_from_paths(paths)
+        subgraph = self.graph.subgraph(nodes).edge_subgraph(edges)
         return subgraph
 
     @staticmethod

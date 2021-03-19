@@ -32,9 +32,9 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths,
-                               minimum_spanning_tree, graph_from_paths)
-from kganalytics.utils import (top_n, merge_nodes)
+from bluegraph.core.utils import top_n
+from bluegraph.core.analyse.paths import graph_elements_from_paths
+from bluegraph.backends.networkx import pgframe_to_networkx, NXPathFinder
 
 import cord19kg
 from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
@@ -50,7 +50,7 @@ import cord19kg.apps.components as components
 from cord19kg.apps.app_utils import save_run, merge_cyto_elements
 
 from cord19kg.utils import (build_cytoscape_data, generate_paper_lookup,
-                            CORD_ATTRS_RESOLVER)
+                            CORD_ATTRS_RESOLVER, merge_nodes)
 
 
 def adjust_color_lightness(r, g, b, factor):
@@ -80,7 +80,8 @@ def subgraph_from_clusters(graph_object, cluster_type, clustersearch,
             nodes=[
                 n
                 for n in graph_object.nodes()
-                if graph_object.nodes[n][cluster_type] in clustersearch or n in nodes_to_keep
+                if graph_object.nodes[n][cluster_type] in clustersearch or
+                n in nodes_to_keep
             ]))
     return graph_object
 
@@ -127,9 +128,9 @@ def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
     nodes_to_include = get_top_n_nodes(
         graph_object, n, node_subset, nodes_to_keep)
 
-    tree = minimum_spanning_tree(
-        graph_object.subgraph(nodes_to_include),
-        "distance_npmi")
+    path_finder = NXPathFinder.from_graph_object(
+        graph_object.subgraph(nodes_to_include))
+    tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
     return tree
 
 
@@ -439,7 +440,7 @@ class VisualizationApp(object):
         """Get current app configs."""
         return self._configs
 
-    def set_graph(self, graph_id, graph_object, tree_object=None,
+    def set_graph(self, graph_id, graph, tree=None,
                   positions=None, default_top_n=None, full_graph_view=False):
         """Set a graph to display.
 
@@ -447,9 +448,9 @@ class VisualizationApp(object):
         ----------
         graph_id : str
             Graph identifier to use in the app
-        graph_object : nx.Graph
+        graph_object : PandasPGFrame
             Input graph object
-        tree_object : nx.Graph, optional
+        tree_object : PandasPGFrame, optional
             Pre-computed minimum spanning tree object
         positions : dict, optional
             Dictionary containing pre-computed node positions
@@ -461,10 +462,15 @@ class VisualizationApp(object):
             (spanning tree is shown by default)
         """
         # Generate a paper lookup table
-        paper_lookup = generate_paper_lookup(graph_object)
+        paper_lookup = generate_paper_lookup(graph)
 
         if self._graphs is None:
             self._graphs = {}
+
+        # Create a Networkx Graph
+
+        graph_object = pgframe_to_networkx(graph, directed=False)
+        tree_object = pgframe_to_networkx(tree, directed=False)
 
         self._graphs[graph_id] = {
             "nx_object_backup": graph_object.copy(),
@@ -485,7 +491,7 @@ class VisualizationApp(object):
             )
             self._graphs[graph_id]["default_top_n"] = default_top_n
 
-        # Build a cyto repe with the spanning tree with default top n nodes
+        # Build a cyto repr with the spanning tree with default top n nodes
         self._update_cyto_graph(
             graph_id, graph_object, default_top_n, positions)
 
@@ -647,7 +653,7 @@ def search(elements, search_value, value, showgraph, diffs=None,
             cluster_matches = False
             if cluster_type is not None and cluster_search is not None:
                 if (cluster_type in attrs and attrs[cluster_type] in cluster_search) or\
-                       n in nodes_to_keep:
+                   n in nodes_to_keep:
                     cluster_matches = True
             else:
                 cluster_matches = True
@@ -668,7 +674,7 @@ def search(elements, search_value, value, showgraph, diffs=None,
                 if cluster_type is not None and cluster_search is not None:
                     if (cluster_type in ele_data["data"] and
                         ele_data["data"][cluster_type] in cluster_search) or\
-                           el_id in nodes_to_keep:
+                       el_id in nodes_to_keep:
                         cluster_matches = True
                 else:
                     cluster_matches = True
@@ -762,7 +768,8 @@ def get_all_clusters(graph_id, cluster_type):
     return list(set([
         visualization_app._graphs[graph_id]["nx_object"].nodes[n][cluster_type]
         for n in visualization_app._graphs[graph_id]["nx_object"].nodes()
-        if cluster_type in visualization_app._graphs[graph_id]["nx_object"].nodes[n]
+        if cluster_type in visualization_app._graphs[
+            graph_id]["nx_object"].nodes[n]
     ]))
 
 
@@ -914,6 +921,7 @@ def setup_paths_tab(nestedpaths):
     ]
 )
 
+
 def update_cytoscape_elements(resetbt, removebt, val,
                               nodefreqslider, edgefreqslider,
                               searchvalues, pathbt,
@@ -1001,7 +1009,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
             "rename-apply"
         ]
 
-    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset" and button_id not in element_preserving:
+    if clustersearch is not None and cluster_type is not None and\
+       button_id != "bt-reset" and button_id not in element_preserving:
         memory["filtered_elements"] = []
         memory["removed_elements"] = {}
         memory["renamed_elements"] = {}
@@ -1112,7 +1121,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
             for edge in edges_to_remove.values():
                 if (
                         edge["data"]["source"], edge["data"]["target"]
-                   ) in visualization_app._graphs[val]["nx_object"].edges():
+                ) in visualization_app._graphs[val]["nx_object"].edges():
                     visualization_app._graphs[val]["nx_object"].remove_edge(
                         edge["data"]["source"], edge["data"]["target"])
 
@@ -1398,29 +1407,29 @@ def update_cytoscape_elements(resetbt, removebt, val,
             graph_object = subgraph_from_clusters(
                 visualization_app._graphs[val]["nx_object"],
                 cluster_type, clustersearch, nodes_to_keep)
-
+            path_finder = NXPathFinder.from_graph_object(
+                graph_object)
             try:
                 if nestedpaths and pathdepth:
-                    paths = top_n_nested_paths(
-                        graph_object, source, target, topN, nested_n=topN,
+                    paths = path_finder.n_nested_shortest_paths(
+                        source, target, topN, nested_n=topN,
                         strategy="naive", distance="distance_npmi",
-                        depth=pathdepth)
+                        depth=pathdepth, exclude_edge=True)
                 elif searchnodetotraverse:
                     intersecting = len(searchpathoverlap) == 1
-                    a_b_paths, b_c_paths = top_n_tripaths(
-                        graph_object, source,
-                        searchnodetotraverse, target, topN,
+                    a_b_paths, b_c_paths = path_finder.n_shortest_tripaths(
+                        source, searchnodetotraverse, target, topN,
                         strategy="naive", distance="distance_npmi",
-                        intersecting=intersecting)
+                        overlap=intersecting, exclude_edge=True)
                     paths = a_b_paths + b_c_paths
                 else:
-                    paths = top_n_paths(
-                        graph_object, source, target,
-                        topN, distance="distance_npmi", strategy="naive")
+                    paths = path_finder.n_shortest_paths(
+                        source, target, topN,
+                        distance="distance_npmi", strategy="naive",
+                        exclude_edge=True)
                 elements = []
+                path_graph = path_finder.get_subgraph_from_paths(paths)
 
-                path_graph = graph_from_paths(
-                    paths, visualization_app._graphs[val]["nx_object"])
                 elements = get_cytoscape_data(path_graph)
                 visualization_app._current_layout = "klay"
                 success = True
@@ -1434,7 +1443,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 )
         if not success:
             if visualization_app._graphs[val]["top_n"] is None and\
-                 visualization_app._graphs[val]["positions"] is not None:
+               visualization_app._graphs[val]["positions"] is not None:
                 visualization_app._current_layout = "preset"
             else:
                 visualization_app._current_layout = "cose-bilkent"
@@ -1447,13 +1456,13 @@ def update_cytoscape_elements(resetbt, removebt, val,
         graph_object = subgraph_from_clusters(
             visualization_app._graphs[val]["nx_object"],
             cluster_type, clustersearch, nodes_to_keep)
+        path_finder = NXPathFinder.from_graph_object(graph_object)
+        paths = path_finder.n_shortest_paths(
+            source, target,
+            edge_expansion_limit,
+            distance="distance_npmi", strategy="naive", exclude_edge=True)
 
-        paths = top_n_paths(
-            graph_object, source, target,
-            edge_expansion_limit, distance="distance_npmi", strategy="naive")
-
-        path_graph = graph_from_paths(
-            paths, visualization_app._graphs[val]["nx_object"])
+        path_graph = path_finder.get_subgraph_from_paths(paths)
         new_elements = get_cytoscape_data(path_graph)
 
         existing_nodes = [
@@ -1470,11 +1479,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
                     elements.append(el)
             else:
                 if (
-                        el["data"]["source"], el["data"]["target"]
-                   ) not in existing_edges and\
-                   (
-                        el["data"]["target"], el["data"]["source"]
-                   ) not in existing_edges:
+                    el["data"]["source"], el["data"]["target"]
+                ) not in existing_edges and (
+                    el["data"]["target"], el["data"]["source"]
+                ) not in existing_edges:
                     elements.append(el)
 
         visualization_app._current_layout = "klay"
@@ -1720,7 +1728,7 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
     npmi_message = None
 
     paper_lookup = visualization_app._graphs[
-        visualization_app._current_graph]["paper_lookup"]
+        showgraph]["paper_lookup"]
 
     if button_id == "tapNode" and datanode:
         definition = ""
@@ -1827,7 +1835,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
                 html.Div(
                     id="aggregated-entity-stats",
                     style={"min-height": "35pt", "margin-bottom": "10pt"}),
-                dbc.Modal([
+                dbc.Modal(
+                    [
                         dbc.ModalHeader("{} {}".format(
                             label,
                             "(displaying 200 results)"
@@ -1870,7 +1879,7 @@ def update_cytoscape_layout(layout, grouped, current_graph):
         layout_config = LAYOUT_CONFIGS[layout]
     else:
         layout_config = {
-            "name":  layout
+            "name": layout
         }
 
     return layout_config
@@ -1911,7 +1920,8 @@ def generate_stylesheet(elements,
         stylesheet = [
             style
             for style in stylesheet
-            if "style" in style and not (style["selector"] == 'node' and 'width' in style["style"])
+            if "style" in style and not (
+                style["selector"] == 'node' and "width" in style["style"])
         ]
         stylesheet.append({
             "selector": 'node',
@@ -2299,7 +2309,8 @@ def generate_legend(cluster_type, cluster_search, elements):
 
     for t in cluster_search:
         children.append(
-            dbc.Button([
+            dbc.Button(
+                [
                     html.Span(
                         className="legend-item",
                         style={
@@ -2339,7 +2350,8 @@ def update_merge_input(value, selected_nodes):
             options=options, searchable=False)
     else:
         return dbc.Input(
-            id="merge-label-input", placeholder="New entity name...", type="text")
+            id="merge-label-input", placeholder="New entity name...",
+            type="text")
 
 
 @visualization_app._app.callback(

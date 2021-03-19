@@ -102,6 +102,11 @@ class PathFinder(ABC):
         """Get a node/edge induced subgraph."""
         pass
 
+    @abstractmethod
+    def get_subgraph_from_paths(self, paths):
+        """Get a subgraph given the input paths."""
+        pass
+
     @staticmethod
     @abstractmethod
     def _compute_shortest_path(graph, source, target, distance=None,
