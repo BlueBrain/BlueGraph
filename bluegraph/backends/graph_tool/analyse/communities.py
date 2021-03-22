@@ -53,7 +53,10 @@ class GTCommunityDetector(GTGraphProcessor, CommunityDetector):
                 else:
                     communities = [el]
                 communities.reverse()
-                partition.append(communities)
+                if not nested:
+                    partition.append(communities[-1])
+                else:
+                    partition.append(communities)
         return partition
 
     def _run_label_propagation(self, **kwargs):

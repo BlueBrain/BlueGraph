@@ -58,7 +58,7 @@ class CommunityDetector(ABC):
                                      feature_vector_prop=None,
                                      linkage="ward",
                                      connectivity=True, **kwargs):
-        nodes = self.get_nodes()
+        nodes = self.nodes()
         if feature_vectors is None:
             if feature_vector_prop is None:
                 raise ValueError()

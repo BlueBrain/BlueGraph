@@ -36,40 +36,9 @@ def handle_exclude_nx_edge(method):
 class NXPathFinder(NXGraphProcessor, PathFinder):
     """NetworkX-based shortest paths finder."""
 
-    @staticmethod
-    def _get_nodes(graph, properties=False):
-        """Get nodes of the input graph."""
-        return graph.nodes(data=properties)
-
-    @staticmethod
-    def _get_edges(graph, properties=False):
-        return graph.edges(data=properties)
-
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
         return self.graph.edges[source, target][distance]
-
-    def get_neighbors(self, node_id):
-        """Get neighors of the node."""
-        return list(self.graph.neighbors(node_id))
-
-    def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):
-        """Produce a graph induced by the input nodes."""
-        if nodes_to_exclude is None:
-            nodes_to_exclude = []
-        nodes_to_include = [
-            n for n in self.graph.nodes()
-            if n not in nodes_to_exclude
-        ]
-
-        subgraph = self.graph.subgraph(nodes_to_include)
-
-        if edges_to_exclude is not None:
-            subgraph = subgraph.edge_subgraph(
-                [e for e in subgraph.edges() if e not in edges_to_exclude]
-            )
-
-        return subgraph
 
     def get_subgraph_from_paths(self, paths):
         """Get a subgraph given the input paths."""
@@ -89,9 +58,9 @@ class NXPathFinder(NXGraphProcessor, PathFinder):
         try:
             all_paths = [tuple(p) for p in nx.all_shortest_paths(
                 graph, s, t)]
-        except nx.exception.NetworkXNoPath as e:
+        except nx.exception.NetworkXNoPath:
             raise PathFinder.NoPathException(
-                f"Path from '{s}' to '{t}' does not exist")
+                "Path from '{}' to '{}' does not exist".format(s, t))
         return all_paths
 
     @staticmethod

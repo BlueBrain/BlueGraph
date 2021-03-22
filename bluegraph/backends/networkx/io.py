@@ -60,6 +60,10 @@ class NXGraphProcessor(GraphProcessor):
         """Get a new pgframe object from the wrapped graph object."""
         return networkx_to_pgframe(self.graph)
 
+    @staticmethod
+    def _is_directed(graph):
+        return graph.is_directed()
+
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
         return new_property
@@ -77,5 +81,63 @@ class NXGraphProcessor(GraphProcessor):
         props = [attrs[n] for n in nodes]
         return props
 
-    def get_nodes(self):
-        return list(self.graph.nodes())
+    def nodes(self, properties=False):
+        return list(self.graph.nodes(data=properties))
+
+    def get_node(self, node):
+        return self.graph.node[node]
+
+    def remove_node(self, node):
+        self.graph.remove_node(node)
+
+    def rename_nodes(self, node_mapping):
+        nx.relabel_nodes(self.graph, node_mapping, copy=False)
+
+    def set_node_properties(self, node, properties):
+        self.graph.nodes[node].clear()
+        self.graph.nodes[node].update(properties)
+
+    def edges(self, properties=False):
+        return list(self.graph.edges(data=properties))
+
+    def get_edge(self, edge):
+        return self.graph.edge[edge]
+
+    def add_edge(self, source, target, properties):
+        self.graph.add_edge(source, target, **properties)
+
+    def neighbors(self, node_id):
+        """Get neighors of the node."""
+        return list(self.graph.neighbors(node_id))
+
+    def subgraph(self, nodes_to_include=None, edges_to_include=None,
+                 nodes_to_exclude=None, edges_to_exclude=None):
+        """Produce a graph induced by the input nodes."""
+        if nodes_to_include is None:
+            nodes_to_include = self.nodes()
+
+        if edges_to_include is None:
+            edges_to_include = self.edges()
+
+        if nodes_to_exclude is None:
+            nodes_to_exclude = []
+
+        if edges_to_exclude is None:
+            edges_to_exclude = []
+
+        nodes_to_include = [
+            n for n in self.graph.nodes()
+            if n in nodes_to_include and n not in nodes_to_exclude
+        ]
+
+        subgraph = self.graph.subgraph(nodes_to_include)
+
+        if edges_to_exclude is not None:
+            subgraph = subgraph.edge_subgraph(
+                [
+                    e for e in subgraph.edges()
+                    if e in edges_to_include and e not in edges_to_exclude
+                ]
+            )
+
+        return subgraph

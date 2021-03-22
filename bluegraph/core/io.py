@@ -897,13 +897,15 @@ class PandasPGFrame(PGFrame):
     def aggregate_properties(frame, func, into="aggregation_result"):
         if "@type" in frame.columns:
             df = frame.drop("@type", axis=1)
-            frame = pd.DataFrame({
+            frame = pd.DataFrame(
+                {
                     into: df.aggregate(func, axis=1),
                     "@type": frame["@type"]
                 },
                 index=frame.index)
         else:
-            frame = pd.DataFrame({
+            frame = pd.DataFrame(
+                {
                     into: frame.aggregate(func, axis=1)
                 },
                 index=frame.index)
@@ -920,22 +922,26 @@ class PandasPGFrame(PGFrame):
             df["@type"] = df["@type"].apply(str_to_set)
         return df
 
-    def to_triples(self, predicate_prop="@type", include_type=True, include_literals=True):
+    def to_triples(self, predicate_prop="@type", include_type=True,
+                   include_literals=True):
         triple_sets = []
 
         # create triples from edges
         triple_sets.append(
-            self._edges.reset_index()[["@source_id", predicate_prop, "@target_id"]].to_numpy())
+            self._edges.reset_index()[
+                ["@source_id", predicate_prop, "@target_id"]].to_numpy())
 
         # create triples from literals
         if include_literals:
             for prop in self.node_properties(include_type=include_type):
-                df = pd.DataFrame(self._nodes[self._nodes[prop].notna()][prop]).reset_index()
+                df = pd.DataFrame(
+                    self._nodes[self._nodes[prop].notna()][prop]).reset_index()
                 df["predicate"] = prop
                 triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
 
             for prop in self.edge_properties():
-                df = pd.DataFrame(self._nodes[self._nodes[prop].notna()][prop]).reset_index()
+                df = pd.DataFrame(
+                    self._nodes[self._nodes[prop].notna()][prop]).reset_index()
                 df["predicate"] = prop
                 triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
 
@@ -1091,6 +1097,11 @@ class GraphProcessor(ABC):
         """Get a new pgframe object from the wrapped graph object."""
         pass
 
+    @staticmethod
+    @abstractmethod
+    def _is_directed(graph):
+        pass
+
     @abstractmethod
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
@@ -1102,7 +1113,45 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
-    def get_nodes(self):
+    def nodes(self, properties=False):
+        pass
+
+    @abstractmethod
+    def get_node(self, node):
+        pass
+
+    @abstractmethod
+    def remove_node(self, node):
+        pass
+
+    @abstractmethod
+    def rename_nodes(self, node_mapping):
+        pass
+
+    @abstractmethod
+    def set_node_properties(self, node, properties):
+        pass
+
+    @abstractmethod
+    def edges(self, properties=False):
+        pass
+
+    @abstractmethod
+    def get_edge(self, edge):
+        pass
+
+    @abstractmethod
+    def add_edge(self, source, target, properties):
+        pass
+
+    @abstractmethod
+    def subgraph(self, nodes_to_include=None, edges_to_include=None,
+                 nodes_to_exclude=None, edges_to_exclude=None):
+        pass
+
+    @abstractmethod
+    def neighbors(self, node_id):
+        """Get neighors of the node."""
         pass
 
     @abstractmethod
@@ -1131,6 +1180,7 @@ class GraphProcessor(ABC):
         """Initialize directly from the input graph object."""
         processor = cls()
         processor.graph = graph_object
+        processor.directed = cls._is_directed(graph_object)
         return processor
 
     def get_pgframe(self, node_filter=None, edge_filter=None):

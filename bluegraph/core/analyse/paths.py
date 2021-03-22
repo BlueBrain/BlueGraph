@@ -75,31 +75,9 @@ def graph_elements_from_paths(paths):
 class PathFinder(ABC):
     """Abstract class for a path finder."""
 
-    @staticmethod
-    @abstractmethod
-    def _get_nodes(graph, properties=False):
-        """Get nodes of the input graph."""
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def _get_edges(graph, properties=False):
-        """Get edges of the underlying graph."""
-        pass
-
     @abstractmethod
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        pass
-
-    @abstractmethod
-    def get_neighbors(self, node_id):
-        """Get neighors of the node."""
-        pass
-
-    @abstractmethod
-    def get_subgraph(self, nodes_to_exclude, edges_to_exclude=None):
-        """Get a node/edge induced subgraph."""
         pass
 
     @abstractmethod
@@ -148,18 +126,10 @@ class PathFinder(ABC):
         """
         pass
 
-    def get_nodes(self, properties=False):
-        """Get nodes of the underlying graph."""
-        return self._get_nodes(self.graph, properties=properties)
-
-    def get_edges(self, properties=False):
-        """Get edges of the underlying graph."""
-        return self._get_edges(self.graph, properties=properties)
-
     def top_neighbors(self, node, n, weight, smallest=False):
         """Get top n neighbours of the specified node by weight."""
         neighbors = {}
-        for neighbor in self.get_neighbors(node):
+        for neighbor in self.neighbors(node):
             neighbors[neighbor] = self.get_distance(
                 node, neighbor, weight)
         return {
@@ -418,7 +388,7 @@ class PathFinder(ABC):
             source, intermediary,
             distance=distance, exclude_edge=exclude_edge)
 
-        subgraph = self.get_subgraph(
+        subgraph = self.subgraph(
             nodes_to_exclude=[
                 x
                 for x in list(a_b_path)[1:-1]
@@ -482,7 +452,7 @@ class PathFinder(ABC):
                     if el != intermediary and el != target
                 ])
 
-        subgraph = self.get_subgraph(
+        subgraph = self.subgraph(
             nodes_to_exclude=visited_nodes if overlap is False else None)
         try:
             b_c_paths = self._compute_n_shortest_paths(

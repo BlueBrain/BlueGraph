@@ -1,11 +1,10 @@
-from bluegraph.core.analyse.paths import PathFinder
+from bluegraph.core.analyse.paths import PathFinder, graph_elements_from_paths
 
 from graph_tool import GraphView
 from graph_tool.topology import shortest_path, min_spanning_tree
 from graph_tool.topology import all_shortest_paths as gt_all_shortest_paths
-from graph_tool.util import find_vertex
 
-from ..io import GTGraphProcessor
+from ..io import GTGraphProcessor, _get_vertex_obj, _get_node_id
 
 
 def handle_exclude_gt_edge(method):
@@ -36,64 +35,8 @@ def handle_exclude_gt_edge(method):
     return wrapper
 
 
-def _get_vertex_obj(graph, node_id):
-    v = find_vertex(
-        graph, graph.vp["@id"], node_id)
-    if len(v) == 1:
-        return v[0]
-
-
-def _get_node_id(graph, vertex_obj):
-    return graph.vp["@id"][vertex_obj]
-
-
 class GTPathFinder(GTGraphProcessor, PathFinder):
     """graph-tool-based shortest paths finder."""
-
-    @staticmethod
-    def _get_nodes(graph, properties=False):
-        """Get nodes of the input graph."""
-        if not properties:
-            return [
-                graph.vp["@id"][v]
-                for v in graph.vertices()
-            ]
-        else:
-            props = graph.vp.keys()
-            return [
-                (
-                    graph.vp["@id"][v],
-                    {
-                        p: graph.vp[p][v]
-                        for p in props
-                    }
-                )
-                for v in graph.vertices()
-            ]
-
-    @staticmethod
-    def _get_edges(graph, properties=False):
-        if not properties:
-            return [
-                (
-                    graph.vp["@id"][e.source()],
-                    graph.vp["@id"][e.target()]
-                )
-                for e in graph.edges()
-            ]
-        else:
-            props = graph.ep.keys()
-            return [
-                (
-                    graph.vp["@id"][e.source()],
-                    graph.vp["@id"][e.target()],
-                    {
-                        p: graph.ep[p][e]
-                        for p in props
-                    }
-                )
-                for e in graph.edges()
-            ]
 
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
@@ -103,33 +46,21 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
         edge = self.graph.edge(source, target)
         return self.graph.ep[distance][edge]
 
-    def get_neighbors(self, node_id):
-        """Get neighors of the node."""
-        node_obj = _get_vertex_obj(self.graph, node_id)
-        neighors = node_obj.out_neighbors()
-        return [
-            _get_node_id(self.graph, n) for n in neighors
-        ]
-
-    def get_subgraph(self, nodes_to_exclude=None, edges_to_exclude=None):
-        """Produce a graph induced by the input nodes."""
-        if nodes_to_exclude is None:
-            nodes_to_exclude = []
-
-        edge_filter_prop = None
-        if edges_to_exclude is not None:
-            edge_filter_prop = self.graph.new_edge_property(
-                "bool", vals=[
-                    (
-                        _get_node_id(self.graph, e.source()),
-                        _get_node_id(self.graph, e.target())
-                    ) not in edges_to_exclude
-                    for e in self.graph.edges()]
-            )
+    def get_subgraph_from_paths(self, paths):
+        """Get subgraph induced by a path."""
+        nodes, edges = graph_elements_from_paths(paths)
+        edge_filter_prop = self.graph.new_edge_property("bool")
+        for e in self.graph.edges():
+            s = _get_node_id(self.graph, e.source())
+            t = _get_node_id(self.graph, e.target())
+            if (s, t) in edges:
+                edge_filter_prop[e] = True
+            else:
+                edge_filter_prop[e] = not self.directed and (t, s) in edges
 
         node_filter_prop = self.graph.new_vertex_property(
             "bool", vals=[
-                _get_node_id(self.graph, v) not in nodes_to_exclude
+                _get_node_id(self.graph, v) in nodes
                 for v in self.graph.vertices()]
         )
 

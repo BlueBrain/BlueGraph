@@ -17,7 +17,8 @@ def execute(driver, query):
 
 def generate_neo4j_driver(uri=None, username=None,
                           password=None, driver=None):
-    if driver is None:
+    if driver is None and uri is not None and\
+       username is not None and password is not None:
         driver = GraphDatabase.driver(
             uri, auth=(username, password))
     return driver
@@ -25,12 +26,13 @@ def generate_neo4j_driver(uri=None, username=None,
 
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
-                     batch_size=10000):
+                     directed=True, batch_size=10000):
     """Write the property graph to the Neo4j databse."""
     driver = generate_neo4j_driver(uri, username, password, driver)
 
     if pgframe is None:
-        return driver
+        return Neo4jGraphView(
+            driver, node_label, edge_label, directed=directed)
 
     def preprocess_value(v):
         if v == float("inf"):
@@ -91,7 +93,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         SET r += individual["props"]
         """)
         execute(driver, query)
-    return driver
+
+    return Neo4jGraphView(driver, node_label, edge_label, directed=directed)
 
 
 def neo4j_to_pgframe(uri=None, username=None, password=None,
@@ -164,10 +167,14 @@ class Neo4jGraphProcessor(GraphProcessor):
         self.edge_label = edge_label
 
     @classmethod
-    def from_graph_object(cls, graph_object):
+    def from_graph_object(cls, graph_veiw):
         """Instantiate a MetricProcessor directly from a Graph object."""
-        raise Neo4jGraphProcessor.ProcessorException(
-            "Neo4jMetricProcessor cannot be initialized from a graph object")
+        processor = cls()
+        processor.driver = graph_veiw.driver
+        processor.node_label = graph_veiw.node_label
+        processor.edge_label = graph_veiw.edge_label
+        processor.directed = graph_veiw.directed
+        return processor
 
     def _yeild_node_property(self, new_property):
         """Return dictionary containing the node property values."""
@@ -222,6 +229,11 @@ class Neo4jGraphProcessor(GraphProcessor):
             driver=driver, node_label=node_label,
             edge_label=edge_label)
 
+    def _get_identity_view(self):
+        return Neo4jGraphView(
+            self.driver, self.node_label, self.edge_label,
+            directed=self.directed)
+
     def execute(self, query):
         return execute(self.driver, query)
 
@@ -229,10 +241,89 @@ class Neo4jGraphProcessor(GraphProcessor):
         """Get a new pgframe object from the wrapped graph object."""
         return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)
 
-    def get_nodes(self):
-        query = f"MATCH (n:{self.node_label}) RETURN n.id as node_id"
+    @staticmethod
+    def _is_directed(graph):
+        return graph.directed
+
+    def nodes(self, properties=False):
+        graph = self._get_identity_view()
+        query = graph._get_nodes_query()
+        result = graph.execute(query)
+        nodes = []
+        for record in result:
+            n = record["node_id"]
+            if properties:
+                props = record["node"]
+                nodes.append((n, props))
+            else:
+                nodes.append(n)
+        return nodes
+
+    def get_node(self, node):
+        query = f"MATCH (n:{self.node_label} {{id: {node}}}) RETURN properties(n) as props"
         result = self.execute(query)
-        return [record["node_id"] for record in result]
+        for record in result:
+            properties = record["props"]
+        del properties["id"]
+        return properties
+
+    # def remove_node(self, node):
+    #     pass
+
+    # def rename_nodes(self, node_mapping):
+    #     pass
+
+    # def set_node_properties(self, node, properties):
+    #     pass
+
+    # def add_edge(self, source, target, properties):
+    #     pass
+
+    def edges(self, properties=False):
+        graph = self._get_identity_view()
+        query = graph._get_edges_query(single_direction=True)
+        result = graph.execute(query)
+        edges = []
+        for record in result:
+            s = record["source_id"]
+            t = record["target_id"]
+            if properties:
+                props = record["edge"]
+                edges.append((s, t, props))
+            else:
+                edges.append((s, t))
+        return edges
+
+    def get_edge(self, source, target):
+        query = (
+            f"MATCH (n:{self.node_label} {{id: {source}}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            "RETURN properties(r) as props"
+        )
+        result = self.execute(query)
+        for record in result:
+            properties = record["props"]
+        del properties["id"]
+        return properties
+
+    def neighbors(self, node_id):
+        """Get neighors of the node."""
+        query = (
+            f"MATCH (n:{self.node_label} {{id: '{node_id}'}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label})\n"
+            "RETURN m.id as neighor"
+        )
+        result = self.execute(query)
+        return [record["neighor"] for record in result]
+
+    def subgraph(self, nodes_to_include=None, edges_to_include=None,
+                 nodes_to_exclude=None, edges_to_exclude=None):
+        """Get a node/edge induced subgraph."""
+        return Neo4jGraphView(
+            self.driver, self.node_label, self.edge_label,
+            nodes_to_exclude=nodes_to_exclude,
+            edges_to_exclude=edges_to_exclude,
+            directed=self.directed)
 
 
 class Neo4jGraphView(object):

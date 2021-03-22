@@ -1,6 +1,6 @@
-from bluegraph.backends.networkx import NXPathFinder
-from bluegraph.backends.graph_tool import GTPathFinder
-from bluegraph.backends.neo4j import Neo4jPathFinder, Neo4jGraphView
+from bluegraph.backends.networkx import NXPathFinder, NXGraphProcessor
+from bluegraph.backends.graph_tool import GTPathFinder, GTGraphProcessor
+from bluegraph.backends.neo4j import Neo4jPathFinder, Neo4jGraphView, Neo4jGraphProcessor
 
 
 def assert_undirected_edges_equal(edges1, edges2):
@@ -18,7 +18,7 @@ def assert_undirected_edges_equal(edges1, edges2):
 
 
 def benchmark_undirected_path_finder(finder):
-    edges = finder.get_edges()
+    edges = finder.edges()
     assert_undirected_edges_equal(
         set(edges), set(
             [
@@ -26,13 +26,13 @@ def benchmark_undirected_path_finder(finder):
                 ('B', 'D'), ('B', 'C'), ('C', 'E'), ('D', 'E')
             ]))
 
-    edges = finder.get_edges(properties=True)
+    edges = finder.edges(properties=True)
     assert(len(edges) == 8)
 
     distance = finder.get_distance("A", "B", "distance")
     assert(int(distance) == 2)
 
-    neighbors = finder.get_neighbors("A")
+    neighbors = finder.neighbors("A")
     assert(set(neighbors) == set(['B', 'C', 'D', 'E']))
 
     res = finder.top_neighbors("A", 10, "distance")
@@ -78,7 +78,8 @@ def benchmark_undirected_path_finder(finder):
 
         res = finder.n_shortest_paths(
             "A", "D", 4, distance="distance", strategy="yen")
-        assert(set(res) == set([
+        assert(set(res) == set(
+            [
                 ("A", "C", "B", "D"),
                 ("A", "B", "D"), ("A", "E", "D"), ("A", "D")
             ])
@@ -90,7 +91,8 @@ def benchmark_undirected_path_finder(finder):
 
         res = finder.n_shortest_paths(
             "A", "D", 4, distance="distance", strategy="yen", exclude_edge=True)
-        assert(set(res) == set([
+        assert(set(res) == set(
+            [
                 ("A", "C", "B", "D"),
                 ("A", "B", "D"),
                 ("A", "E", "D"),
@@ -220,11 +222,12 @@ def test_gt_paths(path_test_graph):
     mst = {
         ('A', 'E'), ('A', 'B'), ('B', 'C'), ('B', 'D')
     }
-    assert_undirected_edges_equal(set(GTPathFinder._get_edges(res)), mst)
+    processor = GTGraphProcessor.from_graph_object(res)
+    assert_undirected_edges_equal(set(processor.edges()), mst)
     finder.minimum_spanning_tree(
         "distance", write=True, write_property="MST")
 
-    edges = finder.get_edges(properties=True)
+    edges = finder.edges(properties=True)
     for s, t, attrs in edges:
         if (s, t) in mst or (t, s) in mst:
             assert(attrs["MST"] == 1)
@@ -253,15 +256,16 @@ def test_neo4j_paths(path_test_graph, neo4j_driver):
 
     graph = Neo4jGraphView(
         finder.driver, "TestNode", "MST_A")
+
     assert_undirected_edges_equal(
-        mst,  Neo4jPathFinder._get_edges(graph))
+        mst, Neo4jGraphProcessor.from_graph_object(graph).edges())
 
     finder.minimum_spanning_tree(
         "distance", write=True,
         write_edge_label="MST")
     graph = Neo4jGraphView(
         finder.driver, "TestNode", "MST")
-    edges = Neo4jPathFinder._get_edges(graph)
+    edges = Neo4jGraphProcessor.from_graph_object(graph).edges()
     assert(len(mst) == len(edges))
 
     visited = set()
@@ -269,7 +273,7 @@ def test_neo4j_paths(path_test_graph, neo4j_driver):
         visited.add(s)
         visited.add(t)
 
-    assert(visited == set(finder.get_nodes()))
+    assert(visited == set(finder.nodes()))
 
     finder = Neo4jPathFinder(
         driver=neo4j_driver,

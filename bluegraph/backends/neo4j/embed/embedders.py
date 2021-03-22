@@ -76,10 +76,9 @@ class Neo4jNodeEmbedder(GraphElementEmbedder):
                         password=None, driver=None,
                         node_label=None, edge_label=None):
         """Generate backend-specific graph object."""
-        driver = pgframe_to_neo4j(
+        return pgframe_to_neo4j(
             pgframe=pgframe, uri=uri, username=username, password=password,
             driver=driver, node_label=node_label, edge_label=edge_label)
-        return Neo4jGraphView(driver, node_label, edge_label)
 
     def _dispatch_model_params(self, **kwargs):
         """Dispatch training parameters."""

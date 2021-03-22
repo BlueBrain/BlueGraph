@@ -30,15 +30,21 @@ from bluegraph.preprocess import CooccurrenceGenerator
 from bluegraph.backends.networkx import (NXMetricProcessor,
                                          NXCommunityDetector,
                                          NXPathFinder,
-                                         networkx_to_pgframe)
+                                         NXGraphProcessor,
+                                         networkx_to_pgframe,
+                                         pgframe_to_networkx)
 from bluegraph.backends.neo4j import (Neo4jMetricProcessor,
                                       Neo4jCommunityDetector,
                                       Neo4jPathFinder,
-                                      neo4j_to_pgframe)
+                                      Neo4jGraphProcessor,
+                                      neo4j_to_pgframe,
+                                      pgframe_to_neo4j)
 from bluegraph.backends.graph_tool import (GTMetricProcessor,
                                            GTCommunityDetector,
                                            GTPathFinder,
-                                           graph_tool_to_pgframe)
+                                           GTGraphProcessor,
+                                           graph_tool_to_pgframe,
+                                           pgframe_to_graph_tool)
 
 
 BACKEND_MAPPING = {
@@ -46,19 +52,25 @@ BACKEND_MAPPING = {
         "metrics": NXMetricProcessor,
         "communities": NXCommunityDetector,
         "paths": NXPathFinder,
-        "to_pgframes": networkx_to_pgframe
+        "to_pgframe": networkx_to_pgframe,
+        "from_pgframe": pgframe_to_networkx,
+        "object_processor": NXGraphProcessor,
     },
     "neo4j": {
         "metrics": Neo4jMetricProcessor,
         "communities": Neo4jCommunityDetector,
         "paths": Neo4jPathFinder,
-        "to_pgframes": neo4j_to_pgframe
+        "to_pgframe": neo4j_to_pgframe,
+        "from_pgframe": pgframe_to_neo4j,
+        "object_processor": Neo4jGraphProcessor,
     },
     "graph_tool": {
         "metrics": GTMetricProcessor,
         "communities": GTCommunityDetector,
         "paths": GTPathFinder,
-        "to_pgframes": graph_tool_to_pgframe
+        "to_pgframe": graph_tool_to_pgframe,
+        "from_pgframe": pgframe_to_graph_tool,
+        "object_processor": GTGraphProcessor
     }
 }
 
@@ -461,14 +473,66 @@ def merge_with_ontology_linking(occurence_data,
     return occurrence_data_linked
 
 
+def _configure_backends(backend_configs, graph):
+    if backend_configs is None:
+        backend_configs = dict()
+    metrics_backend = (
+        backend_configs["metrics"]
+        if "metrics" in backend_configs else "networkx"
+    )
+    communities_backend = (
+        backend_configs["communities"]
+        if "communities" in backend_configs else "networkx"
+    )
+    paths_backend = (
+        backend_configs["paths"]
+        if "paths" in backend_configs else "networkx"
+    )
+
+    if metrics_backend == "neo4j":
+        processor = BACKEND_MAPPING[metrics_backend]["metrics"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        processor = BACKEND_MAPPING[metrics_backend]["metrics"](
+            graph, directed=False)
+
+    if communities_backend == "neo4j":
+        com_detector = BACKEND_MAPPING[communities_backend]["communities"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        com_detector = BACKEND_MAPPING[communities_backend]["communities"](
+            graph, directed=False)
+
+    if paths_backend == "neo4j":
+        path_finder = BACKEND_MAPPING[paths_backend]["paths"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        path_finder = BACKEND_MAPPING[paths_backend]["paths"](
+            graph, directed=False)
+    pgframe_converter = BACKEND_MAPPING[paths_backend]["to_pgframe"]
+    return processor, com_detector, path_finder, pgframe_converter
+
+
 def generate_cooccurrence_analysis(occurrence_data, factor_counts,
                                    type_data=None, min_occurrences=1,
                                    n_most_frequent=None, keep=None,
                                    factors=None, cores=8,
                                    graph_dump_prefix=None,
                                    communities=True, remove_zero_mi=False,
-                                   backend="networkx", driver=None,
-                                   node_label=None, edge_label=None):
+                                   backend_configs=None,
+                                   community_strategy="louvain"):
     """Generate co-occurrence analysis.
 
     This utility executes the entire pipeline of the co-occurrence analysis:
@@ -612,20 +676,8 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
 
         graphs[f] = graph
 
-        if backend == "neo4j":
-            processor = BACKEND_MAPPING[backend]["metrics"](
-                graph, driver, node_label, edge_label, directed=False)
-            com_detector = BACKEND_MAPPING[backend]["communities"](
-                graph, driver, node_label, edge_label, directed=False)
-            path_finder = BACKEND_MAPPING[backend]["paths"](
-                graph, driver, node_label, edge_label, directed=False)
-        else:
-            processor = BACKEND_MAPPING[backend]["metrics"](
-                graph, directed=False)
-            com_detector = BACKEND_MAPPING[backend]["communities"](
-                graph, directed=False)
-            path_finder = BACKEND_MAPPING[backend]["paths"](
-                graph, directed=False)
+        processor, com_detector, path_finder, pgframe_converter =\
+            _configure_backends(backend_configs, graph)
 
         # Compute centralities
         all_metrics = processor.compute_all_node_metrics(
@@ -641,21 +693,21 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
 
         # Compute communitites
         frequency_partition = com_detector.detect_communities(
-            strategy="louvain", weight="frequency")
+            strategy=community_strategy, weight="frequency")
         prop = pd.DataFrame(
             frequency_partition.items(),
             columns=["@id", "community_frequency"])
         graph.add_node_properties(prop, prop_type="numeric")
 
         npmi_partition = com_detector.detect_communities(
-            strategy="louvain", weight="npmi")
+            strategy=community_strategy, weight="npmi")
         prop = pd.DataFrame(
             npmi_partition.items(), columns=["@id", "community_npmi"])
         graph.add_node_properties(prop, prop_type="numeric")
 
         # Compute minimum spanning tree
         tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
-        tree_pgframe = BACKEND_MAPPING[backend]["to_pgframes"](tree)
+        tree_pgframe = pgframe_converter(tree)
         trees[f] = tree_pgframe
 
         # Dump the generated PGFrame
@@ -817,39 +869,76 @@ def link_ontology(linking, type_mapping, curated_table):
 def generate_paper_lookup(graph):
     paper_table = {}
     paper_table = graph.get_node_property_values("paper")
-    # for n in graph.nodes():
-    #     if "paper" in graph.nodes[n]:
-    #         paper_table[n] = list(graph.nodes[n]["paper"])
     return paper_table
 
 
-def build_cytoscape_data(graph, positions=None):
-    elements = cytoscape_data(graph)
+def build_cytoscape_data(graph_processor, positions=None):
+    elements = []
+    for node in graph_processor.nodes():
+        data = {
+            "id": node,
+            "value": node,
+            "name": node,
+            "type": "node"
+        }
+        properties = graph_processor.get_node(node)
+        if 'paper' in properties:
+            papers = properties["paper"]
+            data["paper_frequency"] = len(papers)
+            del properties["paper"]
+        data.update(properties)
 
-    if positions is not None:
-        for el in elements["elements"]['nodes']:
-            if el["data"]["id"] in positions:
-                el["position"] = positions[el["data"]["id"]]
+        element = {"data": data}
+        if positions is not None:
+            if node in positions:
+                element["position"] = positions[node]
 
-    elements = elements["elements"]['nodes'] + elements["elements"]['edges']
-    for element in elements:
-        element["data"]["id"] = (
-            str(element["data"]["source"] + '_' + element[
-                "data"]["target"]).replace(" ", "_")
-            if "source" in element["data"]
-            else element["data"]["id"]
-        )
-        papers = []
-        if 'paper' in element["data"]:
-            papers = element["data"].pop("paper")
-            element["data"]["paper_frequency"] = len(papers)
+        elements.append(element)
 
-        if "source" in element["data"]:
-            element["data"]["type"] = "edge"
-        else:
-            element["data"]["type"] = "node"
+    for s, t in graph_processor.edges():
+        s_name = s.replace(" ", "_")
+        t_name = t.replace(" ", "_")
+        data = {
+            "id": f"{s_name}_{t_name}",
+            "source": s,
+            "target": t,
+            "type": "edge"
+        }
+        properties = graph_processor.get_edge(s, t)
+        data.update(properties)
+        elements.append({"data": data})
 
     return elements
+
+
+# def build_cytoscape_data(graph, positions=None):
+
+#     elements = cytoscape_data(graph)
+
+#     if positions is not None:
+#         for el in elements["elements"]['nodes']:
+#             if el["data"]["id"] in positions:
+#                 el["position"] = positions[el["data"]["id"]]
+
+#     elements = elements["elements"]['nodes'] + elements["elements"]['edges']
+#     for element in elements:
+#         element["data"]["id"] = (
+#             str(element["data"]["source"] + '_' + element[
+#                 "data"]["target"]).replace(" ", "_")
+#             if "source" in element["data"]
+#             else element["data"]["id"]
+#         )
+#         papers = []
+#         if 'paper' in element["data"]:
+#             papers = element["data"].pop("paper")
+#             element["data"]["paper_frequency"] = len(papers)
+
+#         if "source" in element["data"]:
+#             element["data"]["type"] = "edge"
+#         else:
+#             element["data"]["type"] = "node"
+
+#     return elements
 
 
 def most_common(x):
@@ -859,6 +948,7 @@ def most_common(x):
 
 CORD_ATTRS_RESOLVER = {
     "entity_type": most_common,
+    "paragraph_frequency": sum,
     "paper": lambda x: list(set(sum(x, []))),
     "degree_frequency": sum,
     "pagerank_frequency": max,
@@ -871,14 +961,15 @@ CORD_ATTRS_RESOLVER = {
     "distance_npmi": min
 }
 
-def merge_attrs(target_attrs, collection_of_attrs, attr_resolver,
+
+def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
                 attrs_to_ignore=None):
     """Merge two attribute dictionaries into the target using the input resolver.
     Parameters
     ----------
-    target_attrs : dict
-        Target dictionary with attributes (the other attributes will be
-        merged into it)
+    source_attrs : dict
+        Source dictionary with attributes (the other attributes will be
+        merged into it and a new object will be returned)
     collection_of_attrs : iterable of dict
         Collection of dictionaries to merge into the target dictionary
     attr_resolver : dict
@@ -889,30 +980,40 @@ def merge_attrs(target_attrs, collection_of_attrs, attr_resolver,
         Set of attributes to ignore (will not be included in the merged
         node or edges incident to this merged node)
     """
+    result = source_attrs.copy()
+
     if attrs_to_ignore is None:
         attrs_to_ignore = []
 
     all_keys = set(
         sum([list(attrs.keys()) for attrs in collection_of_attrs], []))
 
+    def _preprocess(k, attrs):
+        if k == "paper":
+            return ast.literal_eval(attrs)
+        else:
+            return attrs
+
     for k in all_keys:
         if k not in attrs_to_ignore:
             if k in attr_resolver:
-                target_attrs[k] = attr_resolver[k](
-                    ([target_attrs[k]] if k in target_attrs else []) + [
-                        attrs[k] for attrs in collection_of_attrs if k in attrs
+                result[k] = attr_resolver[k](
+                    ([_preprocess(k, result[k])] if k in result else []) + [
+                        _preprocess(k, attrs[k])
+                        for attrs in collection_of_attrs if k in attrs
                     ]
                 )
             else:
-                target_attrs[k] = None
+                result[k] = None
+    return result
 
 
-def merge_nodes(graph, nodes_to_merge, new_name=None, attr_resolver=None,
-                copy=False):
+def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
+                attr_resolver=None):
     """Merge the input set of nodes.
     Parameters
     ----------
-    graph : nx.Graph
+    graph_processor : GraphProcessor
         Input graph object
     nodes_to_merge: iterable
         Collection of node IDs to merge
@@ -922,18 +1023,12 @@ def merge_nodes(graph, nodes_to_merge, new_name=None, attr_resolver=None,
         Dictionary containing attribute resolvers, its keys are attribute
         names and its values are functions applied to the set of attribute
         values in order to resolve this set to a single value
-    copy : bool, optional
-        Flag indicating whether the merging should be performed in-place or
-        by creating a copy of the input graph
     Returns
     -------
     graph : nx.Graph
         Resulting graph (references to the input graph, if `copy` is False,
         or to another object if `copy` is True).
     """
-    if copy:
-        graph = graph.copy()
-
     if len(nodes_to_merge) < 2:
         raise ValueError("At least two nodes are required for merging")
 
@@ -944,38 +1039,48 @@ def merge_nodes(graph, nodes_to_merge, new_name=None, attr_resolver=None,
     if new_name is None:
         new_name = nodes_to_merge[0]
 
-    if new_name not in graph.nodes():
-        nx.relabel_nodes(graph, {nodes_to_merge[0]: new_name}, copy=False)
+    if new_name not in graph_processor.nodes():
+        graph_processor.rename_nodes(
+            {nodes_to_merge[0]: new_name})
         nodes_to_merge = nodes_to_merge[1:]
 
     target_node = new_name
     other_nodes = [n for n in nodes_to_merge if n != target_node]
 
     # Resolve node attrs
-    merge_attrs(
-        graph.nodes[target_node],
-        [graph.nodes[n] for n in other_nodes],
-        attr_resolver)
+    graph_processor.set_node_properties(
+        target_node,
+        merge_attrs(
+            graph_processor.get_node(target_node),
+            [graph_processor.get_node(n) for n in other_nodes],
+            attr_resolver)
+    )
 
     # Merge edges
     edge_attrs = {}
 
     for n in other_nodes:
-        neighbors = graph.neighbors(n)
+        neighbors = graph_processor.neighbors(n)
         for neighbor in neighbors:
             if neighbor != target_node and neighbor not in other_nodes:
                 if neighbor in edge_attrs:
-                    edge_attrs[neighbor].append(graph.edges[n, neighbor])
+                    edge_attrs[neighbor].append(
+                        graph_processor.get_edge(n, neighbor))
                 else:
-                    edge_attrs[neighbor] = [graph.edges[n, neighbor]]
+                    edge_attrs[neighbor] = [
+                        graph_processor.get_edge(n, neighbor)
+                    ]
 
     for k, v in edge_attrs.items():
-        target_neighbors = graph.neighbors(target_node)
+        target_neighbors = graph_processor.neighbors(target_node)
         if k not in target_neighbors:
-            graph.add_edge(target_node, k)
-        merge_attrs(graph.edges[target_node, k], v, attr_resolver)
+            graph_processor.add_edge(
+                target_node, k,
+                merge_attrs(
+                    graph_processor.get_edge(target_node, k),
+                    v, attr_resolver))
 
     for n in other_nodes:
-        graph.remove_node(n)
+        graph_processor.remove_node(n)
 
-    return graph
+    return graph_processor.graph
