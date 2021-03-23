@@ -85,7 +85,7 @@ class NXGraphProcessor(GraphProcessor):
         return list(self.graph.nodes(data=properties))
 
     def get_node(self, node):
-        return self.graph.node[node]
+        return self.graph.nodes[node]
 
     def remove_node(self, node):
         self.graph.remove_node(node)
@@ -100,11 +100,18 @@ class NXGraphProcessor(GraphProcessor):
     def edges(self, properties=False):
         return list(self.graph.edges(data=properties))
 
-    def get_edge(self, edge):
-        return self.graph.edge[edge]
+    def get_edge(self, source, target):
+        return self.graph.edges[source, target]
+
+    def remove_edge(self, source, target):
+        self.graph.remove_edge(source, target)
 
     def add_edge(self, source, target, properties):
         self.graph.add_edge(source, target, **properties)
+
+    def set_edge_properties(self, source, target, properties):
+        self.graph.edges[source, target].clear()
+        self.graph.edges[source, target].update(properties)
 
     def neighbors(self, node_id):
         """Get neighors of the node."""

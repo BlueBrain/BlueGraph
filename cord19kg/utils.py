@@ -881,7 +881,7 @@ def build_cytoscape_data(graph_processor, positions=None):
             "name": node,
             "type": "node"
         }
-        properties = graph_processor.get_node(node)
+        properties = graph_processor.get_node(node).copy()
         if 'paper' in properties:
             papers = properties["paper"]
             data["paper_frequency"] = len(papers)
@@ -948,7 +948,6 @@ def most_common(x):
 
 CORD_ATTRS_RESOLVER = {
     "entity_type": most_common,
-    "paragraph_frequency": sum,
     "paper": lambda x: list(set(sum(x, []))),
     "degree_frequency": sum,
     "pagerank_frequency": max,
@@ -989,7 +988,7 @@ def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
         sum([list(attrs.keys()) for attrs in collection_of_attrs], []))
 
     def _preprocess(k, attrs):
-        if k == "paper":
+        if k == "paper" and isinstance(attrs, str):
             return ast.literal_eval(attrs)
         else:
             return attrs
@@ -1071,10 +1070,15 @@ def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
                         graph_processor.get_edge(n, neighbor)
                     ]
 
+    edges = graph_processor.edges()
     for k, v in edge_attrs.items():
         target_neighbors = graph_processor.neighbors(target_node)
         if k not in target_neighbors:
             graph_processor.add_edge(
+                target_node, k,
+                merge_attrs({}, v, attr_resolver))
+        else:
+            graph_processor.set_edge_properties(
                 target_node, k,
                 merge_attrs(
                     graph_processor.get_edge(target_node, k),

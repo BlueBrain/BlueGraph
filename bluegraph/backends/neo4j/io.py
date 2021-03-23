@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import numbers
 import pandas as pd
 
 from neo4j import GraphDatabase
@@ -24,6 +25,32 @@ def generate_neo4j_driver(uri=None, username=None,
     return driver
 
 
+def preprocess_value(v):
+    if v == float("inf"):
+        return "1.0 / 0.0"
+    elif v == float("-inf"):
+        return "-s1.0 / 0.0"
+    return v
+
+
+def _generate_property_repr(properties, prop_types=None):
+    if prop_types is None:
+        prop_types = {}
+        for k, v in properties.items():
+            prop_types[k] = (
+                "numeric"
+                if isinstance(v, numbers.Number) else "category"
+            )
+    props = []
+    for k, v in properties.items():
+        quote = "'"
+        if prop_types[k] == "numeric":
+            quote = ""
+        props.append("{}: {}{}{}".format(
+            k, quote, preprocess_value(v), quote))
+    return props
+
+
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
                      directed=True, batch_size=10000):
@@ -34,13 +61,6 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         return Neo4jGraphView(
             driver, node_label, edge_label, directed=directed)
 
-    def preprocess_value(v):
-        if v == float("inf"):
-            return "1.0 / 0.0"
-        elif v == float("-inf"):
-            return "-s1.0 / 0.0"
-        return v
-
     # Create nodes
     # Split nodes into batches
     batches = np.array_split(
@@ -50,12 +70,9 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         node_batch = pgframe._nodes.loc[batch]
         node_repr = []
         for index, properties in node_batch.to_dict("index").items():
-            node_dict = [f"id: '{index}'"]
-            for k, v in properties.items():
-                quote = "'"
-                if pgframe._node_prop_types[k] == "numeric":
-                    quote = ""
-                node_dict.append(f"{k}: {quote}{preprocess_value(v)}{quote}")
+            node_dict = ["id: '{}'".format(index)]
+            node_dict += _generate_property_repr(
+                properties, pgframe._node_prop_types)
             node_repr.append("{" + ", ".join(node_dict) + "}")
 
         query = (
@@ -82,7 +99,9 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                 if pgframe._edge_prop_types[k] == "numeric":
                     quote = ""
                 edge_props.append(f"{k}: {quote}{preprocess_value(v)}{quote}")
-            edge_dict.append(f"props: {{ {', '.join(edge_props)} }}")
+            edge_dict.append("props: {{{}}}".format(
+                ', '.join(_generate_property_repr(
+                    properties, pgframe._edge_prop_types))))
             edge_repr.append("{" + ", ".join(edge_dict) + "}")
         query = (
         f"""
@@ -169,11 +188,11 @@ class Neo4jGraphProcessor(GraphProcessor):
     @classmethod
     def from_graph_object(cls, graph_veiw):
         """Instantiate a MetricProcessor directly from a Graph object."""
-        processor = cls()
-        processor.driver = graph_veiw.driver
-        processor.node_label = graph_veiw.node_label
-        processor.edge_label = graph_veiw.edge_label
-        processor.directed = graph_veiw.directed
+        processor = cls(
+            driver=graph_veiw.driver,
+            node_label=graph_veiw.node_label,
+            edge_label=graph_veiw.edge_label,
+            directed=graph_veiw.directed)
         return processor
 
     def _yeild_node_property(self, new_property):
@@ -260,24 +279,75 @@ class Neo4jGraphProcessor(GraphProcessor):
         return nodes
 
     def get_node(self, node):
-        query = f"MATCH (n:{self.node_label} {{id: {node}}}) RETURN properties(n) as props"
+        query = (
+            f"MATCH (n:{self.node_label} {{id: {node}}}) "
+            "RETURN properties(n) as props"
+        )
         result = self.execute(query)
         for record in result:
             properties = record["props"]
         del properties["id"]
         return properties
 
-    # def remove_node(self, node):
-    #     pass
+    def remove_node(self, node):
+        query = (
+            f"MATCH (n:{self.node_label} {{id: {node}}}) "
+            "DETACH DELETE n"
+        )
+        self.execute(query)
 
-    # def rename_nodes(self, node_mapping):
-    #     pass
+    def rename_nodes(self, node_mapping):
+        query = (
+            "MATCH {} \n".format(", ".join(
+                [
+                    "(`{}`:{})".format(k, self.node_label)
+                    for k in node_mapping.keys()
+                ])
+            ) + "\n".join([
+                "SET `{}`.id = '{}'".format(k, v)
+                for k, v in node_mapping.items()
+            ])
+        )
+        self.execute(query)
 
-    # def set_node_properties(self, node, properties):
-    #     pass
+    def set_node_properties(self, node, properties):
+        query = (
+            f"""MATCH (n:{self.node_label} {{id: '{node}'}})
+            SET n = {{}}
+            SET n += {{ {property_repr} }}
+            """
+        )
+        result = self.execute(query)
 
-    # def add_edge(self, source, target, properties):
-    #     pass
+    def add_edge(self, source, target, properties):
+        property_repr = ", ".join(
+            _generate_property_repr(properties))
+        query = (
+            f"""MATCH (n:{self.node_label} {{id: {source}}}),
+                (m:{self.node_label} {{id: {target}}})
+            CREATE (n)-[r:{self.edge_label} {{{property_repr}}}]->(m)
+            """
+        )
+        result = self.execute(query)
+
+    def set_edge_properties(self, source, target, properties):
+        property_repr = ", ".join(
+            _generate_property_repr(properties))
+        query = (
+            f"MATCH (n:{self.node_label} {{id: {source}}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            "SET r = {} "
+            f"SET r += {{ {property_repr} }}"
+        )
+        result = self.execute(query)
+
+    def remove_edge(self, source, target):
+        query = (
+            f"MATCH (n:{self.node_label} {{id: {source}}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            "DELETE r"
+        )
+        result = self.execute(query)
 
     def edges(self, properties=False):
         graph = self._get_identity_view()
@@ -481,4 +551,3 @@ class Neo4jGraphView(object):
             f"MATCH (start:{self.node_label} {{id: '{source}'}}), "
             f"(end:{self.node_label} {{id: '{target}'}})\n"
         )
-

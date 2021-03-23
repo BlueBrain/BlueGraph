@@ -30,6 +30,7 @@ def min_with_inf(x):
 ATTRS_RESOLVER = CORD_ATTRS_RESOLVER.copy()
 ATTRS_RESOLVER.update({
     "paper_frequency": sum,
+    "paragraph_frequency": sum,
     "paper_frequency_size": max,
     "paper_frequency_font_size": max,
     "degree_frequency_size": max,

@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
-
+import ast
 import os
 import time
 import math
@@ -46,11 +46,13 @@ from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
                                      LAYOUT_CONFIGS,
                                      COLORS)
 import cord19kg.apps.components as components
-from cord19kg.apps.app_utils import save_run, merge_cyto_elements
+from cord19kg.apps.app_utils import (save_run,
+                                     merge_cyto_elements,
+                                     ATTRS_RESOLVER)
 
 from cord19kg.utils import (BACKEND_MAPPING,
                             build_cytoscape_data, generate_paper_lookup,
-                            CORD_ATTRS_RESOLVER, merge_nodes)
+                            merge_nodes)
 
 
 def adjust_color_lightness(r, g, b, factor):
@@ -107,25 +109,16 @@ def get_top_n_nodes(graph_processor, n, node_subset=None, nodes_to_keep=None):
         nodes_to_include = node_subset
 
     return nodes_to_include + [
-        n for n in nodes_to_keep if n not in nodes_to_include
+        el for el in nodes_to_keep if el not in nodes_to_include
     ]
 
 
-def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
-    nodes_to_include = get_top_n_nodes(
-        graph_object, n, node_subset, nodes_to_keep)
-
-    return nx.Graph(graph_object.subgraph(
-        nodes_to_include=nodes_to_include))
-
-
-def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
+def top_n_subgraph(graph_processor, n, node_subset=None, nodes_to_keep=None):
     """Build a subgraph with top n nodes."""
     nodes_to_include = get_top_n_nodes(
-        graph_object, n, node_subset, nodes_to_keep)
+        graph_processor, n, node_subset, nodes_to_keep)
 
-    return nx.Graph(graph_object.subgraph(
-        nodes_to_include=nodes_to_include))
+    return graph_processor.subgraph(nodes_to_include=nodes_to_include)
 
 
 def top_n_spanning_tree(graph_processor, n, backend, node_subset=None,
@@ -371,11 +364,18 @@ class VisualizationApp(object):
         if not self._graphs[graph_id]["full_graph_view"]:
             if top_n_entities is None:
                 # compute the spanning tree on all the nodes
-                if "full_tree" in self._graphs[graph_id] and (
-                        node_subset is None or set(node_subset) == set(
+                reused_tree = False
+                if "full_tree" in self._graphs[graph_id]:
+                    tree_object = self._graphs[graph_id]["full_tree"]
+                    tree_processor = self._graph_processor.from_graph_object(
+                        tree_object)
+                    if len(tree_processor.nodes()) == len(processor.nodes()) and\
+                       (node_subset is None or set(node_subset) == set(
                             processor.nodes())):
-                    graph_view = self._graphs[graph_id]["full_tree"]
-                else:
+                        graph_view = self._graphs[graph_id]["full_tree"]
+                        reused_tree = True
+
+                if not reused_tree:
                     graph_view = top_n_spanning_tree(
                         processor, len(processor.nodes()), self._backend,
                         node_subset=node_subset, nodes_to_keep=nodes_to_keep)
@@ -917,10 +917,8 @@ def _handle_expand_edge(graph_object, source, target, edge_expansion_limit):
 
 
 def _handle_neighbor_search(processor, selected_node, neighborlimit):
-    path_finder = BACKEND_MAPPING[visualization_app._backend][
-        "paths"].from_graph_object(processor.graph)
     weights = {}
-    for n in path_finder.get_neighbors(selected_node):
+    for n in processor.neighbors(selected_node):
         weights[n] = processor.get_edge(selected_node, n)["npmi"]
     top_neighbors = top_n(weights, neighborlimit)
 
@@ -983,19 +981,176 @@ def _handle_reset_elements(current_graph, editing_mode,
     return elements
 
 
-def _handle_remove_node():
-    pass
+def _handle_remove_node(current_graph, processor, elements, memory,
+                        editing_mode, selected_node_data, selected_edge_data,
+                        node_freq_type, nodes_to_keep):
+    nodes_to_remove = {}
+    edges_to_remove = {}
+    if selected_node_data:
+        nodes_to_remove = {
+            el["id"]: {"data": el} for el in selected_node_data
+        }
+
+        edges_to_remove = {
+            el["data"]["id"]: el
+            for el in elements
+            if "source" in el["data"] and (
+                el["data"]["source"] in nodes_to_remove or
+                el["data"]["target"] in nodes_to_remove
+            )
+        }
+    if selected_edge_data:
+        edges_to_remove = {
+            ele_data["id"]: {"data": ele_data}
+            for ele_data in selected_edge_data
+        }
+
+    if editing_mode == 1:
+        for n in nodes_to_remove:
+            processor.remove_node(n)
+
+        for edge in edges_to_remove.values():
+            if (edge["data"]["source"], edge["data"]["target"]) in processor.edges():
+                processor.remove_edge(
+                    edge["data"]["source"], edge["data"]["target"])
+
+        if current_graph not in visualization_app._edit_history:
+            visualization_app._edit_history[current_graph] = []
+        visualization_app._edit_history[current_graph].append(
+            {
+                "type": "remove",
+                "nodes": list(nodes_to_remove.keys()),
+                "edges": list(edges_to_remove.keys())
+            }
+        )
+
+        elements = visualization_app._update_cyto_graph(
+            current_graph, processor,
+            visualization_app._graphs[current_graph]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
+    else:
+        memory["removed_elements"].update(nodes_to_remove)
+        memory["removed_elements"].update(edges_to_remove)
+    return elements
 
 
-def _handle_rename_node():
-    pass
+def _handle_rename_node(current_graph, processor, memory, elements,
+                        selected_node, rename_input_value, editing_mode,
+                        node_freq_type, nodes_to_keep):
+    rename_error_message = ""
+    # Check if the rename input is valid
+    rename_invalid = False
+    if rename_input_value != selected_node:
+        if editing_mode == 1:
+            if rename_input_value in processor.nodes():
+                rename_invalid = True
+                rename_error_message =\
+                    "Node with the label '{}' already exists".format(
+                        rename_input_value)
+        else:
+            for el in elements:
+                if rename_input_value == el["data"]["id"]:
+                    rename_invalid = True
+                    rename_error_message =\
+                        "Node with the label '{}' already exists".format(
+                            rename_input_value)
+                    break
+
+    if not rename_invalid:
+        if editing_mode == 1:
+            # Rename node in the graph
+            processor.rename_nodes(
+                {selected_node: rename_input_value})
+            elements = visualization_app._update_cyto_graph(
+                current_graph, processor,
+                visualization_app._graphs[current_graph]["top_n"],
+                node_freq_type=node_freq_type,
+                edge_freq_type=node_freq_type,
+                nodes_to_keep=nodes_to_keep)
+
+            visualization_app._graphs[current_graph]["paper_lookup"][
+                rename_input_value] = visualization_app._graphs[
+                    current_graph]["paper_lookup"][selected_node]
+            visualization_app._entity_definitions[rename_input_value] =\
+                visualization_app._entity_definitions[selected_node]
+
+            if current_graph not in visualization_app._edit_history:
+                visualization_app._edit_history[current_graph] = []
+            visualization_app._edit_history[current_graph].append(
+                {
+                    "type": "rename",
+                    "original_node": selected_node,
+                    "new_name": rename_input_value
+                }
+            )
+        else:
+            memory["renamed_elements"].update(
+                {selected_node: rename_input_value})
+    return elements, rename_error_message
 
 
-def _handle_merge_node():
-    pass
+def _handle_merge_nodes(current_graph, processor, memory,
+                        selected_nodes, new_name, editing_mode,
+                        node_freq_type, nodes_to_keep):
+    if editing_mode == 1:
+        if new_name not in visualization_app._entity_definitions:
+            # choose a random definiton
+            definition = ""
+            for n in selected_nodes:
+                if n in visualization_app._entity_definitions:
+                    definition = visualization_app._entity_definitions[n]
+                    break
+            visualization_app._entity_definitions[new_name] = definition
+
+        new_graph = merge_nodes(
+            processor,
+            list(selected_nodes),
+            new_name, ATTRS_RESOLVER)
+        new_graph_processor =\
+            visualization_app._graph_processor.from_graph_object(new_graph)
+
+        elements = visualization_app._update_cyto_graph(
+            current_graph, new_graph_processor,
+            visualization_app._graphs[current_graph]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
+
+        if current_graph not in visualization_app._edit_history:
+            visualization_app._edit_history[current_graph] = []
+        visualization_app._edit_history[current_graph].append(
+            {
+                "type": "merge",
+                "target": new_name,
+                "merged_nodes": list(selected_nodes)
+            }
+        )
+        visualization_app._graphs[current_graph]["paper_lookup"][new_name] =\
+            new_graph_processor.get_node(new_name)["paper"]
+    else:
+        elements, target_node, merging_data = merge_cyto_elements(
+            elements, selected_nodes, new_name)
+
+        for k, v in merging_data["removed_elements"].items():
+            if k not in memory["merging_backup"]["added_elements"]:
+                memory["merging_backup"]["removed_elements"][k] = v
+
+        memory["merging_backup"]["added_elements"] += merging_data[
+            "added_elements"]
+
+        papers = set()
+        for n in selected_nodes:
+            memory["paper_backup"][n] = visualization_app._graphs[
+                current_graph]["paper_lookup"][n]
+            papers.update(
+                visualization_app._graphs[current_graph]["paper_lookup"][n])
+
+        visualization_app._graphs[current_graph][
+            "paper_lookup"][new_name] = list(papers)
+    return elements
 
 
-def _handle_show_top_n(current_graph, processor, memory,
+def _handle_show_top_n(current_graph, processor, elements, memory,
                        top_n_slider_value, recompute_spanning_tree,
                        node_freq_type, edge_freq_type, nodes_with_cluster,
                        nodes_to_keep):
@@ -1386,56 +1541,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
     # -------- Handle remove selected nodes -------
 
     if button_id == "remove-button":
-        nodes_to_remove = {}
-        edges_to_remove = {}
-        if selected_node_data:
-            nodes_to_remove = {
-                el["id"]: {"data": el} for el in selected_node_data
-            }
-
-            edges_to_remove = {
-                el["data"]["id"]: el
-                for el in elements
-                if "source" in el["data"] and (
-                    el["data"]["source"] in nodes_to_remove or
-                    el["data"]["target"] in nodes_to_remove
-                )
-            }
-        if selected_edge_data:
-            edges_to_remove = {
-                ele_data["id"]: {"data": ele_data}
-                for ele_data in selected_edge_data
-            }
-
-        if editing_mode == 1:
-            for n in nodes_to_remove:
-                processor.remove_node(n)
-
-            for edge in edges_to_remove.values():
-                if (
-                        edge["data"]["source"], edge["data"]["target"]
-                ) in visualization_app._graphs[val]["object"].edges():
-                    visualization_app._graphs[val]["object"].remove_edge(
-                        edge["data"]["source"], edge["data"]["target"])
-
-            if val not in visualization_app._edit_history:
-                visualization_app._edit_history[val] = []
-            visualization_app._edit_history[val].append(
-                {
-                    "type": "remove",
-                    "nodes": list(nodes_to_remove.keys()),
-                    "edges": list(edges_to_remove.keys())
-                }
-            )
-
-            elements = visualization_app._update_cyto_graph(
-                val, processor,
-                visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
-        else:
-            memory["removed_elements"].update(nodes_to_remove)
-            memory["removed_elements"].update(edges_to_remove)
+        elements = _handle_remove_node(
+            val, processor, elements, memory,
+            editing_mode, selected_node_data, selected_edge_data,
+            node_freq_type, nodes_to_keep)
 
     # -------- Handle merge selected nodes -------
 
@@ -1448,111 +1557,18 @@ def update_cytoscape_elements(resetbt, removebt, val,
     if button_id == "merge-apply" and merge_label_value:
         # Retreive name
         new_name = merge_label_value
+        elements = _handle_merge_nodes(
+            val, processor, memory,
+            selected_nodes, new_name, editing_mode,
+            node_freq_type, nodes_to_keep)
 
-        if editing_mode == 1:
-            if new_name not in visualization_app._entity_definitions:
-                # choose a random definiton
-                definition = ""
-                for n in selected_nodes:
-                    if n in visualization_app._entity_definitions:
-                        definition = visualization_app._entity_definitions[n]
-                        break
-                visualization_app._entity_definitions[new_name] = definition
-
-            new_graph = merge_nodes(
-                processor,
-                list(selected_nodes),
-                new_name, CORD_ATTRS_RESOLVER)
-            new_graph_processor = visualization_app._graph_processor.from_graph_object(
-                new_graph)
-
-            elements = visualization_app._update_cyto_graph(
-                val, new_graph_processor, visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
-
-            if val not in visualization_app._edit_history:
-                visualization_app._edit_history[val] = []
-            visualization_app._edit_history[val].append(
-                {
-                    "type": "merge",
-                    "target": new_name,
-                    "merged_nodes": list(selected_nodes)
-                }
-            )
-            visualization_app._graphs[val]["paper_lookup"][new_name] =\
-                new_graph_processor.get_node(new_name)["paper"]
-        else:
-            elements, target_node, merging_data = merge_cyto_elements(
-                elements, selected_nodes, new_name)
-
-            for k, v in merging_data["removed_elements"].items():
-                if k not in memory["merging_backup"]["added_elements"]:
-                    memory["merging_backup"]["removed_elements"][k] = v
-
-            memory["merging_backup"]["added_elements"] += merging_data[
-                "added_elements"]
-
-            papers = set()
-            for n in selected_nodes:
-                memory["paper_backup"][n] = visualization_app._graphs[
-                    val]["paper_lookup"][n]
-                papers.update(
-                    visualization_app._graphs[val]["paper_lookup"][n])
-
-            visualization_app._graphs[val]["paper_lookup"][new_name] = list(
-                papers)
-
-    if button_id == "rename-apply":
+    if button_id == "rename-apply" and len(selected_nodes) == 1:
         if selected_rename_input:
             rename_input_value = selected_rename_input
-
-        # Check if the rename input is valid
-        if rename_input_value != selected_nodes[0]:
-            if editing_mode == 1:
-                if rename_input_value in processor.nodes():
-                    rename_invalid = True
-                    rename_error_message =\
-                        "Node with the label '{}' already exists".format(
-                            rename_input_value)
-            else:
-                for el in elements:
-                    if rename_input_value == el["data"]["id"]:
-                        rename_invalid = True
-                        rename_error_message =\
-                            "Node with the label '{}' already exists".format(
-                                rename_input_value)
-                        break
-
-        if not rename_invalid:
-            if editing_mode == 1:
-                # Rename node in the graph
-                processor.rename_nodes(
-                    {selected_nodes[0]: rename_input_value})
-                elements = visualization_app._update_cyto_graph(
-                    val, processor, visualization_app._graphs[val]["top_n"],
-                    node_freq_type=node_freq_type,
-                    edge_freq_type=node_freq_type,
-                    nodes_to_keep=nodes_to_keep)
-
-                visualization_app._graphs[val]["paper_lookup"][
-                    rename_input_value] = visualization_app._graphs[
-                        val]["paper_lookup"][selected_nodes[0]]
-                visualization_app._entity_definitions[rename_input_value] =\
-                    visualization_app._entity_definitions[selected_nodes[0]]
-
-                if val not in visualization_app._edit_history:
-                    visualization_app._edit_history[val] = []
-                visualization_app._edit_history[val].append(
-                    {
-                        "type": "rename",
-                        "original_node": selected_nodes[0],
-                        "new_name": rename_input_value
-                    }
-                )
-            else:
-                memory["renamed_elements"].update(
-                    {selected_nodes[0]: rename_input_value})
+        elements, rename_error_message = _handle_rename_node(
+            val, processor, memory, elements, selected_nodes[0],
+            rename_input_value, editing_mode,
+            node_freq_type, nodes_to_keep)
 
     # Open/close the rename dialog
     if button_id == "rename-button" or button_id == "rename-close" or\
@@ -1651,7 +1667,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     # ---- Handle changes in Display Top N or all the entities -------
     if button_id == "top-n-button":
         elements, message = _handle_show_top_n(
-            val, processor, memory,
+            val, processor, elements, memory,
             top_n_slider_value, recompute_spanning_tree,
             node_freq_type, edge_freq_type, nodes_with_cluster,
             nodes_to_keep)
@@ -1831,10 +1847,12 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
     papers_in_kg = None
     if len(papers) > 0:
         try:
+            if isinstance(papers, str):
+                papers = ast.literal_eval(papers)
             papers_in_kg = visualization_app._list_papers_callback(papers)
         except Exception as e:
             print(e)
-            error_message = visualization_app._db_error_message
+            error_message = "Error fetching papers for the selected node"
         rows = []
 
         def _convert_to_str(x):
@@ -2491,10 +2509,16 @@ def compute_aggregated_stats(button_clicked, tapped_node):
     if button_clicked:
         res = visualization_app._aggregated_entities_callback(
             tapped_node["data"]["id"])
-        list_group = dbc.ListGroup([
-            dbc.ListGroupItem("{}. {} ({})".format(i + 1, k, v))
-            for i, (k, v) in enumerate(res.items())
-        ])
+        if res is not None:
+            list_group = dbc.ListGroup([
+                dbc.ListGroupItem("{}. {} ({})".format(i + 1, k, v))
+                for i, (k, v) in enumerate(res.items())
+            ])
+        else:
+            list_group = html.P(
+                "Cannot fetch aggregated entities (manually renamed entity?)",
+                id="fetch-aggregated-error-message",
+                style={"color": "red"})
         entities_card_content = [
             html.H6(
                 "Top raw entities linked to '{}' (by paper frequency)".format(

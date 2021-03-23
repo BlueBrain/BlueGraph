@@ -226,29 +226,43 @@ class GTGraphProcessor(GraphProcessor):
 
     def get_edge(self, source, target):
         e = _get_edge_obj(self.graph, source, target)
-        props = {}
-        for k in self.graph.edge_properties.keys():
-            if k not in ["@type"]:
-                value = self.graph.edge_properties[k][e]
-                if isinstance(value, float):
-                    if not math.isnan(value):
+        if e:
+            props = {}
+            for k in self.graph.edge_properties.keys():
+                if k not in ["@type"]:
+                    value = self.graph.edge_properties[k][e]
+                    if isinstance(value, float):
+                        if not math.isnan(value):
+                            props[k] = value
+                    else:
                         props[k] = value
-                else:
-                    props[k] = value
-        return props
+            return props
+
+    def remove_edge(self, source, target):
+        e = _get_edge_obj(self.graph, source, target)
+        self.graph.remove_edge(e)
 
     def add_edge(self, source, target, properties):
         s = _get_vertex_obj(self.graph, source)
         t = _get_vertex_obj(self.graph, target)
         e = self.graph.add_edge(s, t)
-        for k, v in properties:
+        for k, v in properties.items():
             self.graph.edge_properties[k][e] = v
+
+    def set_edge_properties(self, source, target, properties):
+        edge = _get_edge_obj(self.graph, source, target)
+        for k, v in properties.items():
+            if v is not None:
+                self.graph.edge_properties[k][edge] = v
+            else:
+                self.graph.edge_properties[k][edge] = 'nan'
+        for k in self.graph.edge_properties.keys():
+            if k not in properties:
+                self.graph.edge_properties[k][edge] = 'nan'
 
     def neighbors(self, node_id):
         """Get neighors of the node."""
         node_obj = _get_vertex_obj(self.graph, node_id)
-        print(node_id, node_obj)
-        print(self.nodes())
         neighors = node_obj.out_neighbors()
         return [
             _get_node_id(self.graph, n) for n in neighors

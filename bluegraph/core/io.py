@@ -1141,7 +1141,15 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
+    def remove_edge(self, source, target):
+        pass
+
+    @abstractmethod
     def add_edge(self, source, target, properties):
+        pass
+
+    @abstractmethod
+    def set_edge_properties(self, source, target, properties):
         pass
 
     @abstractmethod
