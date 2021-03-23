@@ -488,7 +488,6 @@ def _configure_backends(backend_configs, graph):
         backend_configs["paths"]
         if "paths" in backend_configs else "networkx"
     )
-
     if metrics_backend == "neo4j":
         processor = BACKEND_MAPPING[metrics_backend]["metrics"](
             graph,

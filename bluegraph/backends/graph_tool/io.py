@@ -272,36 +272,32 @@ class GTGraphProcessor(GraphProcessor):
                  nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
         if nodes_to_include is None:
-            nodes_to_include = self.nodes()
+            node_filter_prop = self.graph.new_vertex_property(
+                "bool", val=True)
+            if nodes_to_exclude is not None:
+                for n in nodes_to_exclude:
+                    v = _get_vertex_obj(self.graph, n)
+                    node_filter_prop[v] = False
+        else:
+            node_filter_prop = self.graph.new_vertex_property(
+                "bool", val=False)
+            for n in nodes_to_include:
+                v = _get_vertex_obj(self.graph, n)
+                node_filter_prop[v] = True
 
         if edges_to_include is None:
-            edges_to_include = self.edges()
-
-        if nodes_to_exclude is None:
-            nodes_to_exclude = []
-
-        if edges_to_exclude is None:
-            edges_to_exclude = []
-
-        node_filter_prop = self.graph.new_vertex_property(
-            "bool", vals=[
-                _get_node_id(self.graph, v) in nodes_to_include and
-                _get_node_id(self.graph, v) not in nodes_to_exclude
-                for v in self.graph.vertices()]
-        )
-
-        edge_filter_prop = self.graph.new_edge_property(
-            "bool", vals=[
-                (
-                    _get_node_id(self.graph, e.source()),
-                    _get_node_id(self.graph, e.target())
-                ) in edges_to_include and
-                (
-                    _get_node_id(self.graph, e.source()),
-                    _get_node_id(self.graph, e.target())
-                ) not in edges_to_exclude
-                for e in self.graph.edges()]
-        )
+            edge_filter_prop = self.graph.new_edge_property(
+                "bool", val=True)
+            if edges_to_exclude is not None:
+                for s, t in edges_to_exclude:
+                    edge = _get_edge_obj(self.graph, s, t)
+                    edge_filter_prop[edge] = False
+        else:
+            edge_filter_prop = self.graph.new_edge_property(
+                "bool", val=False)
+            for s, t in edges_to_include:
+                edge = _get_edge_obj(self.graph, s, t)
+                edge_filter_prop[edge] = True
 
         return GraphView(
             self.graph,

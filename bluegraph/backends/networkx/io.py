@@ -120,30 +120,22 @@ class NXGraphProcessor(GraphProcessor):
     def subgraph(self, nodes_to_include=None, edges_to_include=None,
                  nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
-        if nodes_to_include is None:
-            nodes_to_include = self.nodes()
+        if nodes_to_include is not None:
+            subgraph = self.graph.subgraph(nodes_to_include)
+        else:
+            subgraph = self.graph.subgraph([
+                n for n in self.graph.nodes()
+                if n not in nodes_to_exclude
+            ])
 
-        if edges_to_include is None:
-            edges_to_include = self.edges()
-
-        if nodes_to_exclude is None:
-            nodes_to_exclude = []
-
-        if edges_to_exclude is None:
-            edges_to_exclude = []
-
-        nodes_to_include = [
-            n for n in self.graph.nodes()
-            if n in nodes_to_include and n not in nodes_to_exclude
-        ]
-
-        subgraph = self.graph.subgraph(nodes_to_include)
-
-        if edges_to_exclude is not None:
+        if edges_to_include is not None:
+            subgraph = subgraph.edge_subgraph(
+                edges_to_include)
+        else:
             subgraph = subgraph.edge_subgraph(
                 [
                     e for e in subgraph.edges()
-                    if e in edges_to_include and e not in edges_to_exclude
+                    if e not in edges_to_exclude
                 ]
             )
 

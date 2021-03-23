@@ -125,9 +125,9 @@ def top_n_spanning_tree(graph_processor, n, backend, node_subset=None,
                         nodes_to_keep=None):
     nodes_to_include = get_top_n_nodes(
         graph_processor, n, node_subset, nodes_to_keep)
-
+    subgraph = graph_processor.subgraph(nodes_to_include=nodes_to_include)
     path_finder = BACKEND_MAPPING[backend]["paths"].from_graph_object(
-        graph_processor.subgraph(nodes_to_include=nodes_to_include))
+        subgraph)
     tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
     return tree
 
@@ -480,13 +480,9 @@ class VisualizationApp(object):
             self._graphs = {}
 
         # Create a craph object
-        # graph_object = pgframe_to_networkx(graph, directed=False)
-        # tree_object = pgframe_to_networkx(tree, directed=False)
-
         graph_object = BACKEND_MAPPING[self._backend]["from_pgframe"](
             graph, directed=False)
-        graph_object_backup = BACKEND_MAPPING[self._backend]["from_pgframe"](
-            graph, directed=False)
+        graph_object_backup = graph_object.copy()
         if tree:
             tree_object = BACKEND_MAPPING[self._backend]["from_pgframe"](
                 tree, directed=False)
