@@ -214,6 +214,13 @@ class PathFinder(ABC):
                     s_t_distance = self._get_cumulative_distances(
                         [(source, target)], distance)
                     path_ranking.update(s_t_distance)
+                else:
+                    if not self.directed and (target, source) in self.edges():
+                        t_s_distance = self._get_cumulative_distances(
+                            [(target, source)], distance)
+                        path_ranking.update({
+                            (source, target): t_s_distance[(target, source)]
+                        })
 
             paths = top_n(path_ranking, n, smallest=True)
         elif strategy == "yen":
