@@ -873,14 +873,14 @@ def generate_paper_lookup(graph):
 
 def build_cytoscape_data(graph_processor, positions=None):
     elements = []
-    for node in graph_processor.nodes():
+    for node, properties in graph_processor.nodes(properties=True): 
+        properties = properties.copy()
         data = {
             "id": node,
             "value": node,
             "name": node,
             "type": "node"
         }
-        properties = graph_processor.get_node(node).copy()
         if 'paper' in properties:
             papers = properties["paper"]
             data["paper_frequency"] = len(papers)
@@ -894,7 +894,8 @@ def build_cytoscape_data(graph_processor, positions=None):
 
         elements.append(element)
 
-    for s, t in graph_processor.edges():
+    for s, t, properties in graph_processor.edges(properties=True):
+        properties = properties.copy()
         s_name = s.replace(" ", "_")
         t_name = t.replace(" ", "_")
         data = {
@@ -903,7 +904,6 @@ def build_cytoscape_data(graph_processor, positions=None):
             "target": t,
             "type": "edge"
         }
-        properties = graph_processor.get_edge(s, t)
         data.update(properties)
         elements.append({"data": data})
 

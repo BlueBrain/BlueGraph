@@ -7,3 +7,4 @@ nltk
 nexusforge
 gensim
 tensorflow
+networkx >= 2.0

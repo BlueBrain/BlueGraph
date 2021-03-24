@@ -123,20 +123,24 @@ class NXGraphProcessor(GraphProcessor):
         if nodes_to_include is not None:
             subgraph = self.graph.subgraph(nodes_to_include)
         else:
-            subgraph = self.graph.subgraph([
-                n for n in self.graph.nodes()
-                if n not in nodes_to_exclude
-            ])
+            if nodes_to_exclude is not None:
+                subgraph = self.graph.subgraph([
+                    n for n in self.graph.nodes()
+                    if n not in nodes_to_exclude
+                ])
+            else:
+                subgraph = self.graph
 
         if edges_to_include is not None:
             subgraph = subgraph.edge_subgraph(
                 edges_to_include)
         else:
-            subgraph = subgraph.edge_subgraph(
-                [
-                    e for e in subgraph.edges()
-                    if e not in edges_to_exclude
-                ]
-            )
+            if edges_to_exclude is not None:
+                subgraph = subgraph.edge_subgraph(
+                    [
+                        e for e in subgraph.edges()
+                        if e not in edges_to_exclude
+                    ]
+                )
 
         return subgraph

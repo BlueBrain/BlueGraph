@@ -4,7 +4,7 @@ from graph_tool import GraphView
 from graph_tool.topology import shortest_path, min_spanning_tree
 from graph_tool.topology import all_shortest_paths as gt_all_shortest_paths
 
-from ..io import GTGraphProcessor, _get_vertex_obj, _get_node_id
+from ..io import GTGraphProcessor, _get_vertex_obj, _get_node_id, _get_edge_obj
 
 
 def handle_exclude_gt_edge(method):
@@ -14,13 +14,10 @@ def handle_exclude_gt_edge(method):
         if "exclude_edge" in kwargs:
             exclude_edge = kwargs["exclude_edge"]
 
-        source_vertex = _get_vertex_obj(graph, source)
-        target_vertex = _get_vertex_obj(graph, target)
-
         direct_edge = None
-        if source_vertex and target_vertex:
-            direct_edge = graph.edge(source_vertex, target_vertex)
-            edge_filter = graph.new_edge_property("bool", val=True)
+
+        direct_edge = _get_edge_obj(graph, source, target)
+        edge_filter = graph.new_edge_property("bool", val=True)
 
         if direct_edge and exclude_edge is True:
             edge_filter[direct_edge] = False
@@ -40,34 +37,14 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
 
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        source = _get_vertex_obj(self.graph, source)
-        target = _get_vertex_obj(self.graph, target)
-
-        edge = self.graph.edge(source, target)
-        return self.graph.ep[distance][edge]
+        return self.graph.ep[distance][
+            _get_edge_obj(self.graph, source, target)]
 
     def get_subgraph_from_paths(self, paths):
         """Get subgraph induced by a path."""
         nodes, edges = graph_elements_from_paths(paths)
-        edge_filter_prop = self.graph.new_edge_property("bool")
-        for e in self.graph.edges():
-            s = _get_node_id(self.graph, e.source())
-            t = _get_node_id(self.graph, e.target())
-            if (s, t) in edges:
-                edge_filter_prop[e] = True
-            else:
-                edge_filter_prop[e] = not self.directed and (t, s) in edges
-
-        node_filter_prop = self.graph.new_vertex_property(
-            "bool", vals=[
-                _get_node_id(self.graph, v) in nodes
-                for v in self.graph.vertices()]
-        )
-
-        return GraphView(
-            self.graph,
-            vfilt=node_filter_prop,
-            efilt=edge_filter_prop)
+        return self.subgraph(
+            nodes_to_include=nodes, edges_to_include=edges)
 
     @staticmethod
     @handle_exclude_gt_edge
@@ -85,8 +62,8 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
             Flag indicating whether the direct edge from the source to
             the target should be excluded from the result (if exists).
         """
-        source_vertex = _get_vertex_obj(graph, source)
-        target_vertex = _get_vertex_obj(graph, target)
+        source_vertex = graph.vertex(_get_vertex_obj(graph, source))
+        target_vertex = graph.vertex(_get_vertex_obj(graph, target))
 
         path, _ = shortest_path(
             graph,
@@ -216,7 +193,7 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
 
             self.graph.ep[write_property] = mst_property
         else:
-            tree = self.graph.copy()
-            tree.set_edge_filter(mst_property)
-            tree.purge_edges()
+            tree = GraphView(
+                self.graph,
+                efilt=mst_property)
             return tree

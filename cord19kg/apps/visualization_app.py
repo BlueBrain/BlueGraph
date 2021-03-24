@@ -68,8 +68,7 @@ def lighten_color(r, g, b, factor=0.1):
 
 def filter_nodes_by_attr(processor, key, values):
     result = []
-    for n in processor.nodes():
-        properties = processor.get_node(n)
+    for n, properties in processor.nodes(properties=True):
         if key in properties:
             if properties[key] in values:
                 result.append(n)
@@ -78,12 +77,12 @@ def filter_nodes_by_attr(processor, key, values):
 
 def subgraph_from_clusters(processor, cluster_type, clustersearch,
                            nodes_to_keep):
+    nodes = dict(processor.nodes(properties=True))
     if cluster_type and clustersearch:
         graph_object = processor.subgraph(
             nodes_to_include=[
-                n
-                for n in processor.nodes()
-                if processor.get_node(n)[cluster_type] in clustersearch or
+                n for n in nodes
+                if nodes[n][cluster_type] in clustersearch or
                 n in nodes_to_keep
             ])
     return graph_object
@@ -93,16 +92,18 @@ def get_top_n_nodes(graph_processor, n, node_subset=None, nodes_to_keep=None):
     if nodes_to_keep is None:
         nodes_to_keep = []
 
+    nodes = dict(graph_processor.nodes(properties=True))
+
     if n is None:
-        n = len(graph_processor.nodes())
+        n = len(nodes)
 
     if node_subset is None:
-        node_subset = list(graph_processor.nodes())
+        node_subset = list(nodes)
 
     if n <= len(node_subset):
         node_frequencies = {}
         for node in node_subset:
-            node_properties = graph_processor.get_node(node)
+            node_properties = nodes[node]
             node_frequencies[node] = len(node_properties["paper"])
         nodes_to_include = top_n(node_frequencies, n)
     else:
@@ -655,9 +656,7 @@ def search(elements, search_value, value, showgraph, diffs=None,
         graph_object = visualization_app._graphs[showgraph]["object"]
         processor = visualization_app._graph_processor.from_graph_object(
             graph_object)
-        for n in processor.nodes():
-            attrs = processor.get_node(n)
-
+        for n, attrs in processor.nodes(properties=True):
             cluster_matches = False
             if cluster_type is not None and cluster_search is not None:
                 if (
@@ -779,9 +778,9 @@ def filter_elements(input_elements, node_condition, edge_condition=None):
 
 def get_all_clusters(processor, cluster_type):
     return list(set([
-        processor.get_node(n)[cluster_type]
-        for n in processor.nodes()
-        if cluster_type in processor.get_node(n)
+        properties[cluster_type]
+        for n, properties in processor.nodes(properties=True)
+        if cluster_type in properties
     ]))
 
 
@@ -854,7 +853,7 @@ def setup_paths_tab(nestedpaths):
     return [traverse_field_disable, overlapping_disable, pathdepth_disable]
 
 
-def _handle_paths_search(graph_object, source, target, top_n,
+def _handle_paths_search(graph_object, elements, source, target, top_n,
                          searchnodetotraverse, searchpathoverlap,
                          nestedpaths, pathdepth):
     success = False
@@ -1606,7 +1605,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
                 processor, cluster_type, clustersearch, nodes_to_keep)
 
             success, elements, no_path_message = _handle_paths_search(
-                graph_object, source, target, top_n,
+                graph_object, elements, source, target, top_n,
                 searchnodetotraverse, searchpathoverlap,
                 nestedpaths, pathdepth)
         if not success:

@@ -14,16 +14,18 @@ NUMERIC_TYPES = [
 
 
 def _get_vertex_obj(graph, node_id):
-    v = find_vertex(
-        graph, graph.vp["@id"], node_id)
-    if len(v) == 1:
-        return v[0]
+    for v in graph.iter_vertices(vprops=[graph.vp["@id"]]):
+        if v[1] == node_id:
+            return v[0]
 
 
 def _get_edge_obj(graph, source_id, target_id):
     source = _get_vertex_obj(graph, source_id)
     target = _get_vertex_obj(graph, target_id)
-    return graph.edge(source, target)
+    e = graph.edge(source, target)
+    if e is None and not graph.is_directed():
+        e = graph.edge(graph.vertex(target), graph.vertex(source))
+    return e
 
 
 def _get_node_id(graph, vertex_obj):
@@ -157,16 +159,14 @@ class GTGraphProcessor(GraphProcessor):
             return list(self.graph.vp["@id"])
         else:
             props = self.graph.vp.keys()
-            return [
-                (
-                    self.graph.vp["@id"][v],
-                    {
-                        p: self.graph.vp[p][v]
-                        for p in props
-                    }
-                )
-                for v in self.graph.vertices()
-            ]
+            result = []
+            for v in self.graph.iter_vertices(vprops=[
+                    self.graph.vp[p] for p in props]):
+                raw_props = dict(zip(props, v[1:]))
+                node_id = raw_props["@id"]
+                del raw_props["@id"]
+                result.append((node_id, raw_props))
+            return result
 
     def get_node(self, node):
         v = _get_vertex_obj(self.graph, node)
@@ -204,25 +204,19 @@ class GTGraphProcessor(GraphProcessor):
     def edges(self, properties=False):
         if not properties:
             return [
-                (
-                    self.graph.vp["@id"][e.source()],
-                    self.graph.vp["@id"][e.target()]
-                )
-                for e in self.graph.edges()
+                (self.graph.vp["@id"][s], self.graph.vp["@id"][t])
+                for s, t in self.graph.iter_edges()
             ]
         else:
             props = self.graph.ep.keys()
-            return [
-                (
-                    self.graph.vp["@id"][e.source()],
-                    self.graph.vp["@id"][e.target()],
-                    {
-                        p: self.graph.ep[p][e]
-                        for p in props
-                    }
-                )
-                for e in self.graph.edges()
-            ]
+            result = []
+            for edge in self.graph.iter_edges(eprops=[
+                    self.graph.ep[p] for p in props]):
+                s = self.graph.vp["@id"][edge[0]]
+                t = self.graph.vp["@id"][edge[1]]
+                raw_props = dict(zip(props, edge[2:]))
+                result.append((s, t, raw_props))
+            return result
 
     def get_edge(self, source, target):
         e = _get_edge_obj(self.graph, source, target)
@@ -262,8 +256,8 @@ class GTGraphProcessor(GraphProcessor):
 
     def neighbors(self, node_id):
         """Get neighors of the node."""
-        node_obj = _get_vertex_obj(self.graph, node_id)
-        neighors = node_obj.out_neighbors()
+        node_id = _get_vertex_obj(self.graph, node_id)
+        neighors = self.graph.vertex(node_id).out_neighbors()
         return [
             _get_node_id(self.graph, n) for n in neighors
         ]
@@ -271,35 +265,57 @@ class GTGraphProcessor(GraphProcessor):
     def subgraph(self, nodes_to_include=None, edges_to_include=None,
                  nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
+        node_ids = list(self.graph.vp["@id"])
         if nodes_to_include is None:
             node_filter_prop = self.graph.new_vertex_property(
                 "bool", val=True)
             if nodes_to_exclude is not None:
-                for n in nodes_to_exclude:
-                    v = _get_vertex_obj(self.graph, n)
-                    node_filter_prop[v] = False
+                indices_to_exclude = [
+                    _get_vertex_obj(self.graph, n)
+                    for n in nodes_to_exclude
+                ]
+                for i in indices_to_exclude:
+                    node_filter_prop[i] = False
         else:
             node_filter_prop = self.graph.new_vertex_property(
                 "bool", val=False)
-            for n in nodes_to_include:
-                v = _get_vertex_obj(self.graph, n)
-                node_filter_prop[v] = True
+            indices_to_include = [
+                _get_vertex_obj(self.graph, n)
+                for n in nodes_to_include
+            ]
+            for i in indices_to_include:
+                node_filter_prop[i] = True
 
         if edges_to_include is None:
             edge_filter_prop = self.graph.new_edge_property(
                 "bool", val=True)
             if edges_to_exclude is not None:
-                for s, t in edges_to_exclude:
-                    edge = _get_edge_obj(self.graph, s, t)
-                    edge_filter_prop[edge] = False
+                sources = [
+                    _get_vertex_obj(self.graph, s)
+                    for s, _ in edges_to_exclude
+                ]
+                targets = [
+                    _get_vertex_obj(self.graph, t)
+                    for _, t in edges_to_exclude
+                ]
+                for s, t in zip(sources, targets):
+                    edge_filter_prop[self.graph.edge(s, t)] = False
         else:
             edge_filter_prop = self.graph.new_edge_property(
                 "bool", val=False)
-            for s, t in edges_to_include:
-                edge = _get_edge_obj(self.graph, s, t)
-                edge_filter_prop[edge] = True
+            sources = [
+                _get_vertex_obj(self.graph, s)
+                for s, _ in edges_to_include
+            ]
+            targets = [
+                _get_vertex_obj(self.graph, t)
+                for _, t in edges_to_include
+            ]
+            for s, t in zip(sources, targets):
+                edge_filter_prop[self.graph.edge(s, t)] = True
 
         return GraphView(
             self.graph,
             vfilt=node_filter_prop,
             efilt=edge_filter_prop)
+

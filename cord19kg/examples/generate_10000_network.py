@@ -67,17 +67,24 @@ if __name__ == '__main__':
     # Create the output folder if doesn't exist
     Path("data/output_graphs").mkdir(parents=True, exist_ok=True)
 
+    backend_configs = {
+        "metrics": "graph_tool",
+        "communities": "networkx",
+        "paths": "graph_tool"
+    }
+
     # Generate graphs and run the analysis pipeline
     print("Generating co-occurrence networks...")
     start = time.time()
     graphs, trees = generate_cooccurrence_analysis(
         data, factor_counts,
-        type_data=data[["entity_type"]].rename(
-            columns={"entity_type": "type"}),
+        type_data=data[["entity_type"]].reset_index().rename(
+            columns={"index": "entity", "entity_type": "type"}),
         n_most_frequent=10000,
         factors=["paper", "paragraph"],
         cores=8,  # Change the number of cores if necessary
         graph_dump_prefix="data/output_graphs/Top_100000_network",
         communities=True,
-        remove_zero_mi=True)
+        remove_zero_mi=True,
+        backend_configs=backend_configs)
     print("Done in {:.2f}s.".format(time.time() - start))
