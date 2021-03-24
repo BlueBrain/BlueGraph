@@ -21,7 +21,7 @@ def pgframe_to_networkx(pgframe, directed=True):
     return graph
 
 
-def networkx_to_pgframe(nx_object):
+def networkx_to_pgframe(nx_object, node_prop_types=None, edge_prop_types=None):
     """Create a PGFrame from the networkx object."""
     pgframe = PandasPGFrame(nodes=nx_object.nodes())
 
@@ -42,6 +42,10 @@ def networkx_to_pgframe(nx_object):
             "source": "@source_id", "target": "@target_id"
         }).set_index(["@source_id", "@target_id"])
     pgframe._edges = edges
+    if node_prop_types:
+        pgframe._node_prop_types = node_prop_types.copy()
+    if edge_prop_types:
+        pgframe._edge_prop_types = edge_prop_types.copy()
     return pgframe
 
 
@@ -56,9 +60,12 @@ class NXGraphProcessor(GraphProcessor):
     def _generate_graph(pgframe, directed=True):
         return pgframe_to_networkx(pgframe, directed=directed)
 
-    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+    def _generate_pgframe(self, node_prop_types=None, edge_prop_types=None,
+                          node_filter=None, edge_filter=None,):
         """Get a new pgframe object from the wrapped graph object."""
-        return networkx_to_pgframe(self.graph)
+        return networkx_to_pgframe(
+            self.graph, node_prop_types=node_prop_types,
+            edge_prop_types=edge_prop_types)
 
     @staticmethod
     def _is_directed(graph):

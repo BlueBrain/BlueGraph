@@ -75,7 +75,7 @@ def pgframe_to_graph_tool(pgframe, directed=True):
     return graph
 
 
-def graph_tool_to_pgframe(graph):
+def graph_tool_to_pgframe(graph, node_prop_types=None, edge_prop_types=None):
     """Create a PGFrame from the graph-tool object."""
     pgframe = PandasPGFrame(nodes=graph.vp["@id"])
     for k, v in graph.vp.items():
@@ -85,9 +85,12 @@ def graph_tool_to_pgframe(graph):
                 pgframe.assign_node_types(prop)
             else:
                 prop_type = v.value_type()
-                result_type = "category"
-                if prop_type in NUMERIC_TYPES:
-                    result_type = "numeric"
+                if node_prop_types is not None:
+                    result_type = node_prop_types[k]
+                else:
+                    result_type = "category"
+                    if prop_type in NUMERIC_TYPES:
+                        result_type = "numeric"
                 pgframe.add_node_properties(prop)
                 pgframe._set_node_prop_type(k, result_type)
 
@@ -109,9 +112,12 @@ def graph_tool_to_pgframe(graph):
             pgframe.assign_edge_types(prop)
         else:
             prop_type = v.value_type()
-            result_type = "category"
-            if prop_type in NUMERIC_TYPES:
-                result_type = "numeric"
+            if edge_prop_types is not None:
+                result_type = edge_prop_types[k]
+            else:
+                result_type = "category"
+                if prop_type in NUMERIC_TYPES:
+                    result_type = "numeric"
             pgframe.add_edge_properties(prop)
             pgframe._set_edge_prop_type(k, result_type)
 
@@ -129,9 +135,12 @@ class GTGraphProcessor(GraphProcessor):
     def _generate_graph(pgframe, directed=True):
         return pgframe_to_graph_tool(pgframe, directed=directed)
 
-    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+    def _generate_pgframe(self, node_prop_types=None, edge_prop_types=None,
+                          node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
-        return graph_tool_to_pgframe(self.graph)
+        return graph_tool_to_pgframe(
+            self.graph, node_prop_types=node_prop_types,
+            edge_prop_types=edge_prop_types)
 
     @staticmethod
     def _is_directed(graph):

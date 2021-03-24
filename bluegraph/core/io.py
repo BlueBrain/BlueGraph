@@ -1093,7 +1093,8 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
-    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+    def _generate_pgframe(self, node_prop_types=None, edge_prop_types=None,
+                          node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
         pass
 
@@ -1191,9 +1192,11 @@ class GraphProcessor(ABC):
         processor.directed = cls._is_directed(graph_object)
         return processor
 
-    def get_pgframe(self, node_filter=None, edge_filter=None):
+    def get_pgframe(self, node_prop_types=None, edge_prop_types=None,
+                    node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
         return self._generate_pgframe(
+            node_prop_types=node_prop_types, edge_prop_types=edge_prop_types,
             node_filter=node_filter, edge_filter=edge_filter)
 
     class ProcessorException(BlueGraphException):

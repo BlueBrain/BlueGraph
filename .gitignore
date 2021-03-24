@@ -10,6 +10,7 @@ docs/_build/
 *_edge_list.pkl
 *_node_list.pkl
 examples/data/cooccurrence_graph.json
+examples/data/literature_comention.json
 examples/data/gephi*
 examples/data/attri2vec_test_model.zip
 cord19kg/examples/data/Glucose_risk_3000_papers.csv

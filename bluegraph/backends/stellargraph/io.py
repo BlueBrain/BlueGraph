@@ -60,7 +60,8 @@ def pgframe_to_stellargraph(pgframe, directed=True, include_type=False,
     return graph
 
 
-def stellargraph_to_pgframe(sg_object):
+def stellargraph_to_pgframe(sg_object, node_prop_types=None,
+                            edge_prop_types=None):
     # Create nodes data frame
     node_dicts = []
     node_ids = sg_object.nodes()
@@ -94,4 +95,6 @@ def stellargraph_to_pgframe(sg_object):
         )
     ]
     edges = pd.DataFrame(edge_dicts).set_index(["@source_id", "@target_id"])
-    return PandasPGFrame.from_frames(nodes=nodes, edges=edges)
+    return PandasPGFrame.from_frames(
+        nodes=nodes, edges=edges, node_prop_types=node_prop_types,
+        edge_prop_types=edge_prop_types)

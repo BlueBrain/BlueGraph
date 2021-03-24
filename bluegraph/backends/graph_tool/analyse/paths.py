@@ -37,8 +37,8 @@ class GTPathFinder(GTGraphProcessor, PathFinder):
 
     def get_distance(self, source, target, distance):
         """Get distance value between source and target."""
-        return self.graph.ep[distance][
-            _get_edge_obj(self.graph, source, target)]
+        edge = _get_edge_obj(self.graph, source, target)
+        return self.graph.ep[distance][edge]
 
     def get_subgraph_from_paths(self, paths):
         """Get subgraph induced by a path."""

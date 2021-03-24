@@ -210,9 +210,10 @@ class PathFinder(ABC):
                 all_paths, distance)
 
             if not exclude_edge:
-                s_t_distance = self._get_cumulative_distances(
+                if (source, target) in self.edges():
+                    s_t_distance = self._get_cumulative_distances(
                         [(source, target)], distance)
-                path_ranking.update(s_t_distance)
+                    path_ranking.update(s_t_distance)
 
             paths = top_n(path_ranking, n, smallest=True)
         elif strategy == "yen":

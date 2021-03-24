@@ -117,7 +117,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
 
 
 def neo4j_to_pgframe(uri=None, username=None, password=None,
-                     driver=None, node_label=None, edge_label=None):
+                     driver=None, node_label=None, edge_label=None,
+                     node_prop_types=None, edge_prop_types=None):
     driver = generate_neo4j_driver(uri, username, password, driver)
     # Get nodes and their properties
     query = (
@@ -149,7 +150,9 @@ def neo4j_to_pgframe(uri=None, username=None, password=None,
     edges_frame["@target_id"] = edges_frame["@target_id"].apply(str)
     edges_frame = edges_frame.set_index(["@source_id", "@target_id"])
 
-    return PandasPGFrame.from_frames(nodes=nodes_frame, edges=edges_frame)
+    return PandasPGFrame.from_frames(
+        nodes=nodes_frame, edges=edges_frame,
+        node_prop_types=node_prop_types, edge_prop_types=edge_prop_types)
 
 
 class Neo4jGraphProcessor(GraphProcessor):
@@ -256,9 +259,12 @@ class Neo4jGraphProcessor(GraphProcessor):
     def execute(self, query):
         return execute(self.driver, query)
 
-    def _generate_pgframe(self, node_filter=None, edge_filter=None):
+    def _generate_pgframe(self, node_prop_types=None, edge_prop_types=None,
+                          node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
-        return neo4j_to_pgframe(self.driver, self.node_label, self.edge_label)
+        return neo4j_to_pgframe(
+            self.driver, self.node_label, self.edge_label,
+            node_prop_types=node_prop_types, edge_prop_types=edge_prop_types)
 
     @staticmethod
     def _is_directed(graph):
