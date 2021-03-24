@@ -31,7 +31,10 @@ def heaviest(weight, graph):
 def community_sets_to_dict(communities, nodes):
     partition = {}
     for i, community in enumerate(communities):
-        members = itemgetter(*community)(nodes)
+        try:
+            members = itemgetter(*community)(nodes)
+        except:
+            members = community
         try:
             len(members)
         except TypeError:
@@ -84,7 +87,7 @@ class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
     def _run_label_propagation(self, weight=None, **kwargs):
         communities = asyn_lpa_communities(self.graph, weight=weight)
         return community_sets_to_dict(
-            communities, list(self.graph.nodes()))
+            list(communities), list(self.graph.nodes()))
 
     def _compute_modularity(self, partition, weight=None):
         return community_louvain.modularity(
