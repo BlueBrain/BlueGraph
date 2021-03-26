@@ -44,7 +44,8 @@ from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
                                      MIN_EDGE_WIDTH,
                                      MAX_EDGE_WIDTH,
                                      LAYOUT_CONFIGS,
-                                     COLORS)
+                                     COLORS,
+                                     CORD19_PROP_TYPES)
 import cord19kg.apps.components as components
 from cord19kg.apps.app_utils import (save_run,
                                      merge_cyto_elements,
@@ -622,10 +623,17 @@ class VisualizationApp(object):
         for g in graph_list:
             if g in self._graphs:
                 graphs[g] = {}
-                graphs[g]["graph"] = self._graphs[g]["object"]
+                processor = self._graph_processor.from_graph_object(
+                    self._graphs[g]["object"])
+                graphs[g]["graph"] = processor.get_pgframe(
+                    node_prop_types=CORD19_PROP_TYPES["nodes"],
+                    edge_prop_types=CORD19_PROP_TYPES["edges"]).to_json()
                 if "full_tree" in self._graphs[g]:
-                    graphs[g]["tree"] = self._graphs[g]["full_tree"]
-
+                    tree_processor = self._graph_processor.from_graph_object(
+                        self._graphs[g]["full_tree"])
+                    graphs[g]["tree"] = tree_processor.get_pgframe(
+                        node_prop_types=CORD19_PROP_TYPES["nodes"],
+                        edge_prop_types=CORD19_PROP_TYPES["edges"]).to_json()
         return graphs
 
     def get_edit_history(self):

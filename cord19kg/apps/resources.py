@@ -257,3 +257,23 @@ LAYOUT_CONFIGS = {
     "cose-bilkent": COSE_BILKENT_CONFIG,
     "cola": COLA_CONFIG
 }
+
+CORD19_PROP_TYPES = {
+    "nodes": {
+        '@type': 'category',
+        'paper': 'category',
+        'paper_frequency': 'numeric',
+        'entity_type': 'category',
+        'degree_frequency': 'numeric',
+        'pagerank_frequency': 'numeric',
+        'paragraph_frequency': 'numeric',
+        'community_frequency': 'numeric',
+        'community_npmi': 'numeric'
+    },
+    "edges": {
+        'frequency': 'numeric',
+        'ppmi': 'numeric',
+        'npmi': 'numeric',
+        'distance_npmi': 'numeric'
+    }
+}

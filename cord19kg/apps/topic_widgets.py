@@ -27,7 +27,7 @@ import time
 import tempfile
 
 from kgforge.specializations.resources import Dataset
-
+from bluegraph.core.io import PandasPGFrame
 
 import math
 
@@ -363,8 +363,15 @@ class TopicWidget(object):
 
             # Read the graph objects
             if "graphs" in r.name:
-                with open(f"/tmp/{r.name}", "rb") as f:
-                    self.loaded_graphs = pickle.load(f)
+                with open(f"/tmp/{r.name}", "r") as f:
+                    json_data = json.load(f)
+                    self.loaded_graphs = {}
+                    for g, data in json_data.items():
+                        self.loaded_graphs[g] = {}
+                        self.loaded_graphs[g]["graph"] = PandasPGFrame.from_json(
+                            data["graph"])
+                        self.loaded_graphs[g]["tree"] = PandasPGFrame.from_json(
+                            data["tree"])
                     message += (
                         f"Loaded graph objects '{r.name}' "
                         f"({list(self.loaded_graphs.keys())})\n"
@@ -511,14 +518,14 @@ class DataSaverWidget(object):
 
         if exported_graphs is not None:
             # Save graph objects produced by the app
-            graphs_filename = "{}/graphs_{}.pkl".format(
+            graphs_filename = "{}/graphs_{}.json".format(
                 self.temp_prefix, timestr)
-            with open(graphs_filename, "wb") as f:
-                pickle.dump(exported_graphs, f)
+            with open(graphs_filename, "w") as f:
+                json.dump(exported_graphs, f)
             print("Graph file: ", convert_size(
                 os.path.getsize(graphs_filename)))
             self.dataset.add_distribution(
-                graphs_filename, content_type="application/octet-stream")
+                graphs_filename, content_type="application/json")
 
             # Save app configs
             config_filename = "{}/visualization_session_{}.json".format(

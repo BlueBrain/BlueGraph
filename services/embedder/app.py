@@ -1,11 +1,14 @@
 """Main embedding service app."""
 import json
 import os
+import shutil
+
 # import jwt
 
 from flask import Flask, request
 
 from kgforge.core import KnowledgeGraphForge
+from kgforge.version import __version__
 # from kgforge.specializations.resources import Dataset
 
 from bluegraph.downstream import EmbeddingPipeline
@@ -27,6 +30,8 @@ from bluegraph.core import GraphElementEmbedder
 #         )
 
 #     return match.groups()[0]
+
+print("KGFORGE VERSION: ", __version__)
 
 
 def digest_model_data(model_resource):
@@ -66,7 +71,7 @@ def _retrieve_models():
 
     # Clear the downloads dir
     for f in os.listdir(app.config["DOWNLOAD_DIR"]):
-        os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
+        shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
 
 
 app = Flask(__name__)

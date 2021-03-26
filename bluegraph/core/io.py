@@ -712,7 +712,15 @@ class PandasPGFrame(PGFrame):
 
     @staticmethod
     def _is_numeric_column(frame, prop):
-        return is_numeric_dtype(frame[prop])
+        if not is_numeric_dtype(frame[prop]):
+            try:
+                frame[prop] = frame[prop].apply(float)
+                return True
+            except Exception as e:
+                print(e)
+                return False
+        else:
+            return True
 
     @staticmethod
     def _is_string_column(frame, prop):
