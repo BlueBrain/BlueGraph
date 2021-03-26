@@ -44,12 +44,12 @@ WORKDIR /app
 COPY ./services/embedder /app
 ADD ./bluegraph ./bluegraph
 COPY ./setup.py .
-
+COPY ./requirements.txt .
 # The EXPOSE instruction indicates the ports on which a container 
 # will listen for connections
 # Since Flask apps listen to port 5000  by default, we expose it
 EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
-RUN source /venv/bin/activate && pip install --no-cache-dir .[stellargraph]
+RUN source /venv/bin/activate && pip install -r requirements.txt && pip install --no-cache-dir .[stellargraph]
 ENTRYPOINT source /venv/bin/activate && flask run --host=0.0.0.0

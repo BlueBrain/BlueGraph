@@ -16,6 +16,7 @@ from setuptools import setup, find_packages
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+
 # Get the long description from the README file.
 with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
@@ -46,6 +47,7 @@ setup(
         "gensim",
         "tensorflow"
     ],
+    dependency_links=['http://github.com/user/repo/tarball/master#egg=package-1.0'],
     package_data={
         'cord19kg.apps': [
             'assets/*',

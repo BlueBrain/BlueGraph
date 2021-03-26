@@ -45,6 +45,10 @@ class MetricProcessor(ABC):
         """Get a new pgframe object from the wrapped graph object."""
         pass
 
+    @abstractmethod
+    def density(self):
+        pass
+
     def compute_all_node_metrics(self,
                                  degree_weights=None,
                                  pagerank_weights=None,

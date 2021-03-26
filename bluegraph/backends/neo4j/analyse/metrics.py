@@ -8,13 +8,31 @@ from ..io import Neo4jGraphProcessor, Neo4jGraphView
 class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
     """Class for metric processing based on Neso4j graphs."""
 
+    def density(self):
+        graph_view = self._get_identity_view()
+
+        node_match = graph_view._get_nodes_query(no_return=True)
+        edge_match = graph_view._get_edges_query(single_direction=True, no_return=True)
+        query = (
+            f"""{node_match}
+            WITH count(n) as n_nodes
+            {edge_match}
+            RETURN toFloat(count(r)) / (n_nodes * (n_nodes - 1)) as density
+            """
+        )
+        result = self.execute(query)
+        for record in result:
+            density = record["density"]
+            break
+        if not self.directed:
+            density = density * 2
+        return density
+
     def _run_gdc_query(self, function, metric_name, weight=None,
                        write=False, write_property=None,
                        score_name="score"):
         """Run a query for computing various centrality measures."""
-        graph_view = Neo4jGraphView(
-            self.driver, self.node_label,
-            self.edge_label, directed=self.directed)
+        graph_view = self._get_identity_view()
 
         node_edge_selector = graph_view.get_projection_query(
             weight)

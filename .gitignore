@@ -13,6 +13,8 @@ examples/data/cooccurrence_graph.json
 examples/data/literature_comention.json
 examples/data/gephi*
 examples/data/attri2vec_test_model.zip
+examples/data/nasa.json
+examples/data/nasa_comention.json
 cord19kg/examples/data/Glucose_risk_3000_papers.csv
 cord19kg/examples/data/NCIT_ontology_linking.csv
 cord19kg/examples/data/NCIT_ontology_linking_3000_papers.csv

@@ -5,6 +5,7 @@ import pandas as pd
 
 def normalize_to_set(value):
     if not isinstance(value, set):
+        print(value, type(value))
         if math.isnan(value):
             return set()
         elif isinstance(value, str) or not math.isnan(value):

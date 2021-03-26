@@ -10,9 +10,10 @@ from ..io import GTGraphProcessor
 class GTMetricProcessor(GTGraphProcessor, MetricProcessor):
 
     def density(self):
+        factor = 2 if self.undirected else 1
         return (
             self.graph.num_edges() /
-            ((self.graph.num_vertices() * (self.graph.num_vertices() - 1)) / 2)
+            ((self.graph.num_vertices() * (self.graph.num_vertices() - 1)) / factor)
         )
 
     def degree_centrality(self, weight=None, write=False,

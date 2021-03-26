@@ -75,29 +75,28 @@ class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
 
     def _compute_modularity(self, partition, weight=None):
         partition_repr = "{{ {} }}".format(
-            ", ".join([f"node{k}: {v}" for k, v in partition.items()]))
-        s_degree_clause = (
-            "count(DISTINCT r1)"
-            if weight is None else f"sum(DISTINCT r1.{weight})"
-        )
-        t_degree_clause = (
-            "count(DISTINCT r2)"
-            if weight is None else f"sum(DISTINCT r2.{weight})"
+            ", ".join([
+                "`{}`: {}".format(k, v)
+                for k, v in partition.items()]))
+        degree_clause = (
+            "count(DISTINCT r)"
+            if weight is None else f"sum(DISTINCT r.{weight})"
         )
         s_t_edge_clause = "1" if weight is None else f"r.{weight}"
-
         query = (
             f"""
             WITH {partition_repr} AS partition
-            MATCH (n1:{self.node_label})-[r1:{self.edge_label}]-(:{self.node_label}), 
-                (n2:{self.node_label})-[r2:{self.edge_label}]-(:{self.node_label})
-            WHERE id(n1) < id(n2)
-            OPTIONAL MATCH (n1)-[r:{self.edge_label}]-(n2)
-            WITH n1.id AS s, n2.id AS t, {s_degree_clause} AS s_degree,
-               {t_degree_clause} AS t_degree,
-               CASE WHEN r IS NULL THEN 0 ELSE {s_t_edge_clause} END AS s_t_edge,
-               CASE WHEN partition["node" + n1.id] = partition["node" + n2.id] THEN 1 ELSE 0 END AS s_t_community
-            WITH collect([s, t, s_degree, t_degree, s_t_edge, s_t_community]) AS data, sum(s_t_edge) AS edges
+            MATCH (n:{self.node_label})-[r:{self.edge_label}]-(:{self.node_label})
+            WITH n, {degree_clause} as degree, partition
+            WITH collect([n, degree]) as nodes, partition
+            UNWIND nodes as n1
+            UNWIND nodes as n2
+            WITH n1[0] as n1, n1[1] as n1_degree, n2[0] as n2, n2[1] as n2_degree, partition
+            OPTIONAL MATCH (n1)-[r:CoOccurs]-(n2)
+            WITH n1.id AS s, n2.id AS t, n1_degree as s_degree, n2_degree as t_degree,
+                 CASE WHEN r IS NULL THEN 0 ELSE {s_t_edge_clause} END AS s_t_edge,
+                 CASE WHEN partition[n1.id] = partition[n2.id] THEN 1 ELSE 0 END AS s_t_community
+            WITH collect([s, t, s_degree, t_degree, s_t_edge, s_t_community]) AS data, sum(s_t_edge) / 2 AS edges
             WITH [el IN data WHERE el[5] = 1 | el] AS filtered_data, edges
             WITH edges, [el IN filtered_data | el[4] - toFloat(el[2] * el[3]) / (2 * edges)] AS terms
             UNWIND terms AS term
@@ -112,14 +111,19 @@ class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
         return modularity
 
     def _compute_performance(self, partition, weight=None):
+        partition_repr = "{{ {} }}".format(
+            ", ".join([
+                "`{}`: {}".format(k, v)
+                for k, v in partition.items()]))
         query = (
-            f"""MATCH (n1:{self.node_label}), (n2:{self.node_label})
+            f"""WITH {partition_repr} AS partition
+            MATCH (n1:{self.node_label}), (n2:{self.node_label})
             WHERE id(n1) <= id(n2)
-            WITH n1, n2
+            WITH n1, n2, partition
             OPTIONAL MATCH (n1)-[r:{self.edge_label}]-(n2)
-            WITH collect([n1, n2, r]) as data, collect(DISTINCT n1) as nodes
-            WITH [el IN data WHERE el[0].louvain_community <> el[1].louvain_community AND el[2] IS NULL] as non_interedges,
-                 [el in data WHERE el[0].louvain_community = el[1].louvain_community AND NOT el[2] IS NULL| el] as intraedges,
+            WITH collect([n1, n2, r]) as data, collect(DISTINCT n1) as nodes, partition
+            WITH [el IN data WHERE partition[el[0].id] <> partition[el[1].id] AND el[2] IS NULL] as non_interedges,
+                 [el in data WHERE partition[el[0].id] = partition[el[1].id] AND NOT el[2] IS NULL| el] as intraedges,
                  nodes
             RETURN toFloat(size(intraedges) + size(non_interedges)) / (toFloat(size(nodes) * (size(nodes) - 1)) / 2) as performance
             """
@@ -132,20 +136,24 @@ class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
         return performance
 
     def _compute_coverage(self, partition, weight=None):
+        partition_repr = "{{ {} }}".format(
+            ", ".join([
+                "`{}`: {}".format(k, v)
+                for k, v in partition.items()]))
         if weight is None:
             formula = (
-                "toFloat(size([el in edges WHERE el[1].louvain_community = el[2].louvain_community | el])) / size(edges)"
+                "toFloat(size([el in edges WHERE partition[el[1].id] = partition[el[2].id] | el])) / size(edges)"
             )
         else:
             formula = (
-                "toFloat(reduce(sum = 0, el IN edges "
-                "WHERE el[1].louvain_community = el[2].louvain_community | " +
-                f"sum + el[0].{weight}) / reduce(sum = 0, el IN edges | sum + el[0].{weight})"
+                "toFloat(reduce(sum = 0.0, el IN [el IN edges "
+                "WHERE partition[el[1].id] = partition[el[2].id] | el]| " +
+                f"sum + el[0].{weight})) / reduce(sum = 0.0, el IN edges | sum + properties(el[0]).{weight})"
             )
         query = (
-            f"""
+            f"""WITH {partition_repr} AS partition
             MATCH (n1:{self.node_label})-[r:{self.edge_label}]->(n2:{self.node_label})
-            WITH collect([r, n1, n2]) as edges
+            WITH collect([r, n1, n2]) as edges, partition
             RETURN {formula} as coverage
             """)
         result = self.execute(query)

@@ -86,8 +86,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
         """Compute n shortest paths using the Yen's algo."""
         query = (
             graph._generate_st_match_query(source, target) +
-            graph._generate_path_search_call(
-                source, target,
+            Neo4jPathFinder._generate_path_search_call(
+                graph, source, target,
                 "gds.alpha.kShortestPaths.stream",
                 distance, exclude_edge,
                 extra_params={"k": n}) +

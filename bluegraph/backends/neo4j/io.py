@@ -18,8 +18,10 @@ def execute(driver, query):
 
 def generate_neo4j_driver(uri=None, username=None,
                           password=None, driver=None):
-    if driver is None and uri is not None and\
-       username is not None and password is not None:
+    if driver is not None:
+        return driver
+    elif uri is not None and\
+            username is not None and password is not None:
         driver = GraphDatabase.driver(
             uri, auth=(username, password))
     return driver
@@ -43,11 +45,12 @@ def _generate_property_repr(properties, prop_types=None):
             )
     props = []
     for k, v in properties.items():
-        quote = "'"
-        if prop_types[k] == "numeric":
-            quote = ""
-        props.append("{}: {}{}{}".format(
-            k, quote, preprocess_value(v), quote))
+        if k not in ["@id", "@type"]:
+            quote = "'"
+            if prop_types[k] == "numeric":
+                quote = ""
+            props.append("{}: {}{}{}".format(
+                k, quote, preprocess_value(v), quote))
     return props
 
 
@@ -70,7 +73,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         node_batch = pgframe._nodes.loc[batch]
         node_repr = []
         for index, properties in node_batch.to_dict("index").items():
-            node_dict = ["id: '{}'".format(index)]
+            node_dict = ["id: '{}'".format(index.replace("\'", "\\'"))]
             node_dict += _generate_property_repr(
                 properties, pgframe._node_prop_types)
             node_repr.append("{" + ", ".join(node_dict) + "}")
@@ -92,7 +95,10 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         edge_batch = pgframe._edges.loc[batch]
         edge_repr = []
         for (s, t), properties in edge_batch.to_dict("index").items():
-            edge_dict = [f"source: '{s}'", f"target: '{t}'"]
+            edge_dict = [
+                "source: '{}'".format(s.replace("\'", "\\'")),
+                "target: '{}'".format(t.replace("\'", "\\'"))
+            ]
             edge_props = []
             for k, v in properties.items():
                 quote = "'"
@@ -263,8 +269,11 @@ class Neo4jGraphProcessor(GraphProcessor):
                           node_filter=None, edge_filter=None):
         """Get a new pgframe object from the wrapped graph object."""
         return neo4j_to_pgframe(
-            self.driver, self.node_label, self.edge_label,
-            node_prop_types=node_prop_types, edge_prop_types=edge_prop_types)
+            driver=self.driver,
+            node_label=self.node_label,
+            edge_label=self.edge_label,
+            node_prop_types=node_prop_types,
+            edge_prop_types=edge_prop_types)
 
     @staticmethod
     def _is_directed(graph):
@@ -429,7 +438,12 @@ class Neo4jGraphView(object):
     def execute(self, query):
         return execute(self.driver, query)
 
-    def _get_nodes_query(self, return_ids=False):
+    def _clear(self):
+        node_match = self._get_nodes_query(no_return=True)
+        query = f"{node_match} DETACH DELETE n"
+        self.execute(query)
+
+    def _get_nodes_query(self, return_ids=False, no_return=False):
         nodes_exclude_statement = ""
         if len(self.nodes_to_exclude) > 0:
             nodes_repr = ", ".join([
@@ -441,11 +455,13 @@ class Neo4jGraphView(object):
         if len(nodes_exclude_statement) > 0:
             nodes_exclude_statement =\
                 "WHERE " + nodes_exclude_statement
-
-        if return_ids:
-            return_statement = "RETURN id(n) as id"
+        if no_return:
+            return_statement = ""
         else:
-            return_statement = "RETURN n.id as node_id, properties(n) as node"
+            if return_ids:
+                return_statement = "RETURN id(n) as id"
+            else:
+                return_statement = "RETURN n.id as node_id, properties(n) as node"
 
         node_query = (
             f"MATCH (n:{self.node_label}) {nodes_exclude_statement} " +
@@ -462,7 +478,7 @@ class Neo4jGraphView(object):
         )
 
     def _get_edges_query(self, distance=None, return_ids=False,
-                         single_direction=False):
+                         single_direction=False, no_return=False):
         edges_exclude_statement = ""
         edges_exceptions = []
 
@@ -491,14 +507,17 @@ class Neo4jGraphView(object):
             if distance else ""
         )
 
-        if return_ids:
-            return_statement =\
-                f"RETURN id(n) AS source, id(m) AS target {distance_selector}"
+        if no_return:
+            return_statement = ""
         else:
-            return_statement = (
-                "RETURN n.id as source_id, m.id as target_id, "
-                "properties(r) as edge"
-            )
+            if return_ids:
+                return_statement =\
+                    f"RETURN id(n) AS source, id(m) AS target {distance_selector}"
+            else:
+                return_statement = (
+                    "RETURN n.id as source_id, m.id as target_id, "
+                    "properties(r) as edge"
+                )
 
         arrow = ">" if single_direction else ""
         edge_query = (
@@ -554,6 +573,8 @@ class Neo4jGraphView(object):
 
     def _generate_st_match_query(self, source, target):
         return (
-            f"MATCH (start:{self.node_label} {{id: '{source}'}}), "
-            f"(end:{self.node_label} {{id: '{target}'}})\n"
+            "MATCH (start:{} {{id: '{}'}}), ".format(
+                self.node_label, source.replace("\'", "\\'")) +
+            "(end:{} {{id: '{}'}})\n".format(
+                self.node_label, target.replace("\'", "\\'"))
         )
