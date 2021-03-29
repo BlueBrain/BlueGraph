@@ -123,7 +123,7 @@ Note that the generated networks are highly dense (contain a large number of edg
 Licensing
 ---------
 - Blue Graph is distributed under the Apache 2 license.
-- Included example scripts and notebooks (`BlueGraph/kganalytics/notebooks <https://github.com/BlueBrain/BlueBrainGraph/tree/master/kganalytics/notebooks>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the XLicense.
+- Included example scripts and notebooks (`BlueGraph/examples <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the XLicense.
 - Data files provided in the repository are distributed under the X license.
 
 Aknowledgements
