@@ -732,7 +732,6 @@ class PandasPGFrame(PGFrame):
                 frame[prop] = frame[prop].apply(float)
                 return True
             except Exception as e:
-                print(e)
                 return False
         else:
             return True
