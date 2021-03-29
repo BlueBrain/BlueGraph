@@ -31,8 +31,6 @@ from bluegraph.core import GraphElementEmbedder
 
 #     return match.groups()[0]
 
-print("KGFORGE VERSION: ", __version__)
-
 
 def digest_model_data(model_resource):
     """Digest model meta-data."""
@@ -71,7 +69,10 @@ def _retrieve_models():
 
     # Clear the downloads dir
     for f in os.listdir(app.config["DOWNLOAD_DIR"]):
-        shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
+        try:
+            os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
+        except:
+            shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
 
 
 app = Flask(__name__)

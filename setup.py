@@ -61,6 +61,7 @@ setup(
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
             "pytest-mock==3.3.1", "codecov"
         ],
+        "docs": ["sphinx", "sphinx-bluebrain-theme"],
         "cord19kg": [
             "jupyter_dash",
             "dash_bootstrap_components",
@@ -71,18 +72,32 @@ setup(
             "pyjwt==1.7.1",
             "ipywidgets"
         ],
-        "docs": ["sphinx", "sphinx-bluebrain-theme"],
         "networkx": [
             "networkx",
             "python-louvain"
         ],
-        "graph_tool": [
+        "graph-tool": [
             "graph-tool"
         ],
         "neo4j": [
             "neo4j"
         ],
         "stellargraph": [
+            "stellargraph"
+        ],
+        "all": [
+            "jupyter_dash",
+            "dash_bootstrap_components",
+            "dash_daq",
+            "dash_extensions",
+            "dash_cytoscape",
+            "nexus-sdk",
+            "pyjwt==1.7.1",
+            "ipywidgets",
+            "networkx",
+            "python-louvain",
+            "graph-tool",
+            "neo4j",
             "stellargraph"
         ]
     },
