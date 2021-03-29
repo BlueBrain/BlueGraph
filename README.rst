@@ -120,6 +120,11 @@ Finally, the :code:`generate_10000_network.py` `script <https://github.com/BlueB
 
 Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
 
+Licensing
+---------
+- Blue Graph is distributed under the Apache 2 license.
+- Included example scripts and notebooks (`BlueGraph/kganalytics/notebooks <https://github.com/BlueBrain/BlueBrainGraph/tree/master/kganalytics/notebooks>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the XLicense.
+- Data files provided in the repository are distributed under the X license.
 
 Aknowledgements
 ---------------
