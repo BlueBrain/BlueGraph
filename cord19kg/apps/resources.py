@@ -77,48 +77,17 @@ COLORS = {
     "9": "#adbce9",
     "10": "#b3edd5",
     "11": "#8dc3b8",
-#     "CHEMICAL": "#72d5de",
-#     "PROTEIN": "#ebaba7",
-#     "DISEASE": "#79ddcb",
-#     "CELL_TYPE": "#deb1e0",
-#     "PATHWAY": "#bcdfa4",
-#     "CELL_COMPARTMENT": "#74aff3",
-#     "DRUG": "#dbcd9d",
-#     "Biomarkers": "#7cccee",
-#     "Condition": "#91c79f",
-#     "ORGAN": "#adbce9",
-#     "ORGANISM": "#b3edd5",
-#     "GENE": "#8dc3b8",
-#     0: "#74aff3",
-#     1: "#ebaba7",
-#     2: "#bcdfa4",
-#     3: "#72d5de",
-#     4: "#79ddcb",
-#     5: "#deb1e0",
-#     6: "#dbcd9d",
-#     7: "#7cccee",
-#     8: "#91c79f",
-#     9: "#adbce9",
-#     10: "#b3edd5",
-#     11: "#8dc3b8",
 }
 
 
 CYTOSCAPE_STYLE_STYLESHEET = [
-#     {
-#         "selector":'cy',
-#         "style": {
-#             "width": "100%",
-#             "height": "100%"
-#         }
-#     },  
     {
         "selector": 'node',
         'style': {
             "opacity": 1,
             "text-valign": "center",
             "text-halign": "center",
-            "label":"data(name)",
+            "label": "data(name)",
             "overlay-padding": "6px",
             "z-index": "10",
         }
@@ -232,7 +201,7 @@ COLA_CONFIG = {
 
 COSE_CONFIG = {
     'name': "cose",
-    'showlegend':True,
+    'showlegend': True,
     'idealEdgeLength': 100,
     'nodeOverlap': 0,
     'refresh': 20,

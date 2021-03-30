@@ -178,7 +178,8 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
         ]
         sizes = generate_sizes(min_size, max_size, all_values)
         if min_font_size and max_font_size:
-            font_sizes = generate_sizes(min_font_size, max_font_size, all_values)
+            font_sizes = generate_sizes(
+                min_font_size, max_font_size, all_values)
 
         j = 0
         for i in range(len(cyto_repr)):
@@ -588,6 +589,18 @@ class VisualizationApp(object):
         a paper's meta-data.
         """
         self._list_papers_callback = func
+
+    def set_aggregated_entities_callback(self, func):
+        """Set the aggegated entities lookup callback.
+
+        This function will be called when the user requests
+        to see a set of raw entities associated with a selected
+        node. The visualization app will pass the selected entity
+        to this function. The function is expected to return a
+        dictionary whose keys are raw entities and whose values
+        are their occurrence frequencies.
+        """
+        self._aggregated_entities_callback = func
 
     def set_aggregated_entities_callback(self, func):
         """Set the aggegated entities lookup callback.
@@ -2001,9 +2014,9 @@ def generate_stylesheet(elements,
             "selector": 'node',
             'style': {
                 "shape": node_shape,
-                'width':'data(' + node_freq_type + '_size)',
-                'height':'data(' + node_freq_type + '_size)',
-                'font-size':'data(' + node_freq_type + '_font_size)'
+                'width': 'data(' + node_freq_type + '_size)',
+                'height': 'data(' + node_freq_type + '_size)',
+                'font-size': 'data(' + node_freq_type + '_font_size)'
             }
 
         })
@@ -2033,12 +2046,7 @@ def generate_stylesheet(elements,
                     "opacity": 1
                 }
             })
-#         stylesheet.append({
-#             "selector": '[type = "cluster"]',
-#             "style": {
-#                 "opacity": 0.2,
-#             },
-#         })
+
     if edge_freq_type:
         stylesheet = [
             style

@@ -716,7 +716,6 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
             graph.export_json("{}_{}_graph.json".format(graph_dump_prefix, f))
             tree_pgframe.export_json(
                 "{}_{}_tree.json".format(graph_dump_prefix, f))
-
     return graphs, trees
 
 
@@ -941,7 +940,6 @@ def build_cytoscape_data(graph_processor, positions=None):
 
 #     return elements
 
-
 def most_common(x):
     c = Counter(x)
     return c.most_common(1)[0][0]
@@ -960,7 +958,6 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
-
 
 def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
                 attrs_to_ignore=None):

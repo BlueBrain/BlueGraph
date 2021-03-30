@@ -19,6 +19,7 @@ import os
 import base64
 import traceback
 import pandas as pd
+import numpy as np
 
 from operator import (lt, le, eq, ne, ge, gt)
 
@@ -117,19 +118,19 @@ class CurationApp(object):
         button_group = dbc.ButtonGroup(
             [
                 dcc.Upload(
-                        id='datatable-upload',
-                        children=html.Div([
-                            dbc.Button(
-                                "Load a CSV File",
-                                color="primary", className="mr-1",
-                                id="load_file"),
-                            dbc.Tooltip(
-                                "Load extracted entities in CSV format",
-                                target="load_file",
-                                placement="bottom",
-                            )
-                        ]),
-                        className="mr-1"
+                    id='datatable-upload',
+                    children=html.Div([
+                        dbc.Button(
+                            "Load a CSV File",
+                            color="primary", className="mr-1",
+                            id="load_file"),
+                        dbc.Tooltip(
+                            "Load extracted entities in CSV format",
+                            target="load_file",
+                            placement="bottom",
+                        )
+                    ]),
+                    className="mr-1"
                 )
             ],
             className="mr-1"
@@ -220,7 +221,8 @@ class CurationApp(object):
                     className="mr-1"
                 ),
                 dbc.Tooltip(
-                    "The Co-mention graphs will be generate from the top n most frequent entities",
+                    "The Co-mention graphs will be generate from the top n "
+                    "most frequent entities",
                     target="top_n_frequent_entity",
                     placement="bottom",
                 ),
@@ -246,14 +248,14 @@ class CurationApp(object):
             inline=True)
 
         self.dropdown = dcc.Dropdown(
-                id="term_filters",
-                multi=True,
-                value=self._terms_to_include,
-                style={
-                     "width": "80%"
-                },
-                placeholder="Search for entities to keep"
-            )
+            id="term_filters",
+            multi=True,
+            value=self._terms_to_include,
+            style={
+                "width": "80%"
+            },
+            placeholder="Search for entities to keep"
+        )
         term_filters = dbc.InputGroup(
             [
                 dbc.InputGroupAddon("Keep", addon_type="prepend"),
@@ -417,10 +419,16 @@ class CurationApp(object):
         if multi_type.any():
             table["entity_type"] = table["entity_type"].apply(
                 lambda x: assign_raw_type(x.split(",")))
+        if "aggregated_entities" not in table.columns:
+            table["aggregated_entities"] = np.nan
+        if "uid" not in table.columns:
+            table["uid"] = np.nan
+        if "definition" not in table.columns:
+            table["definition"] = np.nan
 
         return table[[
             "paper", "section", "paragraph",
-            "aggregated_entities", "uid",  "definition",
+            "aggregated_entities", "uid", "definition",
             "paper_frequency", "entity_type"]]
 
     def get_terms_to_include(self):
@@ -527,7 +535,8 @@ def reset(reset, link, entityfreq, freqoperator):
 
 def get_freq(row, operator, filter_value, term_filters):
     return eval(operator)(
-        row.paper_frequency, int(filter_value)) or str(row['entity']).lower() in term_filters
+        row.paper_frequency,
+        int(filter_value)) or str(row['entity']).lower() in term_filters
 
 
 @curation_app._app.callback(
@@ -622,7 +631,8 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
             for row in derived_viewport_data:
                 if row["entity"] not in named_data_rows.keys() and str(
                         row["entity"]).lower() not in term_filters:
-                    # Was it renamed? find a record with the same aggregated_entities
+                    # Was it renamed? find a record with the same
+                    # aggregated_entities
                     found = False
                     for e, data_row in named_data_rows.items():
                         if data_row["aggregated_entities"] ==\
@@ -699,11 +709,13 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
         if filter_query:
             filtering_expressions = filter_query.split(' && ')
             for filter_part in filtering_expressions:
-                col_name, operator, filter_value = split_filter_part(filter_part)
+                col_name, operator, filter_value = split_filter_part(
+                    filter_part)
 
                 if operator in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
 
-                    dff = dff.loc[getattr(dff[col_name], operator)(filter_value)]
+                    dff = dff.loc[getattr(dff[col_name], operator)(
+                        filter_value)]
                 elif operator == 'contains':
                     dff = dff.loc[dff[col_name].str.contains(filter_value)]
                 elif operator == 'datestartswith':
@@ -723,7 +735,7 @@ def update_output(page_size, page_current, ts, upload, entityfreq,
             result_sorted = dff
 
         result_paginated = result_sorted.iloc[
-            page_current * page_size:(page_current + 1)*page_size
+            page_current * page_size:(page_current + 1) * page_size
         ]
 
         page_count = len(result_sorted) // page_size
@@ -760,4 +772,5 @@ def display_graph(dts, rows):
 )
 def set_n_most_frequent(topnentityslider_value):
     curation_app.n_most_frequent = topnentityslider_value
-    return f"Generate Graphs from top {topnentityslider_value} frequent entities"
+    return "Generate Graphs from top {} frequent entities".format(
+        topnentityslider_value)

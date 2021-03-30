@@ -58,7 +58,6 @@ class TopicWidget(object):
             Nexus forge object
         token : str
             Nexus authorization token
-
         """
         self.forge = forge
         self.agent_username = jwt.decode(
@@ -177,7 +176,8 @@ class TopicWidget(object):
         outputs = ipywidgets.HBox(
             children=[self._select_topic_output, self._load_dataset_output])
         tab1 = ipywidgets.VBox(children=[buttons, outputs])
-        tab2 = ipywidgets.VBox(children=self._topic_form_elements[1:5] + [
+        tab2 = ipywidgets.VBox(
+            children=self._topic_form_elements[1:5] + [
                 ipywidgets.Label(
                     'Please express your research topic in a few questions:')
             ] + self._topic_form_elements[5:10] + [self._new_topic_output]
@@ -205,8 +205,9 @@ class TopicWidget(object):
             'field': self._widget.children[1].children[1].value,
             'description': self._widget.children[1].children[2].value,
             'keywords': self._widget.children[1].children[3].value,
-            'question':  [
-                self._widget.children[1].children[i].value for i in range(5, 9)]
+            'question': [
+                self._widget.children[1].children[i].value
+                for i in range(5, 9)]
         }
         self._topic_resource = self.forge.from_json(topic_to_save)
         self.forge.register(self._topic_resource)

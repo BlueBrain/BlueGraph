@@ -27,7 +27,6 @@ with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
 setup(
     name="bluegraph",
     author="Blue Brain Project, EPFL",
-    version="0.2.0",
     use_scm_version={
         "write_to": "bluegraph/version.py",
         "write_to_template": "__version__ = '{version}'\n",
@@ -39,8 +38,11 @@ setup(
     url="https://github.com/BlueBrain/BlueBrainGraph",
     packages=find_packages(),
     python_requires=">=3.6",
+    setup_requires=[
+        "setuptools_scm",
+    ],
     install_requires=[
-        "numpy",
+        "numpy>=1.16.5",
         "pandas",
         "sklearn",
         "scipy",
@@ -50,7 +52,6 @@ setup(
         "gensim",
         "tensorflow"
     ],
-    dependency_links=['http://github.com/user/repo/tarball/master#egg=package-1.0'],
     package_data={
         'cord19kg.apps': [
             'assets/*',
@@ -71,6 +72,7 @@ setup(
             "dash_daq",
             "dash_extensions",
             "dash_cytoscape",
+            "nexusforge",
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"

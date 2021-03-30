@@ -6,6 +6,7 @@ Blue Graph
 
 Unifying Python framework for graph analytics and co-occurrence analysis.
 
+
 About
 -----
 
@@ -60,6 +61,7 @@ The `cord19kg` package contains a set of tools for interactive exploration and a
 
 Collects services included as a part of BlueGraph. Currently, only a mini-service for retrieving embedding vectors and similarity computation is included as a part of this repository (see embedder service specific `README <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/services/embedder>`_).
 
+
 Installation
 ------------
 
@@ -106,8 +108,8 @@ To get familiar with the ideas behind the co-occurrence analysis and the graph a
 Finally, `Create and push embedding pipeline into Nexus.ipynb <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/Create%20and%20push%20embedding%20pipeline%20into%20Nexus.ipynb>`_ illustrates how embedding pipelines can be created and pushed to `Nexus <https://bluebrainnexus.io/>`_ and
 `Embedding service API <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/services/embedder/examples/notebooks/Embedding%20service%20API.ipynb>`_ shows how embedding service that retrieves the embedding pipelines from Nexus can be used.
 
-cord19kg examples
-^^^^^^^^^^^^^^^^^
+Getting started with cord19kg
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The :code:`cord19kg` packages provides `examples <https://github.com/BlueBrain/BlueBrainGraph/tree/refactoring/cord19kg/examples>`_ of CORD-19-specific co-occurrence analysis. 
 
 We recommend starting from the `Co-occurrence analysis tutorial <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/notebooks/Co-occurrence%20analysis%20tutorial.ipynb>`_ notebook providing a simple starting example.
@@ -133,3 +135,5 @@ This project has received funding from the EPFL Blue Brain Project (funded by th
 
 .. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueBrainGraph.svg?branch=master
     :target: https://travis-ci.com/BlueBrain/BlueBrainGraph
+
+COPYRIGHT 2020–2021, Blue Brain Project/EPFL
