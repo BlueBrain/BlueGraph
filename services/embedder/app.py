@@ -13,6 +13,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+
 """Main embedding service app."""
 import json
 import os
@@ -23,7 +24,6 @@ import shutil
 from flask import Flask, request
 
 from kgforge.core import KnowledgeGraphForge
-from kgforge.version import __version__
 # from kgforge.specializations.resources import Dataset
 
 from bluegraph.downstream import EmbeddingPipeline
@@ -214,14 +214,12 @@ def _respond_not_found(message=None):
     )
 
 
-@app.route("/model/", methods=["GET"])  # , "GET", "DELETE"])
-def handle_model_request():
+@app.route("/model/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
+def handle_model_request(model_name):
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
 
-    model_name = request.args.get("name")
-    # if request.method == "GET":
     if model_name in app.models:
         return (
             json.dumps(app.models[model_name]["data"]), 200,
@@ -279,14 +277,13 @@ def handle_models_request():
     #     return _respond_success()
 
 
-@app.route("/model/embeddings/")
-def handle_embeddings_request():
+@app.route("/model/<model_name>/embeddings/")
+def handle_embeddings_request(model_name):
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
 
     params = request.args.to_dict(flat=False)
-    model_name = request.args.get("name")
     indices = params["resource_ids"]
     # model_resource = retrieve_model_resource(
     #     forge, model_name, download=True)
@@ -301,14 +298,13 @@ def handle_embeddings_request():
         return _respond_not_found()
 
 
-@app.route("/model/similar-points/")
-def handle_similar_points_request():
+@app.route("/model/<model_name>/similar-points/")
+def handle_similar_points_request(model_name):
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
 
     params = request.args.to_dict(flat=False)
-    model_name = request.args.get("name")
     indices = params["resource_ids"]
     k = int(params["k"][0])
     values = (
@@ -347,13 +343,12 @@ def handle_similar_points_request():
         return _respond_not_found()
 
 
-@app.route("/model/details/<component_name>/")
-def handle_preprocessor_info_request(component_name):
+@app.route("/model/<model_name>/details/<component_name>/")
+def handle_preprocessor_info_request(model_name, component_name):
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
 
-    model_name = request.args.get("name")
     # model_resource = retrieve_model_resource(
     #     forge, model_name, download=True)
     if model_name in app.models:

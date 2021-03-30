@@ -1,0 +1,141 @@
+openapi: 3.0.0
+
+info:
+  title: BlueBrainEmbedder API
+  description: Embedding service for Blue Brain Nexus.
+  version: 0.0.1
+
+servers:
+  - url: http://127.0.0.1/
+    port:
+        enum:
+          - '5000'
+        default: '5000'
+
+paths:
+  /models:
+    get:
+      summary: Retrieve all the models from the catalogue.
+      responses:
+        '200':
+          description: A JSON object with the meta-data of existing models.
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties: 
+                  models:
+                    type: array
+                    items: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      created:
+                        type: string
+                      modified:
+                        type: string
+                      distribution:
+                        type: string
+ 
+  /model/{model_name}:
+    get:
+      summary: Get an embedding model from the catalogue by name.
+      responses:
+        '200':
+          description: A JSON object with the model's meta-data.
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties: 
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  created:
+                    type: string
+                  modified:
+                    type: string
+                  distribution:
+                    type: string
+
+        '404'
+          description: Is returned when the model does not exist.
+
+  /model/{model_name}/details/{component}:
+    get:
+      summary: Get details on the embedding model component. Component values can be
+        "preprocessor", "embedder", "similarity-processor"
+      responses:
+        '200':
+          description: Respond with the JSON representation of the requested details
+        '404':
+          description: Returned when the requested model does not exist.
+
+  /model/{model_name}/embeddings:
+    get:
+      summary: Retrieve the embedding vectors of the specified resources.
+      parameters:
+        - in: query
+          name: resource_ids
+          description: List of resource ids whose embeddings to retrieve.
+          type: array
+          items:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Respond with the JSON representation of the requested embeddings,
+            in this representation the embeddings are given by a dictionary whose keys
+            are resource ids and whose values are embedding vectors.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  embeddings:
+                    type: object
+        '404':
+          description: Returned when the embeddings of the requested resources do not exist
+            (typically when the embedding model does not exist).
+
+  /model/{model_name}/similar-points:
+    get:
+      parameters:
+        - in: query
+          name: resource_ids
+          description: List of resource ids whose nearest neighbors to retrieve.
+          type: array
+          items:
+            type: string
+          required: true
+        - in: query
+          name: k
+          description: Number of the most similar entities to retrieve.
+          type: integer
+          required: true
+        - in: query
+          name: values
+          description: Flag indicating if similarity measure values should be returned
+            (false by default).
+          type: boolean
+          required: false
+      responses:
+        '200':
+          description: If similar entities where successfully found, return an object, whose
+            keys are requested resource ids and whose values are similar points (with their
+            similarity measure, if requested)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  similar_points:
+                    type: object
+
+
+
+
+  
