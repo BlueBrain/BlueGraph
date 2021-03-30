@@ -41,7 +41,7 @@ BlueGraph's API is built upon 4 main packages:
 
 Main components of BlueGraph's API are illustrated in the following diagram:
 
-.. image:: assets/README_BlueGraph_components.png
+.. image:: ../../examples/figures/README_BlueGraph_components.png
   :width: 650
   :alt: BlueGraph components
 

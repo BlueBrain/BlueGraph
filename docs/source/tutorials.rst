@@ -4,5 +4,5 @@ Tutorials
 .. toctree::
    :hidden:
 
-   getting_started
-   visualization_app_guide
+   bluegraph_tutorials
+   cord19kg_tutorials

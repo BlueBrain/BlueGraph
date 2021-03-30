@@ -445,6 +445,7 @@ class VisualizationApp(object):
         return self._configs
 
     def set_backend(self, backend):
+        """Set graph processing backend (currently, 'networkx' or 'graph_tool')."""
         if backend not in ["networkx", "graph_tool"]:
             raise ValueError(
                 "Unknown backend '{}', available backends: ".format(backend) +

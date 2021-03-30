@@ -13,6 +13,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+
 import itertools
 from operator import itemgetter
 from functools import partial
@@ -59,7 +60,20 @@ def community_sets_to_dict(communities, nodes):
 
 
 class NXCommunityDetector(NXGraphProcessor, CommunityDetector):
-    """NetworkX-based community detection interface."""
+    """NetworkX-based community detection interface.
+
+    Currently supported community detection strategies for NetworkX:
+
+    - Louvain algorithm (`strategy="louvain"`)
+    - Girvan–Newman algorithm (`strategy="girvan-newman"`)
+    - Label propagation (`strategy="lpa"`)
+    - Hierarchical clustering (`strategy="hierarchical"`)
+
+    References
+    ----------
+    https://networkx.org/documentation/stable/reference/algorithms/community.html
+
+    """
 
     def _run_louvain(self, weight=None, **kwargs):
         """Detect node communities using Louvain algo."""

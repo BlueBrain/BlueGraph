@@ -20,16 +20,33 @@ from sklearn.cluster import AgglomerativeClustering
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
-# Algos to support
-# - Hierarchical clustering (backend-independent)
-# - Girvan–Newman algorithm
-# - Modulatity maximization (Louvain / RenEEL)
-# - Statistical inference (stochastic block model)
-# - Label propagation
-
-
 class CommunityDetector(ABC):
-    """Abstract class for a community detector."""
+    """Abstract class for a community detector.
+
+    This class provides a simple interface for detecting communities
+    of densely connected nodes and evaluating community partitions.
+
+    Currently supported community detection strategies (methods
+    not currently implemented by specific backends return `PartitionError`):
+
+    - Louvain algorithm (`strategy="louvain"`)
+    - Girvan–Newman algorithm (`strategy="girvan-newman"`)
+    - Statistical inference (`strategy="sbm"`)
+    - Label propagation (`strategy="lpa"`)
+    - Hierarchical clustering (`strategy="hierarchical"`)
+
+    Metrics for evaluation of partitions:
+
+    - Modularity
+    - Performance
+    - Coverage
+
+    References
+    ----------
+
+    - Fortunato, Santo. "Community detection in graphs." Physics reports 486.3-5 (2010): 75-174.
+    - https://graph-tool.skewed.de/static/doc/demos/inference/inference.html
+    """
 
     _strategies = {
         "louvain": "_run_louvain",

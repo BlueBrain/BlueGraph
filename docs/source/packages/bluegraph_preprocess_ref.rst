@@ -1,7 +1,7 @@
 .. _bluegraph_preprocess_ref:
 
 `bluegraph.preprocess` package
---------------------
+------------------------------
 
 Semantic encoding
 ^^^^^^^^^^^^^^^^^

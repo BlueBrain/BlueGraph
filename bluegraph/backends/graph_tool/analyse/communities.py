@@ -24,7 +24,18 @@ from ..io import GTGraphProcessor
 class GTCommunityDetector(GTGraphProcessor, CommunityDetector):
     """Graph-tool-based community detection interface.
 
-    https://graph-tool.skewed.de/static/doc/demos/inference/inference.html
+    This class provides a simple interface for detecting communities
+    of densely connected nodes and evaluating community partitions.
+
+    Currently supported community detection strategies for 'graph-tool':
+
+    - Statistical inference (`strategy="sbm"`)
+    - Hierarchical clustering (`strategy="hierarchical"`)
+
+    References
+    ----------
+
+    - https://graph-tool.skewed.de/static/doc/demos/inference/inference.html
     """
     def _run_louvain(self, **kwargs):
         raise CommunityDetector.PartitionError(

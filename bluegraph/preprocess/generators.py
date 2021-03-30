@@ -158,7 +158,6 @@ class CooccurrenceGenerator(object):
     and computes a set of statistics (frequency, PPMI, NPMI) quantifying
     their co-occurrence relationships.
 
-    TODO: does it need to be a class (?) Can we just make two utils (?)
     """
 
     def __init__(self, pgframe):

@@ -1054,8 +1054,10 @@ class PandasPGFrame(PGFrame):
         self._nodes = self._nodes.loc[~self._nodes.index.isin(isolates)]
 
     def to_json(self):
-        nodes_json = self._nodes.reset_index().to_json(orient="records")
-        edges_json = self._edges.reset_index().to_json(orient="records")
+        nodes_json = self._nodes.reset_index().to_dict(
+            orient="records")
+        edges_json = self._edges.reset_index().to_dict(
+            orient="records")
         return {
             "nodes": nodes_json,
             "edges": edges_json,
@@ -1066,8 +1068,8 @@ class PandasPGFrame(PGFrame):
     @classmethod
     def from_json(cls, json_data):
         frame = cls()
-        frame._nodes = pd.read_json(json_data["nodes"]).set_index("@id")
-        frame._edges = pd.read_json(json_data["edges"]).set_index(
+        frame._nodes = pd.DataFrame(json_data["nodes"]).set_index("@id")
+        frame._edges = pd.DataFrame(json_data["edges"]).set_index(
             ["@source_id", "@target_id"])
         frame._node_prop_types = json_data["node_property_types"]
         frame._edge_prop_types = json_data["edge_property_types"]
@@ -1097,7 +1099,9 @@ class GraphProcessor(ABC):
     """Abstract class for a graph processor.
 
     The provided interface allows to convert PGFrames
-    into backend-specific graph objects and vice versa.
+    into backend-specific graph objects and vice versa. It also allows
+    to access nodes/edges and properties of backend-specific graph objects
+    through its interface.
     """
 
     def __init__(self, pgframe=None, directed=True):

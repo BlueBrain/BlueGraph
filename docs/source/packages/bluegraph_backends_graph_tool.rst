@@ -21,7 +21,7 @@ Path search
 
 
 Community Detection
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: bluegraph.backends.graph_tool.analyse.communities
 	:members:

@@ -21,7 +21,7 @@ Path search
 
 
 Community Detection
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: bluegraph.backends.neo4j.analyse.communities
 	:members:

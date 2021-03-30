@@ -1,7 +1,7 @@
 .. _bluegraph_core_analyse_ref:
 
 `bluegraph.core.analyse` package
----------------------------
+--------------------------------
 
 Reference page for the `bluegraph.core.analyse` package.
 
@@ -21,7 +21,7 @@ Path search
 
 
 Community Detection
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: bluegraph.core.analyse.communities
 	:members:
