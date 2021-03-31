@@ -26,3 +26,5 @@ cord19kg/examples/data/output_graphs/*
 __MACOSX/
 *.zip
 .tox/
+.eggs
+bluegraph/version.py
