@@ -72,6 +72,9 @@ If you want to use `graph-tool` as a backend, you need to manually install the l
 The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided.
 
 
+Finally, if you want to use the `bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook Faiss library separately. Similarly to `graph-tool`, it is not a pure Python library and it cannot be simply installed by running `pip install`. Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (`conda` and `conda-forge` installation available).
+
+
 Development version supporting all the backends can be installed from the source by cloning the current repository, i.e. running the following commands:
 ::
 
