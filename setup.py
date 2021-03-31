@@ -35,7 +35,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/x-rst",
     keywords="framework knowledge graph data science",
-    url="https://github.com/BlueBrain/BlueBrainGraph",
+    url="https://github.com/BlueBrain/BlueGraph",
     packages=find_packages(),
     python_requires=">=3.6",
     setup_requires=[
