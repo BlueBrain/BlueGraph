@@ -2705,25 +2705,25 @@ to the PageRank of nodes and edge thickness to the NPMI values.
 
 **Full network**
 
-.. image:: ../../../examples/notebooks/figures/literature/full_network.png
+.. image:: ../../../../examples/notebooks/figures/literature/full_network.png
   :width: 250
   :alt: Full network
 
 **Community “Symptoms and comorbidities”**
 
-.. image:: ../../../examples/notebooks/figures/literature/covid_19_comorbidities.png
+.. image:: ../../../../examples/notebooks/figures/literature/covid_19_comorbidities.png
   :width: 250
   :alt: Symptoms and comorbidities
 
 **Community “Viral biology”**
 
-.. image:: ../../../examples/notebooks/figures/literature/virus.png
+.. image:: ../../../../examples/notebooks/figures/literature/virus.png
   :width: 250
   :alt: Viral biology
 
 **Community “Immunity”**
 
-.. image:: ../../../examples/notebooks/figures/literature/immunity.png
+.. image:: ../../../../examples/notebooks/figures/literature/immunity.png
   :width: 250
   :alt: “Immunity”
 
@@ -2783,13 +2783,13 @@ edge thickness to the NPMI values.
 
 **Full network**
 
-.. image:: ../../../examples/notebooks/figures/literature/tree.png
+.. image:: ../../../../examples/notebooks/figures/literature/tree.png
   :width: 250
   :alt: Full network
 
 **Zoom into “covid-19”**
 
-.. image:: ../../../examples/notebooks/figures/literature/tree_covid-19.png
+.. image:: ../../../../examples/notebooks/figures/literature/tree_covid-19.png
   :width: 500
   :alt: covid-19
 
@@ -3078,6 +3078,6 @@ edges discovered during our nested path search.
 
 The resulting example graph visualized with Gephi
 
-.. image:: ../../../examples/notebooks/figures/literature/path_graph_example.png
+.. image:: ../../../../examples/notebooks/figures/literature/path_graph_example.png
   :width: 700
   :alt: Nested path search

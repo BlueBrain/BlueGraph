@@ -142,7 +142,8 @@ COPYRIGHT 2020–2021, Blue Brain Project/EPFL
    :hidden:
 
    Home <self>
-   tutorials
+   getting_started
+   tutorials/index
    cord19kg
    api
    contributing

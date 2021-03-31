@@ -997,7 +997,7 @@ frequency of the co-occurrence edges, node sizes are proportional to the
 PageRank of nodes and edge thickness to the NPMI values.
 
 
-.. image:: ../../../examples/notebooks/figures/nasa/full_network.png
+.. image:: ../../../../examples/notebooks/figures/nasa/full_network.png
   :width: 700
   :alt: NASA dataset keywords co-occurrence network
 
@@ -1008,11 +1008,11 @@ the community detection method above
 
 |pic1|  |pic2|
 
-.. |pic1| image:: ../../../examples/notebooks/figures/nasa/celestial_body_cluster.png
+.. |pic1| image:: ../../../../examples/notebooks/figures/nasa/celestial_body_cluster.png
   :width: 200
   :alt: Celestial bodies
 
-.. |pic2| image:: ../../../examples/notebooks/figures/nasa/celestial_body_cluster_zoom.png
+.. |pic2| image:: ../../../../examples/notebooks/figures/nasa/celestial_body_cluster_zoom.png
   :width: 400
   :alt: Celestial bodies zoom
 
@@ -1021,11 +1021,11 @@ the community detection method above
 
 |pic3|  |pic4|
 
-.. |pic3| image:: ../../../examples/notebooks/figures/nasa/earth_science.png
+.. |pic3| image:: ../../../../examples/notebooks/figures/nasa/earth_science.png
   :width: 200
   :alt: Earth science
 
-.. |pic4| image:: ../../../examples/notebooks/figures/nasa/earch_science_zoom.png
+.. |pic4| image:: ../../../../examples/notebooks/figures/nasa/earch_science_zoom.png
   :width: 400
   :alt: Earth science zoom
 
@@ -1034,11 +1034,11 @@ the community detection method above
 
 |pic5|  |pic6|
 
-.. |pic5| image:: ../../../examples/notebooks/figures/nasa/programs_missions.png
+.. |pic5| image:: ../../../../examples/notebooks/figures/nasa/programs_missions.png
   :width: 200
   :alt: Space programs and missions
 
-.. |pic6| image:: ../../../examples/notebooks/figures/nasa/programs_missions_zoom.png
+.. |pic6| image:: ../../../../examples/notebooks/figures/nasa/programs_missions_zoom.png
   :width: 400
   :alt: Space programs and missions zoom
 
@@ -1087,20 +1087,20 @@ Neo4j-based implementation of the ``PathFinder`` interface.
             "npmi": "Weight"
         })
 
-.. image:: ../../../examples/notebooks/figures/nasa/tree.png
+.. image:: ../../../../examples/notebooks/figures/nasa/tree.png
    :alt: Minimum spanning tree
    :width: 300
 
 
 **Zoom Earth Science**
 
-.. image:: ../../../examples/notebooks/figures/nasa/tree_zoom_1.png
+.. image:: ../../../../examples/notebooks/figures/nasa/tree_zoom_1.png
    :alt: Minimum spanning tree
    :width: 300
 
 **Zoom Asteroids**
 
-.. image:: ../../../examples/notebooks/figures/nasa/tree_zoom_2.png
+.. image:: ../../../../examples/notebooks/figures/nasa/tree_zoom_2.png
    :alt: Minimum spanning tree
    :width: 300
 
@@ -1255,13 +1255,13 @@ The resulting graphs visualized with Gephi
 
 **Ecosystems <-> Oceans**
 
-.. image:: ../../../examples/notebooks/figures/nasa/path_graph_ocean.png
+.. image:: ../../../../examples/notebooks/figures/nasa/path_graph_ocean.png
    :alt: Ecosystems/oceans
    :width: 700
 
 **Mission <-> Mars**
 
 
-.. image:: ../../../examples/notebooks/figures/nasa/path_graph_mars.png
+.. image:: ../../../../examples/notebooks/figures/nasa/path_graph_mars.png
    :alt: mission/mars
    :width: 700

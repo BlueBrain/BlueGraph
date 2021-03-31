@@ -1,3 +1,6 @@
+.. _bluegraph_api_ref:
+
+
 BlueGraph API
 ================
 
@@ -19,7 +22,8 @@ Main components of BlueGraph's API are illustrated in the following diagram:
 
 
 .. toctree::
-   :hidden:
+   :glob:
+   :titlesonly:
 
    packages/bluegraph_core_ref
    packages/bluegraph_backends_ref
