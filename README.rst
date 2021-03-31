@@ -7,6 +7,11 @@ Blue Graph
 Unifying Python framework for graph analytics and co-occurrence analysis.
 
 
+.. image:: examples/figures/BBP_Blue_Graph_banner.jpg
+  :width: 300
+  :alt: BlueGraph banner
+
+
 About
 -----
 
