@@ -72,7 +72,7 @@ Aknowledgements
 
 This project has received funding from the EPFL Blue Brain Project (funded by the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology).
 
-.. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueGraph.svg?token=3s88bUwYsTAvZzfpm1b7&branch=master
+.. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueGraph.svg?branch=master
     :target: https://travis-ci.com/BlueBrain/BlueGraph
 
 
