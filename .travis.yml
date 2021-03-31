@@ -21,7 +21,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - conda activate test-environment
   - conda install -c conda-forge graph-tool
-  - conda install -c pytorch faiss-gpu
+  - conda install -c pytorch faiss
   - pip install .[dev]
 
 script:
