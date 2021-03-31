@@ -129,7 +129,7 @@ class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
             UNWIND nodes as n1
             UNWIND nodes as n2
             WITH n1[0] as n1, n1[1] as n1_degree, n2[0] as n2, n2[1] as n2_degree, partition
-            OPTIONAL MATCH (n1)-[r:CoOccurs]-(n2)
+            OPTIONAL MATCH (n1)-[r:{self.edge_label}]-(n2)
             WITH n1.id AS s, n2.id AS t, n1_degree as s_degree, n2_degree as t_degree,
                  CASE WHEN r IS NULL THEN 0 ELSE {s_t_edge_clause} END AS s_t_edge,
                  CASE WHEN partition[n1.id] = partition[n2.id] THEN 1 ELSE 0 END AS s_t_community

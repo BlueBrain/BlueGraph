@@ -50,6 +50,12 @@ def preprocess_value(v):
     return v
 
 
+def safe_node_id(index):
+    if isinstance(index, str):
+        return index.replace("\'", "\\'")
+    return index
+
+
 def _generate_property_repr(properties, prop_types=None):
     if prop_types is None:
         prop_types = {}
@@ -88,7 +94,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         node_batch = pgframe._nodes.loc[batch]
         node_repr = []
         for index, properties in node_batch.to_dict("index").items():
-            node_dict = ["id: '{}'".format(index.replace("\'", "\\'"))]
+            node_id = safe_node_id(index)
+            node_dict = ["id: '{}'".format(node_id)]
             node_dict += _generate_property_repr(
                 properties, pgframe._node_prop_types)
             node_repr.append("{" + ", ".join(node_dict) + "}")
@@ -111,8 +118,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         edge_repr = []
         for (s, t), properties in edge_batch.to_dict("index").items():
             edge_dict = [
-                "source: '{}'".format(s.replace("\'", "\\'")),
-                "target: '{}'".format(t.replace("\'", "\\'"))
+                "source: '{}'".format(safe_node_id(s)),
+                "target: '{}'".format(safe_node_id(t))
             ]
             edge_props = []
             for k, v in properties.items():
@@ -589,7 +596,7 @@ class Neo4jGraphView(object):
     def _generate_st_match_query(self, source, target):
         return (
             "MATCH (start:{} {{id: '{}'}}), ".format(
-                self.node_label, source.replace("\'", "\\'")) +
+                self.node_label, safe_node_id(source)) +
             "(end:{} {{id: '{}'}})\n".format(
-                self.node_label, target.replace("\'", "\\'"))
+                self.node_label, safe_node_id(target))
         )
