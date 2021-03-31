@@ -63,7 +63,20 @@ setup(
     extras_require={
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
-            "pytest-mock==3.3.1", "codecov"
+            "pytest-mock==3.3.1", "codecov",
+            "jupyter_dash",
+            "dash_bootstrap_components",
+            "dash_daq",
+            "dash_extensions",
+            "dash_cytoscape",
+            "nexus-sdk",
+            "pyjwt==1.7.1",
+            "ipywidgets",
+            "networkx",
+            "python-louvain",
+            "graph-tool",
+            "neo4j",
+            "stellargraph"
         ],
         "docs": ["sphinx", "sphinx-bluebrain-theme"],
         "cord19kg": [
