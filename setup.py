@@ -74,7 +74,6 @@ setup(
             "ipywidgets",
             "networkx",
             "python-louvain",
-            "graph-tool",
             "neo4j",
             "stellargraph"
         ],
@@ -94,9 +93,6 @@ setup(
             "networkx",
             "python-louvain"
         ],
-        "graph-tool": [
-            "graph-tool"
-        ],
         "neo4j": [
             "neo4j"
         ],
@@ -114,7 +110,6 @@ setup(
             "ipywidgets",
             "networkx",
             "python-louvain",
-            "graph-tool",
             "neo4j",
             "stellargraph"
         ]
