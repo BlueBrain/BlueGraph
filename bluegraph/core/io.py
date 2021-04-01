@@ -83,6 +83,10 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
+    def rename_nodes(self, mapping):
+        pass
+
+    @abstractmethod
     def remove_edges(self, edges_to_remove):
         pass
 
@@ -672,6 +676,25 @@ class PandasPGFrame(PGFrame):
 
     def remove_node_properties(self, prop_column):
         self._nodes = self._nodes.drop(columns=[prop_column])
+
+    def rename_nodes(self, mapping):
+        reset_nodes = self._nodes.reset_index()
+        reset_nodes["@id"] = [
+            mapping[el] if el in mapping else el
+            for el in self._nodes.index
+        ]
+        self._nodes = reset_nodes.set_index(
+            ["@id"])
+
+        reset_edges = self._edges.reset_index()
+        reset_edges["@source_id"] = [
+            mapping[s] if s in mapping else s
+            for s, _ in self._edges.index]
+        reset_edges["@target_id"] = [
+            mapping[t] if t in mapping else t
+            for _, t in self._edges.index]
+        self._edges = reset_edges.set_index(
+            ["@source_id", "@target_id"])
 
     def add_edge_properties(self, prop_column, prop_type=None):
         if not isinstance(prop_column, pd.DataFrame):

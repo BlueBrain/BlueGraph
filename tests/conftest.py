@@ -24,6 +24,12 @@ import pandas as pd
 
 import pytest
 
+import nltk
+
+
+nltk.download("punkt")
+nltk.download('words')
+
 
 # Neo4j credentials (should be moved to some config files or env vars)
 NEO4J_URI = "bolt://localhost:7687"
@@ -49,7 +55,7 @@ def generate_targets(nodes, s, density=0.2):
     return edges
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def random_pgframe():
     n_nodes = 50
     density = 0.3
