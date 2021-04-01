@@ -21,9 +21,9 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
-  - conda create --name test-environment -c conda-forge graph-tool python=$TRAVIS_PYTHON_VERSION
+  - conda create --name test-environment -c conda-forge graph-tool faiss-gpu python=$TRAVIS_PYTHON_VERSION
   - conda activate test-environment
-  - conda install -c pytorch faiss-gpu
+  # - conda install -c pytorch faiss
   - pip install .[dev]
 
 services:
