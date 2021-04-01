@@ -136,10 +136,10 @@ Licensing
 - Included example scripts and notebooks (`BlueGraph/examples <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the 3-Clause BSD License.
 - Data files provided in the repository are distributed under the X license.
 
-Aknowledgements
----------------
+Acknowledgements
+----------------
 
-This project has received funding from the EPFL Blue Brain Project (funded by the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology).
+The development of this project was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology.
 
 .. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueGraph.svg?branch=master
     :target: https://travis-ci.com/BlueBrain/BlueGraph
