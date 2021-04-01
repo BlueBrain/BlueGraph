@@ -72,7 +72,7 @@ Installation
 
 It is recommended to use a virtual environment such as `venv <https://docs.python.org/3.6/library/venv.html>`_  or `conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
-If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an oridinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
+If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
 
 The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided.
 
@@ -104,7 +104,7 @@ Getting started
 ---------------
 The `examples directory <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ contains a set of Jupyter notebooks providing tutorials and usecases for BlueGraph.
 
-To get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding, see the `PGFrames and sematic encoding tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_ notebook.
+To get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding, see the `PGFrames and semantic encoding tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_ notebook.
 
 To get familiar with the ideas behind the co-occurrence analysis and the graph analytics interface provided by BlueGraph we recommend to run the following example notebooks: 
 
