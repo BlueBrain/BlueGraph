@@ -25,6 +25,7 @@ install:
   - conda activate test-environment
   # - conda install -c pytorch faiss
   - pip install .[dev]
+  - neo4j-admin set-initial-password neo4j
 
 services:
   - neo4j
