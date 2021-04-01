@@ -1,24 +1,24 @@
-# Copyright (c) 2020–2021, EPFL/Blue Brain Project
-#
-# Blue Graph is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Blue Graph is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Blue Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
 
-from setuptools import setup
+# Copyright 2020-2021 Blue Brain Project / EPFL
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 import os
-
-from setuptools import find_packages, setup
+from setuptools import setup, find_packages
 
 HERE = os.path.abspath(os.path.dirname(__file__))
+
 
 # Get the long description from the README file.
 with open(os.path.join(HERE, "README.rst"), encoding="utf-8") as f:
@@ -28,7 +28,7 @@ setup(
     name="bluegraph",
     author="Blue Brain Project, EPFL",
     use_scm_version={
-        "write_to": "kganalytics/version.py",
+        "write_to": "bluegraph/version.py",
         "write_to_template": "__version__ = '{version}'\n",
     },
     description="Knowledge Graphs analytics.",
@@ -36,10 +36,21 @@ setup(
     long_description_content_type="text/x-rst",
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueGraph",
-    packages=[
-        "kganalytics",
-        "cord19kg",
-        "cord19kg.apps"
+    packages=find_packages(),
+    python_requires=">=3.6",
+    setup_requires=[
+        "setuptools_scm",
+    ],
+    install_requires=[
+        "numpy>=1.16.5",
+        "pandas",
+        "sklearn",
+        "scipy",
+        "matplotlib",
+        "nltk",
+        "nexusforge",
+        "gensim",
+        "tensorflow"
     ],
     package_data={
         'cord19kg.apps': [
@@ -49,21 +60,24 @@ setup(
             'assets/fontawesome-5.15.1-web/webfonts/*'
         ]
     },
-    python_requires=">=3.6",
-    setup_requires=[
-        "setuptools_scm",
-    ],
-    install_requires=[
-        "numpy>=1.16.5",
-        "pandas",
-        "networkx",
-        "python-louvain"
-    ],
     extras_require={
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
-            "pytest-mock==3.3.1", "codecov"
+            "pytest-mock==3.3.1", "codecov",
+            "jupyter_dash",
+            "dash_bootstrap_components",
+            "dash_daq",
+            "dash_extensions",
+            "dash_cytoscape",
+            "nexus-sdk",
+            "pyjwt==1.7.1",
+            "ipywidgets",
+            "networkx",
+            "python-louvain",
+            "neo4j",
+            "stellargraph"
         ],
+        "docs": ["sphinx", "sphinx-bluebrain-theme"],
         "cord19kg": [
             "jupyter_dash",
             "dash_bootstrap_components",
@@ -75,7 +89,30 @@ setup(
             "pyjwt==1.7.1",
             "ipywidgets"
         ],
-        "docs": ["sphinx", "sphinx-bluebrain-theme"],
+        "networkx": [
+            "networkx",
+            "python-louvain"
+        ],
+        "neo4j": [
+            "neo4j"
+        ],
+        "stellargraph": [
+            "stellargraph"
+        ],
+        "all": [
+            "jupyter_dash",
+            "dash_bootstrap_components",
+            "dash_daq",
+            "dash_extensions",
+            "dash_cytoscape",
+            "nexus-sdk",
+            "pyjwt==1.7.1",
+            "ipywidgets",
+            "networkx",
+            "python-louvain",
+            "neo4j",
+            "stellargraph"
+        ]
     },
     classifiers=[
         "Intended Audience :: Information Technology",

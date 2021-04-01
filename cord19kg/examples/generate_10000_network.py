@@ -1,6 +1,6 @@
 # This script is distributed with the 3-clause BSD license.
 
-# See file AUTHORS.txt for further details.
+# See file AUTHORS.rst for further details.
 
 # COPYRIGHT 2020–2021, Blue Brain Project/EPFL
 
@@ -19,18 +19,6 @@
 #  * Neither the name of the NetworkX Developers nor the names of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
-
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Generate 10'000 entity co-occurrence networks from CORD-19.
 
@@ -101,17 +89,24 @@ if __name__ == '__main__':
     # Create the output folder if doesn't exist
     Path("data/output_graphs").mkdir(parents=True, exist_ok=True)
 
+    backend_configs = {
+        "metrics": "graph_tool",
+        "communities": "networkx",
+        "paths": "graph_tool"
+    }
+
     # Generate graphs and run the analysis pipeline
     print("Generating co-occurrence networks...")
     start = time.time()
     graphs, trees = generate_cooccurrence_analysis(
         data, factor_counts,
-        type_data=data[["entity_type"]].rename(
-            columns={"entity_type": "type"}),
+        type_data=data[["entity_type"]].reset_index().rename(
+            columns={"index": "entity", "entity_type": "type"}),
         n_most_frequent=10000,
         factors=["paper", "paragraph"],
         cores=8,  # Change the number of cores if necessary
         graph_dump_prefix="data/output_graphs/Top_100000_network",
         communities=True,
-        remove_zero_mi=True)
+        remove_zero_mi=True,
+        backend_configs=backend_configs)
     print("Done in {:.2f}s.".format(time.time() - start))

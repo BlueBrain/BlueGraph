@@ -1,17 +1,18 @@
-# Copyright (c) 2020–2021, EPFL/Blue Brain Project
-#
-# Blue Graph is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Blue Graph is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Blue Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
+
+# Copyright 2020-2021 Blue Brain Project / EPFL
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
 
 TWO_LETTER_ENTITIES = [
     "ph", "ca", "hg", "o2", "na", "mg"
@@ -64,60 +65,29 @@ COLORS = {
     "CELL_COMPARTMENT": "#df7fa5",
     "Biomarkers": "#7cccee",
     "Condition": "#91c79f",
-    0: "#8cb900",
-    1: "#d97dd8",
-    2: "#00c7ff",
-    3: "#ff7045",
-    4: "#23966F",
-    5: "#deb1e0",
-    6: "#dbcd9d",
-    7: "#7cccee",
-    8: "#91c79f",
-    9: "#adbce9",
-    10: "#b3edd5",
-    11: "#8dc3b8",
-#     "CHEMICAL": "#72d5de",
-#     "PROTEIN": "#ebaba7",
-#     "DISEASE": "#79ddcb",
-#     "CELL_TYPE": "#deb1e0",
-#     "PATHWAY": "#bcdfa4",
-#     "CELL_COMPARTMENT": "#74aff3",
-#     "DRUG": "#dbcd9d",
-#     "Biomarkers": "#7cccee",
-#     "Condition": "#91c79f",
-#     "ORGAN": "#adbce9",
-#     "ORGANISM": "#b3edd5",
-#     "GENE": "#8dc3b8",
-#     0: "#74aff3",
-#     1: "#ebaba7",
-#     2: "#bcdfa4",
-#     3: "#72d5de",
-#     4: "#79ddcb",
-#     5: "#deb1e0",
-#     6: "#dbcd9d",
-#     7: "#7cccee",
-#     8: "#91c79f",
-#     9: "#adbce9",
-#     10: "#b3edd5",
-#     11: "#8dc3b8",
+    "0": "#8cb900",
+    "1": "#d97dd8",
+    "2": "#00c7ff",
+    "3": "#ff7045",
+    "4": "#23966F",
+    "5": "#deb1e0",
+    "6": "#dbcd9d",
+    "7": "#7cccee",
+    "8": "#91c79f",
+    "9": "#adbce9",
+    "10": "#b3edd5",
+    "11": "#8dc3b8",
 }
 
 
 CYTOSCAPE_STYLE_STYLESHEET = [
-#     {
-#         "selector":'cy',
-#         "style": {
-#             "width": "100%",
-#             "height": "100%"
-#         }
-#     },  
     {
         "selector": 'node',
         'style': {
             "opacity": 1,
             "text-valign": "center",
             "text-halign": "center",
-            "label":"data(name)",
+            "label": "data(name)",
             "overlay-padding": "6px",
             "z-index": "10",
         }
@@ -231,7 +201,7 @@ COLA_CONFIG = {
 
 COSE_CONFIG = {
     'name': "cose",
-    'showlegend':True,
+    'showlegend': True,
     'idealEdgeLength': 100,
     'nodeOverlap': 0,
     'refresh': 20,
@@ -257,4 +227,24 @@ LAYOUT_CONFIGS = {
     "cose": COSE_CONFIG,
     "cose-bilkent": COSE_BILKENT_CONFIG,
     "cola": COLA_CONFIG
+}
+
+CORD19_PROP_TYPES = {
+    "nodes": {
+        '@type': 'category',
+        'paper': 'category',
+        'paper_frequency': 'numeric',
+        'entity_type': 'category',
+        'degree_frequency': 'numeric',
+        'pagerank_frequency': 'numeric',
+        'paragraph_frequency': 'numeric',
+        'community_frequency': 'numeric',
+        'community_npmi': 'numeric'
+    },
+    "edges": {
+        'frequency': 'numeric',
+        'ppmi': 'numeric',
+        'npmi': 'numeric',
+        'distance_npmi': 'numeric'
+    }
 }

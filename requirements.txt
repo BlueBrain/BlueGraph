@@ -1,0 +1,10 @@
+numpy
+pandas
+sklearn
+scipy
+matplotlib
+nltk
+git+https://github.com/BlueBrain/nexus-forge.git
+gensim
+tensorflow
+stellargraph

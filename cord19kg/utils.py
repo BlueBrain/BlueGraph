@@ -1,20 +1,22 @@
-# Copyright (c) 2020–2021, EPFL/Blue Brain Project
-#
-# Blue Graph is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Blue Graph is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Blue Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
+
+# Copyright 2020-2021 Blue Brain Project / EPFL
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
 
 """Module containing utils for COVID-19 network generation and analysis."""
 import ast
+import math
 import operator
 import pickle
 
@@ -25,14 +27,54 @@ from collections import Counter
 
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
-from kganalytics.network_generation import generate_cooccurrence_network
-from kganalytics.metrics import compute_all_metrics
+from bluegraph.core.io import PandasPGFrame
+from bluegraph.preprocess import CooccurrenceGenerator
+from bluegraph.backends.networkx import (NXMetricProcessor,
+                                         NXCommunityDetector,
+                                         NXPathFinder,
+                                         NXGraphProcessor,
+                                         networkx_to_pgframe,
+                                         pgframe_to_networkx)
+from bluegraph.backends.neo4j import (Neo4jMetricProcessor,
+                                      Neo4jCommunityDetector,
+                                      Neo4jPathFinder,
+                                      Neo4jGraphProcessor,
+                                      neo4j_to_pgframe,
+                                      pgframe_to_neo4j)
+from bluegraph.backends.graph_tool import (GTMetricProcessor,
+                                           GTCommunityDetector,
+                                           GTPathFinder,
+                                           GTGraphProcessor,
+                                           graph_tool_to_pgframe,
+                                           pgframe_to_graph_tool)
 
-from kganalytics.export import (save_nodes,
-                                save_network)
 
-from kganalytics.paths import minimum_spanning_tree
-
+BACKEND_MAPPING = {
+    "networkx": {
+        "metrics": NXMetricProcessor,
+        "communities": NXCommunityDetector,
+        "paths": NXPathFinder,
+        "to_pgframe": networkx_to_pgframe,
+        "from_pgframe": pgframe_to_networkx,
+        "object_processor": NXGraphProcessor,
+    },
+    "neo4j": {
+        "metrics": Neo4jMetricProcessor,
+        "communities": Neo4jCommunityDetector,
+        "paths": Neo4jPathFinder,
+        "to_pgframe": neo4j_to_pgframe,
+        "from_pgframe": pgframe_to_neo4j,
+        "object_processor": Neo4jGraphProcessor,
+    },
+    "graph_tool": {
+        "metrics": GTMetricProcessor,
+        "communities": GTCommunityDetector,
+        "paths": GTPathFinder,
+        "to_pgframe": graph_tool_to_pgframe,
+        "from_pgframe": pgframe_to_graph_tool,
+        "object_processor": GTGraphProcessor
+    }
+}
 
 NON_ASCII_REPLACE = {
     "α": "alpha",
@@ -339,19 +381,19 @@ def generate_curation_table(data):
 
     result_data = result_data.reset_index()
     result_data["paper_frequency"] = result_data[
-        "paper"].transform(lambda x:  len([str(p).split(":")[0] for p in x]))
+        "paper"].transform(lambda x: len([str(p).split(":")[0] for p in x]))
     result_data["paper"] = result_data[
-        "paper"].transform(lambda x:  list(x))
+        "paper"].transform(lambda x: list(x))
     result_data["paragraph"] = result_data[
-        "paragraph"].transform(lambda x:  list(x))
+        "paragraph"].transform(lambda x: list(x))
     result_data["section"] = result_data[
-        "section"].transform(lambda x:  list(x))
+        "section"].transform(lambda x: list(x))
     result_data["raw_entity_types"] = result_data[
         "entity_type"].transform(list)
     result_data["raw_frequency"] = result_data["entity_type"].apply(len)
     result_data["entity_type"] = result_data[
         "entity_type"].transform(
-            lambda x:  ", ".join(list(set(x))))
+            lambda x: ", ".join(list(set(x))))
     return result_data, counts
 
 
@@ -433,12 +475,65 @@ def merge_with_ontology_linking(occurence_data,
     return occurrence_data_linked
 
 
+def _configure_backends(backend_configs, graph):
+    if backend_configs is None:
+        backend_configs = dict()
+    metrics_backend = (
+        backend_configs["metrics"]
+        if "metrics" in backend_configs else "networkx"
+    )
+    communities_backend = (
+        backend_configs["communities"]
+        if "communities" in backend_configs else "networkx"
+    )
+    paths_backend = (
+        backend_configs["paths"]
+        if "paths" in backend_configs else "networkx"
+    )
+    if metrics_backend == "neo4j":
+        processor = BACKEND_MAPPING[metrics_backend]["metrics"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        processor = BACKEND_MAPPING[metrics_backend]["metrics"](
+            graph, directed=False)
+
+    if communities_backend == "neo4j":
+        com_detector = BACKEND_MAPPING[communities_backend]["communities"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        com_detector = BACKEND_MAPPING[communities_backend]["communities"](
+            graph, directed=False)
+
+    if paths_backend == "neo4j":
+        path_finder = BACKEND_MAPPING[paths_backend]["paths"](
+            graph,
+            backend_configs["driver"],
+            backend_configs["node_label"],
+            backend_configs["edge_label"],
+            directed=False)
+    else:
+        path_finder = BACKEND_MAPPING[paths_backend]["paths"](
+            graph, directed=False)
+    pgframe_converter = BACKEND_MAPPING[paths_backend]["to_pgframe"]
+    return processor, com_detector, path_finder, pgframe_converter
+
+
 def generate_cooccurrence_analysis(occurrence_data, factor_counts,
                                    type_data=None, min_occurrences=1,
                                    n_most_frequent=None, keep=None,
-                                   factors=None, cores=None,
+                                   factors=None, cores=8,
                                    graph_dump_prefix=None,
-                                   communities=True, remove_zero_mi=False):
+                                   communities=True, remove_zero_mi=False,
+                                   backend_configs=None,
+                                   community_strategy="louvain"):
     """Generate co-occurrence analysis.
 
     This utility executes the entire pipeline of the co-occurrence analysis:
@@ -500,19 +595,22 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         Dictionary whose keys are factor names and whose values are
         minimum spanning trees of generated co-occurrence networks.
     """
+    def compute_distance(x):
+        return 1 / x if x > 0 else math.inf
+
     # Filter entities that occur only once (only in one paragraph, usually
     # represent noisy terms)
     if "paragraph" in factors:
         occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(
             lambda x: len(x) >= min_occurrences)]
-        occurrence_data["paragraph_frequency"] = occurrence_data["paragraph"].apply(
-            lambda x: len(x))
+        occurrence_data["paragraph_frequency"] = occurrence_data[
+            "paragraph"].apply(lambda x: len(x))
     if "section" in factors:
-        occurrence_data["section_frequency"] = occurrence_data["section"].apply(
-            lambda x: len(x))
+        occurrence_data["section_frequency"] = occurrence_data[
+            "section"].apply(lambda x: len(x))
     if "paper" in factors:
-        occurrence_data["paper_frequency"] = occurrence_data["paper"].apply(
-            lambda x: len(x))
+        occurrence_data["paper_frequency"] = occurrence_data[
+            "paper"].apply(lambda x: len(x))
 
     graphs = {}
     trees = {}
@@ -521,74 +619,103 @@ def generate_cooccurrence_analysis(occurrence_data, factor_counts,
         print("Factor: {}".format(f))
         print("-------------------------------")
 
-        if cores is None:
-            cores = 8
-        graph = generate_cooccurrence_network(
-            occurrence_data,
-            f,
-            factor_counts[f],
-            n_most_frequent=n_most_frequent,
-            dump_path=(
-                "{}_{}_edge_list.pkl".format(graph_dump_prefix, f)
-                if graph_dump_prefix else None
-            ),
-            keep=keep,
-            parallelize=True,
-            cores=cores)
+        # Build a PGFrame from the occurrence data
+        graph = PandasPGFrame()
+        entity_nodes = occurrence_data.index
+        graph.add_nodes(entity_nodes)
+        graph.add_node_types({n: "Entity" for n in entity_nodes})
+        graph.add_node_properties(occurrence_data[f], prop_type="category")
+        graph.add_node_properties(
+            occurrence_data["{}_frequency".format(f)], prop_type="numeric")
 
-        if graph is not None:
-            graphs[f] = graph
-        else:
-            return None, None
-        print()
+        # Select most frequent nodes
+        nodes_to_include = None
+        if n_most_frequent:
+            nodes_to_include = graph._nodes.nlargest(
+                n_most_frequent, "{}_frequency".format(f)).index
+            graph = graph.subgraph(nodes=nodes_to_include)
+
+        # Generate co-occurrence edges
+        generator = CooccurrenceGenerator(graph)
+        edges = generator.generate_from_nodes(
+            f, total_factor_instances=factor_counts[f],
+            compute_statistics=["frequency", "ppmi", "npmi"],
+            parallelize=True, cores=cores)
 
         # Remove edges with zero mutual information
         if remove_zero_mi:
-            edges_to_remove = [
-                e
-                for e in graphs[f].edges()
-                if graphs[f].edges[e]["ppmi"] == 0
-            ]
-            for s, t in edges_to_remove:
-                graphs[f].remove_edge(s, t)
+            edges = edges[edges["ppmi"] > 0]
+
+        graph._edges = edges.drop(columns=["common_factors"])
+        graph.edge_prop_as_numeric("frequency")
+        graph.edge_prop_as_numeric("ppmi")
+        graph.edge_prop_as_numeric("npmi")
+
+        npmi_distance = edges["npmi"].apply(compute_distance)
+        npmi_distance.name = "distance_npmi"
+        graph.add_edge_properties(npmi_distance, "numeric")
 
         # Set entity types
         if type_data is not None:
-            type_dict = type_data.to_dict()["type"]
-            nx.set_node_attributes(
-                graphs[f],
-                type_dict,
-                "entity_type")
+            graph.add_node_properties(
+                type_data.reset_index().rename(
+                    columns={
+                        "entity": "@id",
+                        "type": "entity_type"
+                    }).set_index("@id"),
+                prop_type="category")
 
-        # Set factors as attrs
-        nx.set_node_attributes(
-            graphs[f],
-            occurrence_data["paper"].apply(lambda x: list(x)).to_dict(),
-            "paper")
+        # Set papers as props
+        graph.remove_node_properties(f)
+        if nodes_to_include is not None:
+            paper_data = occurrence_data.loc[nodes_to_include, "paper"]
+        else:
+            paper_data = occurrence_data["paper"]
+        graph.add_node_properties(
+            paper_data.apply(lambda x: list(x)),
+            prop_type="category")
 
-        compute_all_metrics(
-            graphs[f],
+        graphs[f] = graph
+
+        processor, com_detector, path_finder, pgframe_converter =\
+            _configure_backends(backend_configs, graph)
+
+        # Compute centralities
+        all_metrics = processor.compute_all_node_metrics(
             degree_weights=["frequency"],
-            betweenness_weights=[],
-            community_weights=["frequency", "npmi"] if communities else [],
-            print_summary=True)
+            pagerank_weights=["frequency"])
 
-        # Compute a spanning tree
-        print("Computing the minimum spanning tree...")
-        trees[f] = minimum_spanning_tree(graphs[f], weight="distance_npmi")
-        nx.set_node_attributes(
-            trees[f],
-            type_dict,
-            "entity_type")
+        for metrics, data in all_metrics.items():
+            for weight, values in data.items():
+                prop = pd.DataFrame(
+                    values.items(),
+                    columns=["@id", "{}_{}".format(metrics, weight)])
+                graph.add_node_properties(prop, prop_type="numeric")
 
+        # Compute communitites
+        frequency_partition = com_detector.detect_communities(
+            strategy=community_strategy, weight="frequency")
+        prop = pd.DataFrame(
+            frequency_partition.items(),
+            columns=["@id", "community_frequency"])
+        graph.add_node_properties(prop, prop_type="numeric")
+
+        npmi_partition = com_detector.detect_communities(
+            strategy=community_strategy, weight="npmi")
+        prop = pd.DataFrame(
+            npmi_partition.items(), columns=["@id", "community_npmi"])
+        graph.add_node_properties(prop, prop_type="numeric")
+
+        # Compute minimum spanning tree
+        tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
+        tree_pgframe = pgframe_converter(tree)
+        trees[f] = tree_pgframe
+
+        # Dump the generated PGFrame
         if graph_dump_prefix:
-            save_network(trees[f], "{}_{}_tree".format(graph_dump_prefix, f))
-
-        if graph_dump_prefix:
-            save_nodes(
-                graphs[f],
-                "{}_{}_node_list.pkl".format(graph_dump_prefix, f))
-
+            graph.export_json("{}_{}_graph.json".format(graph_dump_prefix, f))
+            tree_pgframe.export_json(
+                "{}_{}_tree.json".format(graph_dump_prefix, f))
     return graphs, trees
 
 
@@ -722,10 +849,12 @@ def link_ontology(linking, type_mapping, curated_table):
         linking_df=linking.rename(columns={"mention": "entity"}))
 
     linked_table = linked_table.reset_index()
-    linked_table["paper_frequency"] = linked_table["paper"].apply(lambda x: len(x))
+    linked_table["paper_frequency"] = linked_table["paper"].apply(
+        lambda x: len(x))
     linked_table["paper"] = linked_table["paper"].apply(lambda x: list(x))
     linked_table["section"] = linked_table["section"].apply(lambda x: list(x))
-    linked_table["paragraph"] = linked_table["paragraph"].apply(lambda x: list(x))
+    linked_table["paragraph"] = linked_table["paragraph"].apply(
+        lambda x: list(x))
 
     # Produce a dataframe with entity types according to type_mapping
     types = resolve_taxonomy_to_types(
@@ -739,40 +868,77 @@ def link_ontology(linking, type_mapping, curated_table):
 
 def generate_paper_lookup(graph):
     paper_table = {}
-    for n in graph.nodes():
-        if "paper" in graph.nodes[n]:
-            paper_table[n] = list(graph.nodes[n]["paper"])
+    paper_table = graph.get_node_property_values("paper")
     return paper_table
 
 
-def build_cytoscape_data(graph, positions=None):
-    elements = cytoscape_data(graph)
+def build_cytoscape_data(graph_processor, positions=None):
+    elements = []
+    for node, properties in graph_processor.nodes(properties=True): 
+        properties = properties.copy()
+        data = {
+            "id": node,
+            "value": node,
+            "name": node,
+            "type": "node"
+        }
+        if 'paper' in properties:
+            papers = properties["paper"]
+            data["paper_frequency"] = len(papers)
+            del properties["paper"]
+        data.update(properties)
 
-    if positions is not None:
-        for el in elements["elements"]['nodes']:
-            if el["data"]["id"] in positions:
-                el["position"] = positions[el["data"]["id"]]
+        element = {"data": data}
+        if positions is not None:
+            if node in positions:
+                element["position"] = positions[node]
 
-    elements = elements["elements"]['nodes'] + elements["elements"]['edges']
-    for element in elements:
-        element["data"]["id"] = (
-            str(element["data"]["source"] + '_' + element[
-                "data"]["target"]).replace(" ", "_")
-            if "source" in element["data"]
-            else element["data"]["id"]
-        )
-        papers = []
-        if 'paper' in element["data"]:
-            papers = element["data"].pop("paper")
-            element["data"]["paper_frequency"] = len(papers)
+        elements.append(element)
 
-        if "source" in element["data"]:
-            element["data"]["type"] = "edge"
-        else:
-            element["data"]["type"] = "node"
+    for s, t, properties in graph_processor.edges(properties=True):
+        properties = properties.copy()
+        s_name = s.replace(" ", "_")
+        t_name = t.replace(" ", "_")
+        data = {
+            "id": f"{s_name}_{t_name}",
+            "source": s,
+            "target": t,
+            "type": "edge"
+        }
+        data.update(properties)
+        elements.append({"data": data})
 
     return elements
 
+
+# def build_cytoscape_data(graph, positions=None):
+
+#     elements = cytoscape_data(graph)
+
+#     if positions is not None:
+#         for el in elements["elements"]['nodes']:
+#             if el["data"]["id"] in positions:
+#                 el["position"] = positions[el["data"]["id"]]
+
+#     elements = elements["elements"]['nodes'] + elements["elements"]['edges']
+#     for element in elements:
+#         element["data"]["id"] = (
+#             str(element["data"]["source"] + '_' + element[
+#                 "data"]["target"]).replace(" ", "_")
+#             if "source" in element["data"]
+#             else element["data"]["id"]
+#         )
+#         papers = []
+#         if 'paper' in element["data"]:
+#             papers = element["data"].pop("paper")
+#             element["data"]["paper_frequency"] = len(papers)
+
+#         if "source" in element["data"]:
+#             element["data"]["type"] = "edge"
+#         else:
+#             element["data"]["type"] = "node"
+
+#     return elements
 
 def most_common(x):
     c = Counter(x)
@@ -792,3 +958,131 @@ CORD_ATTRS_RESOLVER = {
     "distance_ppmi": min,
     "distance_npmi": min
 }
+
+def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
+                attrs_to_ignore=None):
+    """Merge two attribute dictionaries into the target using the input resolver.
+    Parameters
+    ----------
+    source_attrs : dict
+        Source dictionary with attributes (the other attributes will be
+        merged into it and a new object will be returned)
+    collection_of_attrs : iterable of dict
+        Collection of dictionaries to merge into the target dictionary
+    attr_resolver : dict
+        Dictionary containing attribute resolvers, its keys are attribute
+        names and its values are functions applied to the set of attribute
+        values in order to resolve this set to a single value
+    attrs_to_ignore : iterable, optional
+        Set of attributes to ignore (will not be included in the merged
+        node or edges incident to this merged node)
+    """
+    result = source_attrs.copy()
+
+    if attrs_to_ignore is None:
+        attrs_to_ignore = []
+
+    all_keys = set(
+        sum([list(attrs.keys()) for attrs in collection_of_attrs], []))
+
+    def _preprocess(k, attrs):
+        if k == "paper" and isinstance(attrs, str):
+            return ast.literal_eval(attrs)
+        else:
+            return attrs
+
+    for k in all_keys:
+        if k not in attrs_to_ignore:
+            if k in attr_resolver:
+                result[k] = attr_resolver[k](
+                    ([_preprocess(k, result[k])] if k in result else []) + [
+                        _preprocess(k, attrs[k])
+                        for attrs in collection_of_attrs if k in attrs
+                    ]
+                )
+            else:
+                result[k] = None
+    return result
+
+
+def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
+                attr_resolver=None):
+    """Merge the input set of nodes.
+    Parameters
+    ----------
+    graph_processor : GraphProcessor
+        Input graph object
+    nodes_to_merge: iterable
+        Collection of node IDs to merge
+    new_name : str, optional
+        New name to use for the result of merging
+    attr_resolver : dict, optional
+        Dictionary containing attribute resolvers, its keys are attribute
+        names and its values are functions applied to the set of attribute
+        values in order to resolve this set to a single value
+    Returns
+    -------
+    graph : nx.Graph
+        Resulting graph (references to the input graph, if `copy` is False,
+        or to another object if `copy` is True).
+    """
+    if len(nodes_to_merge) < 2:
+        raise ValueError("At least two nodes are required for merging")
+
+    if attr_resolver is None:
+        raise ValueError("Attribute resolver should be provided")
+
+    # We merge everything into the target node
+    if new_name is None:
+        new_name = nodes_to_merge[0]
+
+    if new_name not in graph_processor.nodes():
+        graph_processor.rename_nodes(
+            {nodes_to_merge[0]: new_name})
+        nodes_to_merge = nodes_to_merge[1:]
+
+    target_node = new_name
+    other_nodes = [n for n in nodes_to_merge if n != target_node]
+
+    # Resolve node attrs
+    graph_processor.set_node_properties(
+        target_node,
+        merge_attrs(
+            graph_processor.get_node(target_node),
+            [graph_processor.get_node(n) for n in other_nodes],
+            attr_resolver)
+    )
+
+    # Merge edges
+    edge_attrs = {}
+
+    for n in other_nodes:
+        neighbors = graph_processor.neighbors(n)
+        for neighbor in neighbors:
+            if neighbor != target_node and neighbor not in other_nodes:
+                if neighbor in edge_attrs:
+                    edge_attrs[neighbor].append(
+                        graph_processor.get_edge(n, neighbor))
+                else:
+                    edge_attrs[neighbor] = [
+                        graph_processor.get_edge(n, neighbor)
+                    ]
+
+    edges = graph_processor.edges()
+    for k, v in edge_attrs.items():
+        target_neighbors = graph_processor.neighbors(target_node)
+        if k not in target_neighbors:
+            graph_processor.add_edge(
+                target_node, k,
+                merge_attrs({}, v, attr_resolver))
+        else:
+            graph_processor.set_edge_properties(
+                target_node, k,
+                merge_attrs(
+                    graph_processor.get_edge(target_node, k),
+                    v, attr_resolver))
+
+    for n in other_nodes:
+        graph_processor.remove_node(n)
+
+    return graph_processor.graph

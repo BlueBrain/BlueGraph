@@ -2,10 +2,10 @@
 vO.1.0 Release Notes
 ====================
 
-Introducing Blue Brain Graph
-----------------------------
+Introducing Blue Graph
+-----------------------
 
-This is an initial release of Blue Brain Graph and a first step towards our goal to ....
+This is an initial release of Blue Graph and a first step towards our goal to ....
 
 Section 1
 =========

@@ -1,0 +1,5 @@
+The datasets included in this folder are released under the Creative Commons Attribution 4.0 International license (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
+
+The dataset included in 'entity_types_defs.csv' contains definition of terms extracted from NCI Thesaurus distributed under CC BY 4.0 (see Terms of Use https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/ThesaurusTermsofUse.htm).
+
+COPYRIGHT 2020–2021, Blue Brain Project/EPFL

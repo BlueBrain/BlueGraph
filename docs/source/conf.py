@@ -18,8 +18,8 @@ from pkg_resources import get_distribution
 
 # -- Project information -----------------------------------------------------
 
-project = 'Blue Brain Graph'
-version = get_distribution("bbg_analytics").version
+project = 'Blue Graph'
+version = get_distribution("bluegraph").version
 release = version
 
 # -- General configuration ---------------------------------------------------
@@ -49,7 +49,7 @@ exclude_patterns = []
 # a list of builtin themes.
 #
 html_theme = 'sphinx-bluebrain-theme'
-html_title = 'Blue Brain Graph'
+html_title = 'Blue Graph'
 html_show_sourcelink = False
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -58,6 +58,6 @@ html_show_sourcelink = False
 # html_static_path = ['_static']
 
 html_theme_options = {
-    "repo_url": "https://github.com/BlueBrain/BlueBrainGraph/",
-    "repo_name": "BlueBrain/BlueBrainGraph"
+    "repo_url": "https://github.com/BlueBrain/BlueGraph/",
+    "repo_name": "BlueBrain/BlueGraph"
 }

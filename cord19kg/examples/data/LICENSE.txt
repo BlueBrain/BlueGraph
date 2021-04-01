@@ -1,0 +1,5 @@
+The datasets included in this folder are released under the Creative Commons Attribution 4.0 International license (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/).
+
+The dataset included in 'Glucose_risk_3000_paper_meta_data.csv' contains paper meta-data extracted from the CORD-19 challange dataset (see licenses https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge).
+
+COPYRIGHT 2020–2021, Blue Brain Project/EPFL

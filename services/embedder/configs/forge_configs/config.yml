@@ -1,0 +1,15 @@
+Model:
+  context:
+    iri: configs/forge_configs/models/model_catalog_context.json
+  name: RdfModel
+  origin: directory
+  source: configs/forge_configs/models/neuroshapes/shapes/neurosciencegraph/commons/
+Store:
+  bucket: dke/embedder_catalog
+  endpoint: https://staging.nexus.ocp.bbp.epfl.ch/v1
+  file_resource_mapping: configs/forge_configs/file-to-resource-mapping.hjson
+  name: BlueBrainNexus
+  searchendpoints:
+    sparql:
+      endpoint: https://bluebrain.github.io/nexus/vocabulary/defaultSparqlIndex
+  versioned_id_template: '{x.id}?rev={x._store_metadata._rev}'

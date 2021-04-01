@@ -1,0 +1,8 @@
+# ../../tests/*
+# ../../examples/*
+# ../../docs/*
+# ../../cord19kg/*
+# ../../.pytest_cache/*
+# ../../build/*
+# ../../dist/*
+# ../../bluegraph.egg-info/*

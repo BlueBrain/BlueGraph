@@ -4,5 +4,6 @@ API
 .. toctree::
    :hidden:
 
-   kganalytics-api
+   bluegraph-api
    cord19kg-api
+   services_api

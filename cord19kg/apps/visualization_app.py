@@ -1,18 +1,20 @@
-# Copyright (c) 2020–2021, EPFL/Blue Brain Project
-#
-# Blue Graph is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Blue Graph is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Blue Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
 
+# Copyright 2020-2021 Blue Brain Project / EPFL
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+import ast
 import os
 import time
 import math
@@ -33,9 +35,8 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from kganalytics.paths import (top_n_paths, top_n_tripaths, top_n_nested_paths,
-                               minimum_spanning_tree, graph_from_paths)
-from kganalytics.utils import (top_n, merge_nodes)
+from bluegraph.core.utils import top_n
+from bluegraph.backends.networkx import pgframe_to_networkx
 
 import cord19kg
 from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
@@ -46,12 +47,16 @@ from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,
                                      MIN_EDGE_WIDTH,
                                      MAX_EDGE_WIDTH,
                                      LAYOUT_CONFIGS,
-                                     COLORS)
+                                     COLORS,
+                                     CORD19_PROP_TYPES)
 import cord19kg.apps.components as components
-from cord19kg.apps.app_utils import save_run, merge_cyto_elements
+from cord19kg.apps.app_utils import (save_run,
+                                     merge_cyto_elements,
+                                     ATTRS_RESOLVER)
 
-from cord19kg.utils import (build_cytoscape_data, generate_paper_lookup,
-                            CORD_ATTRS_RESOLVER)
+from cord19kg.utils import (BACKEND_MAPPING,
+                            build_cytoscape_data, generate_paper_lookup,
+                            merge_nodes)
 
 
 def adjust_color_lightness(r, g, b, factor):
@@ -65,78 +70,76 @@ def lighten_color(r, g, b, factor=0.1):
     return adjust_color_lightness(r, g, b, 1 + factor)
 
 
-def filter_nodes_by_attr(graph_object, key, values):
+def filter_nodes_by_attr(processor, key, values):
     result = []
-    for n in graph_object.nodes():
-        if key in graph_object.nodes[n]:
-            if graph_object.nodes[n][key] in values:
+    for n, properties in processor.nodes(properties=True):
+        if key in properties:
+            if properties[key] in values:
                 result.append(n)
     return result
 
 
-def subgraph_from_clusters(graph_object, cluster_type, clustersearch,
+def subgraph_from_clusters(processor, cluster_type, clustersearch,
                            nodes_to_keep):
+    nodes = dict(processor.nodes(properties=True))
     if cluster_type and clustersearch:
-        graph_object = nx.Graph(graph_object.subgraph(
-            nodes=[
-                n
-                for n in graph_object.nodes()
-                if graph_object.nodes[n][cluster_type] in clustersearch or n in nodes_to_keep
-            ]))
+        graph_object = processor.subgraph(
+            nodes_to_include=[
+                n for n in nodes
+                if nodes[n][cluster_type] in clustersearch or
+                n in nodes_to_keep
+            ])
     return graph_object
 
 
-def get_top_n_nodes(graph_object, n, node_subset=None, nodes_to_keep=None):
+def get_top_n_nodes(graph_processor, n, node_subset=None, nodes_to_keep=None):
     if nodes_to_keep is None:
         nodes_to_keep = []
 
+    nodes = dict(graph_processor.nodes(properties=True))
+
     if n is None:
-        n = len(graph_object.nodes())
+        n = len(nodes)
 
     if node_subset is None:
-        node_subset = list(graph_object.nodes())
+        node_subset = list(nodes)
 
     if n <= len(node_subset):
         node_frequencies = {}
         for node in node_subset:
-            node_frequencies[node] = len(graph_object.nodes[node]["paper"])
+            node_properties = nodes[node]
+            node_frequencies[node] = len(node_properties["paper"])
         nodes_to_include = top_n(node_frequencies, n)
     else:
         nodes_to_include = node_subset
 
     return nodes_to_include + [
-        n for n in nodes_to_keep if n not in nodes_to_include
+        el for el in nodes_to_keep if el not in nodes_to_include
     ]
 
 
-def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
-    nodes_to_include = get_top_n_nodes(
-        graph_object, n, node_subset, nodes_to_keep)
-
-    return nx.Graph(graph_object.subgraph(nodes_to_include))
-
-
-def top_n_subgraph(graph_object, n, node_subset=None, nodes_to_keep=None):
+def top_n_subgraph(graph_processor, n, node_subset=None, nodes_to_keep=None):
     """Build a subgraph with top n nodes."""
     nodes_to_include = get_top_n_nodes(
-        graph_object, n, node_subset, nodes_to_keep)
+        graph_processor, n, node_subset, nodes_to_keep)
 
-    return nx.Graph(graph_object.subgraph(nodes_to_include))
+    return graph_processor.subgraph(nodes_to_include=nodes_to_include)
 
 
-def top_n_spanning_tree(graph_object, n, node_subset=None, nodes_to_keep=None):
+def top_n_spanning_tree(graph_processor, n, backend, node_subset=None,
+                        nodes_to_keep=None):
     nodes_to_include = get_top_n_nodes(
-        graph_object, n, node_subset, nodes_to_keep)
-
-    tree = minimum_spanning_tree(
-        graph_object.subgraph(nodes_to_include),
-        "distance_npmi")
+        graph_processor, n, node_subset, nodes_to_keep)
+    subgraph = graph_processor.subgraph(nodes_to_include=nodes_to_include)
+    path_finder = BACKEND_MAPPING[backend]["paths"].from_graph_object(
+        subgraph)
+    tree = path_finder.minimum_spanning_tree(distance="distance_npmi")
     return tree
 
 
-def get_cytoscape_data(graph, positions=None):
+def get_cytoscape_data(graph_processor, positions=None):
     # Generate a cytoscape repr of the input graph
-    cyto_repr = build_cytoscape_data(graph, positions=positions)
+    cyto_repr = build_cytoscape_data(graph_processor, positions=positions)
 
     # add some extra attrs to nodes
     weights = ["paper_frequency", "degree_frequency", "pagerank_frequency"]
@@ -175,7 +178,8 @@ def set_sizes_from_weights(cyto_repr, weights, min_size, max_size,
         ]
         sizes = generate_sizes(min_size, max_size, all_values)
         if min_font_size and max_font_size:
-            font_sizes = generate_sizes(min_font_size, max_font_size, all_values)
+            font_sizes = generate_sizes(
+                min_font_size, max_font_size, all_values)
 
         j = 0
         for i in range(len(cyto_repr)):
@@ -260,7 +264,7 @@ graph
                     el["data"]["id"],
                     el["data"]["id"],
                     x, y, w, h,
-                    COLORS[el["data"]["entity_type"]])
+                    COLORS[str(el["data"]["entity_type"])])
         else:
             edge_weight = 1
             if edge_freq_type:
@@ -324,6 +328,7 @@ class VisualizationApp(object):
         self._is_initializing = False
 
         self._edit_history = {}
+        self._backend = None
 
     def _configure_layout(self, configs=None):
         if configs is None:
@@ -338,16 +343,6 @@ class VisualizationApp(object):
         self._is_initializing = False
 
         self._edit_history = {}
-
-    def _configure_layout(self, configs=None):
-        if configs is None:
-            configs = {}
-
-        self._configs = configs
-        self.cyto, layout, self.dropdown_items, self.cluster_filter =\
-            components.generate_layout(self._graphs, configs)
-
-        self._app.layout = layout
 
     def _update_weight_data(self, graph_id, cyto_repr,
                             node_freq_type="degree_frequency",
@@ -368,39 +363,48 @@ class VisualizationApp(object):
         self._graphs[graph_id]["edge_marks"] = marks
         self._graphs[graph_id]["edge_step"] = step
 
-    def _update_cyto_graph(self, graph_id, graph_object, top_n_entities=None,
+    def _update_cyto_graph(self, graph_id, processor, top_n_entities=None,
                            positions=None, node_freq_type="degree_frequency",
                            edge_freq_type="npmi", node_subset=None,
                            nodes_to_keep=None):
         if not self._graphs[graph_id]["full_graph_view"]:
             if top_n_entities is None:
                 # compute the spanning tree on all the nodes
-                if "full_tree" in self._graphs[graph_id] and (
-                        node_subset is None or set(node_subset) == set(
-                            graph_object.nodes())):
-                    graph_view = self._graphs[graph_id]["full_tree"]
-                else:
+                reused_tree = False
+                if "full_tree" in self._graphs[graph_id]:
+                    tree_object = self._graphs[graph_id]["full_tree"]
+                    tree_processor = self._graph_processor.from_graph_object(
+                        tree_object)
+                    if len(tree_processor.nodes()) == len(processor.nodes()) and\
+                       (node_subset is None or set(node_subset) == set(
+                            processor.nodes())):
+                        graph_view = self._graphs[graph_id]["full_tree"]
+                        reused_tree = True
+
+                if not reused_tree:
                     graph_view = top_n_spanning_tree(
-                        graph_object, len(graph_object.nodes()),
+                        processor, len(processor.nodes()), self._backend,
                         node_subset=node_subset, nodes_to_keep=nodes_to_keep)
             else:
                 # compute the spanning tree on n nodes
                 graph_view = top_n_spanning_tree(
-                    graph_object, top_n_entities,
+                    processor, top_n_entities, self._backend,
                     node_subset=node_subset, nodes_to_keep=nodes_to_keep)
         else:
             if top_n_entities is None:
-                graph_view = graph_object
+                graph_view = processor.graph
             else:
                 graph_view = top_n_subgraph(
-                    graph_object, top_n_entities,
+                    processor, top_n_entities,
                     node_subset=node_subset, nodes_to_keep=nodes_to_keep)
 
         if positions is None and top_n_entities is None:
             if "positions" in self._graphs[graph_id]:
                 positions = self._graphs[graph_id]["positions"]
 
-        cyto_repr = get_cytoscape_data(graph_view, positions=positions)
+        cyto_repr = get_cytoscape_data(
+            self._graph_processor.from_graph_object(graph_view),
+            positions=positions)
 
         self._graphs[graph_id]["cytoscape"] = cyto_repr
         self._graphs[graph_id]["top_n"] = top_n_entities
@@ -440,7 +444,16 @@ class VisualizationApp(object):
         """Get current app configs."""
         return self._configs
 
-    def set_graph(self, graph_id, graph_object, tree_object=None,
+    def set_backend(self, backend):
+        """Set graph processing backend (currently, 'networkx' or 'graph_tool')."""
+        if backend not in ["networkx", "graph_tool"]:
+            raise ValueError(
+                "Unknown backend '{}', available backends: ".format(backend) +
+                "'networkx', 'graph_tool'")
+        self._backend = backend
+        self._graph_processor = BACKEND_MAPPING[backend]["object_processor"]
+
+    def add_graph(self, graph_id, graph, tree=None,
                   positions=None, default_top_n=None, full_graph_view=False):
         """Set a graph to display.
 
@@ -448,9 +461,9 @@ class VisualizationApp(object):
         ----------
         graph_id : str
             Graph identifier to use in the app
-        graph_object : nx.Graph
+        graph_object : PandasPGFrame
             Input graph object
-        tree_object : nx.Graph, optional
+        tree_object : PandasPGFrame, optional
             Pre-computed minimum spanning tree object
         positions : dict, optional
             Dictionary containing pre-computed node positions
@@ -461,15 +474,29 @@ class VisualizationApp(object):
             be displayed as a spanning tree or entirely
             (spanning tree is shown by default)
         """
+        if self._backend is None:
+            raise ValueError(
+                "Cannot add a graph: backend is not set, use the "
+                "`set_backend` method before adding graphs (available "
+                "backends are 'networkx' and 'graph_tool')")
+
         # Generate a paper lookup table
-        paper_lookup = generate_paper_lookup(graph_object)
+        paper_lookup = generate_paper_lookup(graph)
 
         if self._graphs is None:
             self._graphs = {}
 
+        # Create a craph object
+        graph_object = BACKEND_MAPPING[self._backend]["from_pgframe"](
+            graph, directed=False)
+        graph_object_backup = graph_object.copy()
+        if tree:
+            tree_object = BACKEND_MAPPING[self._backend]["from_pgframe"](
+                tree, directed=False)
+
         self._graphs[graph_id] = {
-            "nx_object_backup": graph_object.copy(),
-            "nx_object": graph_object,
+            "object_backup": graph_object_backup,
+            "object": graph_object,
             "positions": positions,
             "paper_lookup": paper_lookup,
             "full_graph_view": full_graph_view
@@ -478,17 +505,19 @@ class VisualizationApp(object):
         if tree_object:
             self._graphs[graph_id]["full_tree"] = tree_object
 
+        processor = self._graph_processor.from_graph_object(graph_object)
+
         if default_top_n:
             default_top_n = (
-                len(graph_object.nodes())
-                if default_top_n > len(graph_object.nodes())
+                len(processor.nodes())
+                if default_top_n > len(processor.nodes())
                 else default_top_n
             )
             self._graphs[graph_id]["default_top_n"] = default_top_n
 
-        # Build a cyto repe with the spanning tree with default top n nodes
+        # Build a cyto repr with the spanning tree with default top n nodes
         self._update_cyto_graph(
-            graph_id, graph_object, default_top_n, positions)
+            graph_id, processor, default_top_n, positions)
 
         self.dropdown_items.options = [
             {'label': val.capitalize(), 'value': val}
@@ -538,6 +567,11 @@ class VisualizationApp(object):
             Flag indicating whether app exceptions should be printed in
             the current active notebook cell.
         """
+        if len(self._graphs) == 0:
+            raise ValueError(
+                "Cannot run the visualization app: "
+                "not graphs are added to display, use the `add_graph` "
+                "methods to add graphs.")
         try:
             save_run(
                 self, port, mode=mode, debug=debug,
@@ -558,6 +592,15 @@ class VisualizationApp(object):
         self._list_papers_callback = func
 
     def set_aggregated_entities_callback(self, func):
+        """Set the aggegated entities lookup callback.
+
+        This function will be called when the user requests
+        to see a set of raw entities associated with a selected
+        node. The visualization app will pass the selected entity
+        to this function. The function is expected to return a
+        dictionary whose keys are raw entities and whose values
+        are their occurrence frequencies.
+        """
         self._aggregated_entities_callback = func
 
     def set_aggregated_entities_callback(self, func):
@@ -575,20 +618,6 @@ class VisualizationApp(object):
     def set_entity_definitons(self, definition_dict):
         """Set the lookup dictionary for entity definitions."""
         self._entity_definitions = definition_dict
-
-    def export_graphs(self, graph_list):
-        graphs = {}
-        for g in graph_list:
-            if g in self._graphs:
-                graphs[g] = {}
-                graphs[g]["graph"] = self._graphs[g]["nx_object"]
-                if "full_tree" in self._graphs[g]:
-                    graphs[g]["tree"] = self._graphs[g]["full_tree"]
-
-        return graphs
-
-    def get_edit_history(self):
-        return self._edit_history
 
     def export_graphs(self, graph_list):
         """Export current graph objects from the app.
@@ -611,10 +640,17 @@ class VisualizationApp(object):
         for g in graph_list:
             if g in self._graphs:
                 graphs[g] = {}
-                graphs[g]["graph"] = self._graphs[g]["nx_object"]
+                processor = self._graph_processor.from_graph_object(
+                    self._graphs[g]["object"])
+                graphs[g]["graph"] = processor.get_pgframe(
+                    node_prop_types=CORD19_PROP_TYPES["nodes"],
+                    edge_prop_types=CORD19_PROP_TYPES["edges"]).to_json()
                 if "full_tree" in self._graphs[g]:
-                    graphs[g]["tree"] = self._graphs[g]["full_tree"]
-
+                    tree_processor = self._graph_processor.from_graph_object(
+                        self._graphs[g]["full_tree"])
+                    graphs[g]["tree"] = tree_processor.get_pgframe(
+                        node_prop_types=CORD19_PROP_TYPES["nodes"],
+                        edge_prop_types=CORD19_PROP_TYPES["edges"]).to_json()
         return graphs
 
     def get_edit_history(self):
@@ -642,13 +678,16 @@ def search(elements, search_value, value, showgraph, diffs=None,
         value = []
 
     if global_scope:
-        for n in visualization_app._graphs[showgraph]["nx_object"].nodes():
-            attrs = visualization_app._graphs[showgraph]["nx_object"].nodes[n]
-
+        graph_object = visualization_app._graphs[showgraph]["object"]
+        processor = visualization_app._graph_processor.from_graph_object(
+            graph_object)
+        for n, attrs in processor.nodes(properties=True):
             cluster_matches = False
             if cluster_type is not None and cluster_search is not None:
-                if (cluster_type in attrs and attrs[cluster_type] in cluster_search) or\
-                       n in nodes_to_keep:
+                if (
+                        cluster_type in attrs and
+                        attrs[cluster_type] in cluster_search) or\
+                   n in nodes_to_keep:
                     cluster_matches = True
             else:
                 cluster_matches = True
@@ -669,7 +708,7 @@ def search(elements, search_value, value, showgraph, diffs=None,
                 if cluster_type is not None and cluster_search is not None:
                     if (cluster_type in ele_data["data"] and
                         ele_data["data"][cluster_type] in cluster_search) or\
-                           el_id in nodes_to_keep:
+                       el_id in nodes_to_keep:
                         cluster_matches = True
                 else:
                     cluster_matches = True
@@ -741,9 +780,12 @@ def filter_elements(input_elements, node_condition, edge_condition=None):
         el["data"]["id"]
         for el in input_elements
         if "source" in el["data"] and (
-            el["data"]["source"] in nodes_to_keep and 
+            el["data"]["source"] in nodes_to_keep and
             el["data"]["target"] in nodes_to_keep and
-            (edge_condition(el["data"]) if edge_condition is not None else True)
+            (
+                edge_condition(el["data"])
+                if edge_condition is not None else True
+            )
         )
     ]
 
@@ -759,11 +801,11 @@ def filter_elements(input_elements, node_condition, edge_condition=None):
     return elements, hidden_elements
 
 
-def get_all_clusters(graph_id, cluster_type):
+def get_all_clusters(processor, cluster_type):
     return list(set([
-        visualization_app._graphs[graph_id]["nx_object"].nodes[n][cluster_type]
-        for n in visualization_app._graphs[graph_id]["nx_object"].nodes()
-        if cluster_type in visualization_app._graphs[graph_id]["nx_object"].nodes[n]
+        properties[cluster_type]
+        for n, properties in processor.nodes(properties=True)
+        if cluster_type in properties
     ]))
 
 
@@ -834,6 +876,443 @@ def setup_paths_tab(nestedpaths):
         # disable depth
         pathdepth_disable = True
     return [traverse_field_disable, overlapping_disable, pathdepth_disable]
+
+
+def _handle_paths_search(graph_object, elements, source, target, top_n,
+                         searchnodetotraverse, searchpathoverlap,
+                         nestedpaths, pathdepth):
+    success = False
+    no_path_message = ""
+    path_finder = BACKEND_MAPPING[visualization_app._backend][
+        "paths"].from_graph_object(graph_object)
+    try:
+        if nestedpaths and pathdepth:
+            paths = path_finder.n_nested_shortest_paths(
+                source, target, top_n, nested_n=top_n,
+                strategy="naive", distance="distance_npmi",
+                depth=pathdepth, exclude_edge=True)
+        elif searchnodetotraverse:
+            intersecting = len(searchpathoverlap) == 1
+            a_b_paths, b_c_paths = path_finder.n_shortest_tripaths(
+                source, searchnodetotraverse, target, top_n,
+                strategy="naive", distance="distance_npmi",
+                overlap=intersecting, exclude_edge=True)
+            paths = a_b_paths + b_c_paths
+        else:
+            paths = path_finder.n_shortest_paths(
+                source, target, top_n,
+                distance="distance_npmi", strategy="naive",
+                exclude_edge=True)
+        elements = []
+        path_graph = path_finder.get_subgraph_from_paths(paths)
+        elements = get_cytoscape_data(
+            visualization_app._graph_processor.from_graph_object(
+                path_graph))
+        visualization_app._current_layout = "klay"
+        success = True
+
+    except ValueError as e:
+        print(e)
+        no_path_message = (
+            "No undirect paths from '{}' to '{}' were ".format(
+                source, target) +
+            "found (the nodes are either disconnected or connected by "
+            "a direct edge only)"
+        )
+    return success, elements, no_path_message
+
+
+def _handle_expand_edge(graph_object, source, target, edge_expansion_limit):
+    path_finder = BACKEND_MAPPING[visualization_app._backend][
+        "paths"].from_graph_object(graph_object)
+    paths = path_finder.n_shortest_paths(
+        source, target,
+        edge_expansion_limit,
+        distance="distance_npmi", strategy="naive", exclude_edge=True)
+
+    path_graph = path_finder.get_subgraph_from_paths(paths)
+    new_elements = get_cytoscape_data(
+        visualization_app._graph_processor.from_graph_object(path_graph))
+    return new_elements
+
+
+def _handle_neighbor_search(processor, selected_node, neighborlimit):
+    weights = {}
+    for n in processor.neighbors(selected_node):
+        weights[n] = processor.get_edge(selected_node, n)["npmi"]
+    top_neighbors = top_n(weights, neighborlimit)
+
+    list_group = dbc.ListGroup([
+        dbc.ListGroupItem("{}. {} (NMPI {:.2f})".format(i + 1, n, weights[n]))
+        for i, n in enumerate(top_neighbors)
+    ])
+    return [
+        html.H6("Top neighbors of '{}' by NMPI".format(
+            selected_node), className="card-title"),
+        list_group
+    ]
+
+
+def _handle_reset_elements(current_graph, editing_mode,
+                           node_freq_type, edge_freq_type,
+                           nodes_to_keep, memory):
+    if editing_mode == 1:
+        visualization_app._graphs[current_graph]["object"] =\
+            visualization_app._graphs[current_graph]["object_backup"].copy()
+        processor = visualization_app._graph_processor.from_graph_object(
+            visualization_app._graphs[current_graph]["object_backup"])
+        elements = visualization_app._update_cyto_graph(
+            current_graph, processor,
+            visualization_app._graphs[current_graph]["top_n"],
+            node_freq_type=node_freq_type,
+            edge_freq_type=edge_freq_type,
+            nodes_to_keep=nodes_to_keep)
+    else:
+        # Remove added elements
+        elements = [
+            el for el in elements
+            if el["data"]["id"] not in memory[
+                "merging_backup"]["added_elements"]
+        ]
+        for el in memory["merging_backup"]["added_elements"]:
+            if el in visualization_app._graphs[current_graph]["paper_lookup"]:
+                del visualization_app._graphs[current_graph]["paper_lookup"][el]
+
+        # Relabel nodes back
+        for el in elements:
+            if el["data"]["id"] in memory["renamed_elements"]:
+                el["data"]["name"] = el["data"]["id"]
+                el["data"]["value"] = el["data"]["id"]
+
+        # Bring back removed elements
+        for el in memory["removed_elements"].values():
+            elements.append(el)
+
+        for el in memory["merging_backup"]["removed_elements"].values():
+            elements.append(el)
+
+        # Bring back paper lookup
+        visualization_app._graphs[current_graph]["paper_lookup"].update(
+            memory["paper_backup"])
+
+        memory["removed_elements"] = {}
+        memory["merged_elements"] = {}
+        memory["renamed_elements"] = {}
+    return elements
+
+
+def _handle_remove_node(current_graph, processor, elements, memory,
+                        editing_mode, selected_node_data, selected_edge_data,
+                        node_freq_type, nodes_to_keep):
+    nodes_to_remove = {}
+    edges_to_remove = {}
+    if selected_node_data:
+        nodes_to_remove = {
+            el["id"]: {"data": el} for el in selected_node_data
+        }
+
+        edges_to_remove = {
+            el["data"]["id"]: el
+            for el in elements
+            if "source" in el["data"] and (
+                el["data"]["source"] in nodes_to_remove or
+                el["data"]["target"] in nodes_to_remove
+            )
+        }
+    if selected_edge_data:
+        edges_to_remove = {
+            ele_data["id"]: {"data": ele_data}
+            for ele_data in selected_edge_data
+        }
+
+    if editing_mode == 1:
+        for n in nodes_to_remove:
+            processor.remove_node(n)
+
+        for edge in edges_to_remove.values():
+            if (edge["data"]["source"], edge["data"]["target"]) in processor.edges():
+                processor.remove_edge(
+                    edge["data"]["source"], edge["data"]["target"])
+
+        if current_graph not in visualization_app._edit_history:
+            visualization_app._edit_history[current_graph] = []
+        visualization_app._edit_history[current_graph].append(
+            {
+                "type": "remove",
+                "nodes": list(nodes_to_remove.keys()),
+                "edges": list(edges_to_remove.keys())
+            }
+        )
+
+        elements = visualization_app._update_cyto_graph(
+            current_graph, processor,
+            visualization_app._graphs[current_graph]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
+    else:
+        memory["removed_elements"].update(nodes_to_remove)
+        memory["removed_elements"].update(edges_to_remove)
+    return elements
+
+
+def _handle_rename_node(current_graph, processor, memory, elements,
+                        selected_node, rename_input_value, editing_mode,
+                        node_freq_type, nodes_to_keep):
+    rename_error_message = ""
+    # Check if the rename input is valid
+    rename_invalid = False
+    if rename_input_value != selected_node:
+        if editing_mode == 1:
+            if rename_input_value in processor.nodes():
+                rename_invalid = True
+                rename_error_message =\
+                    "Node with the label '{}' already exists".format(
+                        rename_input_value)
+        else:
+            for el in elements:
+                if rename_input_value == el["data"]["id"]:
+                    rename_invalid = True
+                    rename_error_message =\
+                        "Node with the label '{}' already exists".format(
+                            rename_input_value)
+                    break
+
+    if not rename_invalid:
+        if editing_mode == 1:
+            # Rename node in the graph
+            processor.rename_nodes(
+                {selected_node: rename_input_value})
+            elements = visualization_app._update_cyto_graph(
+                current_graph, processor,
+                visualization_app._graphs[current_graph]["top_n"],
+                node_freq_type=node_freq_type,
+                edge_freq_type=node_freq_type,
+                nodes_to_keep=nodes_to_keep)
+
+            visualization_app._graphs[current_graph]["paper_lookup"][
+                rename_input_value] = visualization_app._graphs[
+                    current_graph]["paper_lookup"][selected_node]
+            visualization_app._entity_definitions[rename_input_value] =\
+                visualization_app._entity_definitions[selected_node]
+
+            if current_graph not in visualization_app._edit_history:
+                visualization_app._edit_history[current_graph] = []
+            visualization_app._edit_history[current_graph].append(
+                {
+                    "type": "rename",
+                    "original_node": selected_node,
+                    "new_name": rename_input_value
+                }
+            )
+        else:
+            memory["renamed_elements"].update(
+                {selected_node: rename_input_value})
+    return elements, rename_error_message
+
+
+def _handle_merge_nodes(current_graph, processor, memory,
+                        selected_nodes, new_name, editing_mode,
+                        node_freq_type, nodes_to_keep):
+    if editing_mode == 1:
+        if new_name not in visualization_app._entity_definitions:
+            # choose a random definiton
+            definition = ""
+            for n in selected_nodes:
+                if n in visualization_app._entity_definitions:
+                    definition = visualization_app._entity_definitions[n]
+                    break
+            visualization_app._entity_definitions[new_name] = definition
+
+        new_graph = merge_nodes(
+            processor,
+            list(selected_nodes),
+            new_name, ATTRS_RESOLVER)
+        new_graph_processor =\
+            visualization_app._graph_processor.from_graph_object(new_graph)
+
+        elements = visualization_app._update_cyto_graph(
+            current_graph, new_graph_processor,
+            visualization_app._graphs[current_graph]["top_n"],
+            node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
+            nodes_to_keep=nodes_to_keep)
+
+        if current_graph not in visualization_app._edit_history:
+            visualization_app._edit_history[current_graph] = []
+        visualization_app._edit_history[current_graph].append(
+            {
+                "type": "merge",
+                "target": new_name,
+                "merged_nodes": list(selected_nodes)
+            }
+        )
+        visualization_app._graphs[current_graph]["paper_lookup"][new_name] =\
+            new_graph_processor.get_node(new_name)["paper"]
+    else:
+        elements, target_node, merging_data = merge_cyto_elements(
+            elements, selected_nodes, new_name)
+
+        for k, v in merging_data["removed_elements"].items():
+            if k not in memory["merging_backup"]["added_elements"]:
+                memory["merging_backup"]["removed_elements"][k] = v
+
+        memory["merging_backup"]["added_elements"] += merging_data[
+            "added_elements"]
+
+        papers = set()
+        for n in selected_nodes:
+            memory["paper_backup"][n] = visualization_app._graphs[
+                current_graph]["paper_lookup"][n]
+            papers.update(
+                visualization_app._graphs[current_graph]["paper_lookup"][n])
+
+        visualization_app._graphs[current_graph][
+            "paper_lookup"][new_name] = list(papers)
+    return elements
+
+
+def _handle_show_top_n(current_graph, processor, elements, memory,
+                       top_n_slider_value, recompute_spanning_tree,
+                       node_freq_type, edge_freq_type, nodes_with_cluster,
+                       nodes_to_keep):
+    current_top_n = visualization_app._graphs[current_graph]["top_n"]
+    total_number_of_entities = len(processor.nodes())
+    if current_top_n is None or current_top_n != top_n_slider_value:
+        if len(recompute_spanning_tree) > 0:
+            elements = visualization_app._update_cyto_graph(
+                current_graph, processor,
+                top_n_slider_value,
+                node_freq_type=node_freq_type,
+                edge_freq_type=edge_freq_type,
+                node_subset=nodes_with_cluster,
+                nodes_to_keep=nodes_to_keep)
+        else:
+            top_n_nodes = get_top_n_nodes(
+                visualization_app._graphs[current_graph]["object"],
+                top_n_slider_value,
+            )
+
+            elements, hidden_elements = filter_elements(
+                elements,
+                lambda x:
+                    x["id"] in top_n_nodes or x["id"] in nodes_to_keep,
+                lambda x:
+                    (
+                        x["source"] in top_n_nodes or
+                        x["source"] in nodes_to_keep
+                    ) and (
+                        x["target"] in top_n_nodes or
+                        x["target"] in nodes_to_keep
+                    )
+            )
+            memory["filtered_elements"] = hidden_elements
+
+    message = "Displaying top {} most frequent entities (out of {})".format(
+        top_n_slider_value
+        if top_n_slider_value <= total_number_of_entities
+        else total_number_of_entities,
+        total_number_of_entities)
+    return elements, message
+
+
+def _handle_show_all(current_graph, processor, node_freq_type, edge_freq_type,
+                     nodes_with_cluster, nodes_to_keep):
+    total_number_of_entities = len(processor.nodes())
+    elements = visualization_app._update_cyto_graph(
+        current_graph, processor, None,
+        node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
+        node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
+
+    message = "Displaying all {} entities".format(total_number_of_entities)
+    return elements, message
+
+
+def node_range_condition(el, start, end, nodes_to_keep, node_freq_type):
+    if el["id"] in nodes_to_keep:
+        return True
+    if node_freq_type in el:
+        if el[node_freq_type] >= start and\
+           el[node_freq_type] <= end:
+            return True
+    return False
+
+
+def edge_range_condition(el, start, end, edge_freq_type):
+    if edge_freq_type in el:
+        if el[edge_freq_type] >= start and\
+           el[edge_freq_type] <= end:
+            return True
+    return False
+
+
+def _handle_node_frequency_filer(current_graph, elements, memory,
+                                 nodefreqslider, nodes_to_keep,
+                                 node_freq_type, edge_freq_type):
+    elements, hidden_elements = filter_elements(
+        elements + memory["filtered_elements"],
+        lambda x: node_range_condition(
+            x, nodefreqslider[0], nodefreqslider[1],
+            nodes_to_keep, node_freq_type),
+        lambda x: edge_range_condition(
+            x,
+            visualization_app._graphs[current_graph]["current_edge_value"][0],
+            visualization_app._graphs[current_graph]["current_edge_value"][1],
+            edge_freq_type))
+    visualization_app._graphs[current_graph]["current_node_value"] =\
+        nodefreqslider
+
+    memory["filtered_elements"] = hidden_elements
+
+    new_marks = {}
+    for k, v in visualization_app._graphs[current_graph]["node_marks"].items():
+        if k == visualization_app._graphs[current_graph]["min_node_weight"] or\
+           k == visualization_app._graphs[current_graph]["max_node_weight"]:
+            new_marks[k] = v
+
+    # add a new value mark
+    if nodefreqslider[0] != visualization_app._graphs[current_graph][
+            "min_node_weight"]:
+        new_marks[nodefreqslider[0]] = generate_mark(nodefreqslider[0])
+    if nodefreqslider[1] != visualization_app._graphs[current_graph][
+            "max_node_weight"]:
+        new_marks[nodefreqslider[1]] = generate_mark(nodefreqslider[1])
+
+    visualization_app._graphs[current_graph]["node_marks"] = new_marks
+    return elements
+
+
+def _handle_edge_frequency_filter(current_graph, elements, memory,
+                                  edgefreqslider, nodes_to_keep, node_freq_type,
+                                  edge_freq_type):
+    elements, hidden_elements = filter_elements(
+        elements + memory["filtered_elements"],
+        lambda x: node_range_condition(
+            x,
+            visualization_app._graphs[current_graph]["current_node_value"][0],
+            visualization_app._graphs[current_graph]["current_node_value"][1],
+            nodes_to_keep, node_freq_type),
+        lambda x: edge_range_condition(
+            x, edgefreqslider[0], edgefreqslider[1], edge_freq_type))
+    visualization_app._graphs[current_graph]["current_edge_value"] =\
+        edgefreqslider
+
+    memory["filtered_elements"] = hidden_elements
+
+    new_marks = {}
+    for k, v in visualization_app._graphs[current_graph]["edge_marks"].items():
+        if k == visualization_app._graphs[current_graph]["min_edge_weight"] or\
+           k == visualization_app._graphs[current_graph]["max_edge_weight"]:
+            new_marks[k] = v
+
+    # add a new value mark
+    if edgefreqslider[0] != visualization_app._graphs[current_graph][
+            "min_edge_weight"]:
+        new_marks[edgefreqslider[0]] = generate_mark(edgefreqslider[0])
+    if edgefreqslider[1] != visualization_app._graphs[current_graph][
+            "max_edge_weight"]:
+        new_marks[edgefreqslider[1]] = generate_mark(edgefreqslider[1])
+
+    visualization_app._graphs[current_graph]["edge_marks"] = new_marks
+    return elements
 
 
 @visualization_app._app.callback(
@@ -914,7 +1393,6 @@ def setup_paths_tab(nestedpaths):
         State("path-finder-tab", "className"),
     ]
 )
-
 def update_cytoscape_elements(resetbt, removebt, val,
                               nodefreqslider, edgefreqslider,
                               searchvalues, pathbt,
@@ -962,10 +1440,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
     else:
         elements = cytoelements
 
-    current_top_n = visualization_app._graphs[val]["top_n"]
-
-    total_number_of_entities = len(
-        visualization_app._graphs[val]["nx_object"].nodes())
+    processor = visualization_app._graph_processor.from_graph_object(
+        visualization_app._graphs[val]["object"])
 
     output_editing_mode = editing_mode
     if button_id in full_graph_events:
@@ -976,8 +1452,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         nodes_to_keep = []
 
     nodes_with_cluster = filter_nodes_by_attr(
-        visualization_app._graphs[val]["nx_object"],
-        cluster_type, clustersearch)
+        processor, cluster_type, clustersearch)
 
     nodes_with_cluster += nodes_to_keep
 
@@ -1002,7 +1477,8 @@ def update_cytoscape_elements(resetbt, removebt, val,
             "rename-apply"
         ]
 
-    if clustersearch is not None and cluster_type is not None and button_id != "bt-reset" and button_id not in element_preserving:
+    if clustersearch is not None and cluster_type is not None and\
+       button_id != "bt-reset" and button_id not in element_preserving:
         memory["filtered_elements"] = []
         memory["removed_elements"] = {}
         memory["renamed_elements"] = {}
@@ -1021,7 +1497,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
         else:
             if len(recompute_spanning_tree) > 0:
                 elements = visualization_app._update_cyto_graph(
-                    val, visualization_app._graphs[val]["nx_object"],
+                    val, processor,
                     visualization_app._graphs[val]["top_n"],
                     node_freq_type=node_freq_type,
                     edge_freq_type=edge_freq_type,
@@ -1085,56 +1561,10 @@ def update_cytoscape_elements(resetbt, removebt, val,
     # -------- Handle remove selected nodes -------
 
     if button_id == "remove-button":
-        nodes_to_remove = {}
-        edges_to_remove = {}
-        if selected_node_data:
-            nodes_to_remove = {
-                el["id"]: {"data": el} for el in selected_node_data
-            }
-
-            edges_to_remove = {
-                el["data"]["id"]: el
-                for el in elements
-                if "source" in el["data"] and (
-                    el["data"]["source"] in nodes_to_remove or
-                    el["data"]["target"] in nodes_to_remove
-                )
-            }
-        if selected_edge_data:
-            edges_to_remove = {
-                ele_data["id"]: {"data": ele_data}
-                for ele_data in selected_edge_data
-            }
-
-        if editing_mode == 1:
-            for n in nodes_to_remove:
-                visualization_app._graphs[val]["nx_object"].remove_node(n)
-
-            for edge in edges_to_remove.values():
-                if (
-                        edge["data"]["source"], edge["data"]["target"]
-                   ) in visualization_app._graphs[val]["nx_object"].edges():
-                    visualization_app._graphs[val]["nx_object"].remove_edge(
-                        edge["data"]["source"], edge["data"]["target"])
-
-            if val not in visualization_app._edit_history:
-                visualization_app._edit_history[val] = []
-            visualization_app._edit_history[val].append(
-                {
-                    "type": "remove",
-                    "nodes": list(nodes_to_remove.keys()),
-                    "edges": list(edges_to_remove.keys())
-                }
-            )
-
-            elements = visualization_app._update_cyto_graph(
-                val, visualization_app._graphs[val]["nx_object"],
-                visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
-        else:
-            memory["removed_elements"].update(nodes_to_remove)
-            memory["removed_elements"].update(edges_to_remove)
+        elements = _handle_remove_node(
+            val, processor, elements, memory,
+            editing_mode, selected_node_data, selected_edge_data,
+            node_freq_type, nodes_to_keep)
 
     # -------- Handle merge selected nodes -------
 
@@ -1147,114 +1577,18 @@ def update_cytoscape_elements(resetbt, removebt, val,
     if button_id == "merge-apply" and merge_label_value:
         # Retreive name
         new_name = merge_label_value
+        elements = _handle_merge_nodes(
+            val, processor, memory,
+            selected_nodes, new_name, editing_mode,
+            node_freq_type, nodes_to_keep)
 
-        if editing_mode == 1:
-            if new_name not in visualization_app._entity_definitions:
-                # choose a random definiton
-                definition = ""
-                for n in selected_nodes:
-                    if n in visualization_app._entity_definitions:
-                        definition = visualization_app._entity_definitions[n]
-                        break
-                visualization_app._entity_definitions[new_name] = definition
-
-            new_graph = merge_nodes(
-                visualization_app._graphs[val]["nx_object"],
-                list(selected_nodes),
-                new_name, CORD_ATTRS_RESOLVER, copy=False)
-
-            elements = visualization_app._update_cyto_graph(
-                val, new_graph, visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
-
-            if val not in visualization_app._edit_history:
-                visualization_app._edit_history[val] = []
-            visualization_app._edit_history[val].append(
-                {
-                    "type": "merge",
-                    "target": new_name,
-                    "merged_nodes": list(selected_nodes)
-                }
-            )
-
-            visualization_app._graphs[val]["paper_lookup"][new_name] =\
-                new_graph.nodes[new_name]["paper"]
-        else:
-            elements, target_node, merging_data = merge_cyto_elements(
-                elements, selected_nodes, new_name)
-
-            for k, v in merging_data["removed_elements"].items():
-                if k not in memory["merging_backup"]["added_elements"]:
-                    memory["merging_backup"]["removed_elements"][k] = v
-
-            memory["merging_backup"]["added_elements"] += merging_data[
-                "added_elements"]
-
-            papers = set()
-            for n in selected_nodes:
-                memory["paper_backup"][n] = visualization_app._graphs[
-                    val]["paper_lookup"][n]
-                papers.update(
-                    visualization_app._graphs[val]["paper_lookup"][n])
-
-            visualization_app._graphs[val]["paper_lookup"][new_name] = list(
-                papers)
-
-    if button_id == "rename-apply":
+    if button_id == "rename-apply" and len(selected_nodes) == 1:
         if selected_rename_input:
             rename_input_value = selected_rename_input
-
-        # Check if the rename input is valid
-        if rename_input_value != selected_nodes[0]:
-            if editing_mode == 1:
-                if rename_input_value in visualization_app._graphs[
-                        val]["nx_object"].nodes():
-                    rename_invalid = True
-                    rename_error_message =\
-                        "Node with the label '{}' already exists".format(
-                            rename_input_value)
-            else:
-                for el in elements:
-                    if rename_input_value == el["data"]["id"]:
-                        rename_invalid = True
-                        rename_error_message =\
-                            "Node with the label '{}' already exists".format(
-                                rename_input_value)
-                        break
-
-        if not rename_invalid:
-            if editing_mode == 1:
-                # Rename node in the graph
-                new_graph = nx.relabel_nodes(
-                    visualization_app._graphs[val]["nx_object"],
-                    {selected_nodes[0]: rename_input_value})
-
-                visualization_app._graphs[val]["nx_object"] = new_graph
-                elements = visualization_app._update_cyto_graph(
-                    val, new_graph, visualization_app._graphs[val]["top_n"],
-                    node_freq_type=node_freq_type,
-                    edge_freq_type=node_freq_type,
-                    nodes_to_keep=nodes_to_keep)
-
-                visualization_app._graphs[val]["paper_lookup"][
-                    rename_input_value] = visualization_app._graphs[
-                    val]["paper_lookup"][selected_nodes[0]]
-                visualization_app._entity_definitions[rename_input_value] =\
-                    visualization_app._entity_definitions[selected_nodes[0]]
-
-                if val not in visualization_app._edit_history:
-                    visualization_app._edit_history[val] = []
-                visualization_app._edit_history[val].append(
-                    {
-                        "type": "rename",
-                        "original_node": selected_nodes[0],
-                        "new_name": rename_input_value
-                    }
-                )
-            else:
-                memory["renamed_elements"].update(
-                    {selected_nodes[0]: rename_input_value})
+        elements, rename_error_message = _handle_rename_node(
+            val, processor, memory, elements, selected_nodes[0],
+            rename_input_value, editing_mode,
+            node_freq_type, nodes_to_keep)
 
     # Open/close the rename dialog
     if button_id == "rename-button" or button_id == "rename-close" or\
@@ -1263,66 +1597,17 @@ def update_cytoscape_elements(resetbt, removebt, val,
 
     # -------- Handle reset graph elements --------
     if button_id == "reset-elements-button":
-        if editing_mode == 1:
-            visualization_app._graphs[val]["nx_object"] =\
-                visualization_app._graphs[val]["nx_object_backup"].copy()
-            elements = visualization_app._update_cyto_graph(
-                val, visualization_app._graphs[val]["nx_object_backup"],
-                visualization_app._graphs[val]["top_n"],
-                node_freq_type=node_freq_type, edge_freq_type=node_freq_type,
-                nodes_to_keep=nodes_to_keep)
-        else:
-            # Remove added elements
-            elements = [
-                el for el in elements
-                if el["data"]["id"] not in memory[
-                    "merging_backup"]["added_elements"]
-            ]
-            for el in memory["merging_backup"]["added_elements"]:
-                if el in visualization_app._graphs[val]["paper_lookup"]:
-                    del visualization_app._graphs[val]["paper_lookup"][el]
-
-            # Relabel nodes back
-            for el in elements:
-                if el["data"]["id"] in memory["renamed_elements"]:
-                    el["data"]["name"] = el["data"]["id"]
-                    el["data"]["value"] = el["data"]["id"]
-
-            # Bring back removed elements
-            for el in memory["removed_elements"].values():
-                elements.append(el)
-
-            for el in memory["merging_backup"]["removed_elements"].values():
-                elements.append(el)
-
-            # Bring back paper lookup
-            visualization_app._graphs[val]["paper_lookup"].update(
-                memory["paper_backup"])
-
-            memory["removed_elements"] = {}
-            memory["merged_elements"] = {}
-            memory["renamed_elements"] = {}
+        elements = _handle_reset_elements(
+            val, editing_mode, node_freq_type, edge_freq_type,
+            nodes_to_keep, memory)
 
     # --------- Handle neighbor search -----
     neighbor_card_content = [
         html.H6("No neighbors to display", className="card-title")
     ]
     if button_id == "bt-neighbors":
-        graph = visualization_app._graphs[val]["nx_object"]
-        weights = {}
-        for n in graph.neighbors(selected_nodes[0]):
-            weights[n] = graph.edges[selected_nodes[0], n]["npmi"]
-        top_neighbors = top_n(weights, neighborlimit)
-
-        list_group = dbc.ListGroup([
-            dbc.ListGroupItem("{}. {} (NMPI {:.2f})".format(i + 1, n, weights[n]))
-            for i, n in enumerate(top_neighbors)
-        ])
-        neighbor_card_content = [
-            html.H6("Top neighbors of '{}' by NMPI".format(
-                selected_nodes[0]), className="card-title"),
-            list_group
-        ]
+        neighbor_card_content = _handle_neighbor_search(
+            processor, selected_nodes[0], neighborlimit)
 
     # -------- Handle path search -------
     no_path_message = ""
@@ -1335,53 +1620,22 @@ def update_cytoscape_elements(resetbt, removebt, val,
 
         success = False
         if searchpathfrom and searchpathto:
-            topN = searchpathlimit if searchpathlimit else 20
+            top_n = searchpathlimit if searchpathlimit else 20
 
             source = searchpathfrom
             target = searchpathto
 
             # create a subgraph given the selected clusters
-
             graph_object = subgraph_from_clusters(
-                visualization_app._graphs[val]["nx_object"],
-                cluster_type, clustersearch, nodes_to_keep)
+                processor, cluster_type, clustersearch, nodes_to_keep)
 
-            try:
-                if nestedpaths and pathdepth:
-                    paths = top_n_nested_paths(
-                        graph_object, source, target, topN, nested_n=topN,
-                        strategy="naive", distance="distance_npmi",
-                        depth=pathdepth)
-                elif searchnodetotraverse:
-                    intersecting = len(searchpathoverlap) == 1
-                    a_b_paths, b_c_paths = top_n_tripaths(
-                        graph_object, source,
-                        searchnodetotraverse, target, topN,
-                        strategy="naive", distance="distance_npmi",
-                        intersecting=intersecting)
-                    paths = a_b_paths + b_c_paths
-                else:
-                    paths = top_n_paths(
-                        graph_object, source, target,
-                        topN, distance="distance_npmi", strategy="naive")
-                elements = []
-
-                path_graph = graph_from_paths(
-                    paths, visualization_app._graphs[val]["nx_object"])
-                elements = get_cytoscape_data(path_graph)
-                visualization_app._current_layout = "klay"
-                success = True
-
-            except ValueError as e:
-                print(e)
-                no_path_message = (
-                    f"No undirect paths from '{source}' to '{target}' were "
-                    "found (the nodes are either disconnected or connected by "
-                    "a direct edge only)"
-                )
+            success, elements, no_path_message = _handle_paths_search(
+                graph_object, elements, source, target, top_n,
+                searchnodetotraverse, searchpathoverlap,
+                nestedpaths, pathdepth)
         if not success:
             if visualization_app._graphs[val]["top_n"] is None and\
-                 visualization_app._graphs[val]["positions"] is not None:
+               visualization_app._graphs[val]["positions"] is not None:
                 visualization_app._current_layout = "preset"
             else:
                 visualization_app._current_layout = "cose-bilkent"
@@ -1392,23 +1646,19 @@ def update_cytoscape_elements(resetbt, removebt, val,
         target = selected_edge_data[0]["target"]
 
         graph_object = subgraph_from_clusters(
-            visualization_app._graphs[val]["nx_object"],
+            processor,
             cluster_type, clustersearch, nodes_to_keep)
 
-        paths = top_n_paths(
-            graph_object, source, target,
-            edge_expansion_limit, distance="distance_npmi", strategy="naive")
-
-        path_graph = graph_from_paths(
-            paths, visualization_app._graphs[val]["nx_object"])
-        new_elements = get_cytoscape_data(path_graph)
+        new_elements = _handle_expand_edge(
+            graph_object, source, target, edge_expansion_limit)
 
         existing_nodes = [
             el["data"]["id"] for el in elements if "source" not in el["data"]
         ]
 
         existing_edges = [
-            (el["data"]["source"], el["data"]["target"]) for el in elements if "source" in el["data"]
+            (el["data"]["source"], el["data"]["target"])
+            for el in elements if "source" in el["data"]
         ]
 
         for el in new_elements:
@@ -1417,16 +1667,16 @@ def update_cytoscape_elements(resetbt, removebt, val,
                     elements.append(el)
             else:
                 if (
-                        el["data"]["source"], el["data"]["target"]
-                   ) not in existing_edges and\
-                   (
-                        el["data"]["target"], el["data"]["source"]
-                   ) not in existing_edges:
+                    el["data"]["source"], el["data"]["target"]
+                ) not in existing_edges and (
+                    el["data"]["target"], el["data"]["source"]
+                ) not in existing_edges:
                     elements.append(el)
 
         visualization_app._current_layout = "klay"
 
     # -------- Handle 'display a spanning tree on top N nodes' -------
+    total_number_of_entities = len(processor.nodes())
     message = (
         "Displaying top {} most frequent entities (out of {})".format(
             visualization_app._graphs[val]["top_n"], total_number_of_entities)
@@ -1434,145 +1684,38 @@ def update_cytoscape_elements(resetbt, removebt, val,
         else "Displaying all {} entities".format(total_number_of_entities)
     )
 
-    def has_clusters(graph, node):
-        if clustersearch is not None and cluster_type is not None:
-            if cluster_type in graph.nodes[node] and\
-               graph.nodes[node][cluster_type] in clustersearch:
-                return True
-            else:
-                return False
-        else:
-            return True
-
+    # ---- Handle changes in Display Top N or all the entities -------
     if button_id == "top-n-button":
-        if current_top_n is None or current_top_n != top_n_slider_value:
-            if len(recompute_spanning_tree) > 0:
-                elements = visualization_app._update_cyto_graph(
-                    val, visualization_app._graphs[val]["nx_object"],
-                    top_n_slider_value,
-                    node_freq_type=node_freq_type,
-                    edge_freq_type=edge_freq_type,
-                    node_subset=nodes_with_cluster,
-                    nodes_to_keep=nodes_to_keep)
-            else:
-                top_n_nodes = get_top_n_nodes(
-                    visualization_app._graphs[val]["nx_object"],
-                    top_n_slider_value,
-                )
-
-                elements, hidden_elements = filter_elements(
-                    elements,
-                    lambda x:
-                        x["id"] in top_n_nodes or x["id"] in nodes_to_keep,
-                    lambda x:
-                        (
-                            x["source"] in top_n_nodes or x["source"] in nodes_to_keep
-                        ) and (
-                            x["target"] in top_n_nodes or x["target"] in nodes_to_keep
-                        )
-                )
-                memory["filtered_elements"] = hidden_elements
-
-        message = "Displaying top {} most frequent entities (out of {})".format(
-            top_n_slider_value
-            if top_n_slider_value <= total_number_of_entities
-            else total_number_of_entities,
-            total_number_of_entities)
+        elements, message = _handle_show_top_n(
+            val, processor, elements, memory,
+            top_n_slider_value, recompute_spanning_tree,
+            node_freq_type, edge_freq_type, nodes_with_cluster,
+            nodes_to_keep)
     elif button_id == "show-all-button":
-
         # Top entities are selected, but button is clicked, so show all
-        elements = visualization_app._update_cyto_graph(
-            val, visualization_app._graphs[val]["nx_object"], None,
-            node_freq_type=node_freq_type, edge_freq_type=edge_freq_type,
-            node_subset=nodes_with_cluster, nodes_to_keep=nodes_to_keep)
-
-        message = "Displaying all {} entities".format(total_number_of_entities)
+        elements, message = _handle_show_all(
+            val, processor, node_freq_type, edge_freq_type,
+            nodes_with_cluster, nodes_to_keep)
 
     # -------- Handle node/edge weight sliders -------
-
-    def node_range_condition(el, start, end):
-        if el["id"] in nodes_to_keep:
-            return True
-        if node_freq_type in el:
-            if el[node_freq_type] >= start and\
-               el[node_freq_type] <= end:
-                return True
-        return False
-
-    def edge_range_condition(el, start, end):
-        if edge_freq_type in el:
-            if el[edge_freq_type] >= start and\
-               el[edge_freq_type] <= end:
-                return True
-        return False
 
     if nodefreqslider and button_id == "nodefreqslider_content":
         if nodefreqslider[0] != visualization_app._graphs[val][
                 "current_node_value"][0] or\
            nodefreqslider[1] != visualization_app._graphs[val][
                 "current_node_value"][1]:
-            elements, hidden_elements = filter_elements(
-                elements + memory["filtered_elements"],
-                lambda x: node_range_condition(
-                    x, nodefreqslider[0], nodefreqslider[1]),
-                lambda x: edge_range_condition(
-                    x,
-                    visualization_app._graphs[val]["current_edge_value"][0],
-                    visualization_app._graphs[val]["current_edge_value"][1]))
-            visualization_app._graphs[val]["current_node_value"] =\
-                nodefreqslider
-
-            memory["filtered_elements"] = hidden_elements
-
-            new_marks = {}
-            for k, v in visualization_app._graphs[val]["node_marks"].items():
-                if k == visualization_app._graphs[val]["min_node_weight"] or\
-                   k == visualization_app._graphs[val]["max_node_weight"]:
-                    new_marks[k] = v
-
-            # add a new value mark
-            if nodefreqslider[0] != visualization_app._graphs[val][
-                    "min_node_weight"]:
-                new_marks[nodefreqslider[0]] = generate_mark(nodefreqslider[0])
-            if nodefreqslider[1] != visualization_app._graphs[val][
-                    "max_node_weight"]:
-                new_marks[nodefreqslider[1]] = generate_mark(nodefreqslider[1])
-
-            visualization_app._graphs[val]["node_marks"] = new_marks
+            elements = _handle_node_frequency_filer(
+                val, elements, memory, nodefreqslider,
+                nodes_to_keep, node_freq_type, edge_freq_type)
 
     elif edgefreqslider and button_id == "edgefreqslider_content":
         if edgefreqslider[0] != visualization_app._graphs[val][
                 "current_edge_value"][0] or\
            edgefreqslider[1] != visualization_app._graphs[val][
                 "current_edge_value"][1]:
-            elements, hidden_elements = filter_elements(
-                elements + memory["filtered_elements"],
-                lambda x: node_range_condition(
-                    x,
-                    visualization_app._graphs[val]["current_node_value"][0],
-                    visualization_app._graphs[val]["current_node_value"][1]),
-                lambda x: edge_range_condition(
-                    x, edgefreqslider[0], edgefreqslider[1]))
-            visualization_app._graphs[val]["current_edge_value"] =\
-                edgefreqslider
-
-            memory["filtered_elements"] = hidden_elements
-
-            new_marks = {}
-            for k, v in visualization_app._graphs[val]["edge_marks"].items():
-                if k == visualization_app._graphs[val]["min_edge_weight"] or\
-                   k == visualization_app._graphs[val]["max_edge_weight"]:
-                    new_marks[k] = v
-
-            # add a new value mark
-            if edgefreqslider[0] != visualization_app._graphs[val][
-                    "min_edge_weight"]:
-                new_marks[edgefreqslider[0]] = generate_mark(edgefreqslider[0])
-            if edgefreqslider[1] != visualization_app._graphs[val][
-                    "max_edge_weight"]:
-                new_marks[edgefreqslider[1]] = generate_mark(edgefreqslider[1])
-
-            visualization_app._graphs[val]["edge_marks"] = new_marks
+            elements = _handle_edge_frequency_filter(
+                val, elements, memory, edgefreqslider, nodes_to_keep,
+                node_freq_type, edge_freq_type)
 
     # -------- Apply filters and masking operations from memory -------
     new_elements = []
@@ -1611,7 +1754,7 @@ def update_cytoscape_elements(resetbt, removebt, val,
     # ------- Update configs ---------
     visualization_app._update_configs(
         elements, val, nodes_to_keep, top_n_slider_value,
-        node_freq_type,edge_freq_type,
+        node_freq_type, edge_freq_type,
         nodefreqslider, edgefreqslider, cluster_type, clustersearch,
         searchpathfrom, searchpathto, searchnodetotraverse, searchpathlimit,
         searchpathoverlap, nestedpaths, pathdepth)
@@ -1666,14 +1809,16 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
     res = []
     npmi_message = None
 
-    paper_lookup = visualization_app._graphs[showgraph]["paper_lookup"]
+    paper_lookup = visualization_app._graphs[
+        showgraph]["paper_lookup"]
 
     if button_id == "tapNode" and datanode:
         definition = ""
         if "definition" in datanode['data']:
             definition = str(datanode["data"]["definition"])
         elif datanode["data"]["id"] in visualization_app._entity_definitions:
-            definition = visualization_app._entity_definitions[datanode["data"]["id"]]
+            definition = visualization_app._entity_definitions[
+                datanode["data"]["id"]]
         label = datanode['data']['name']
         try:
             _type = str(datanode['data']['entity_type'])
@@ -1718,15 +1863,16 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
         modal_buttons = [
             dbc.Button(label, id="open-body-scroll", color="primary")
         ]
-    print(papers)
 
     papers_in_kg = None
     if len(papers) > 0:
         try:
+            if isinstance(papers, str):
+                papers = ast.literal_eval(papers)
             papers_in_kg = visualization_app._list_papers_callback(papers)
         except Exception as e:
             print(e)
-            error_message = visualization_app._db_error_message
+            error_message = "Error fetching papers for the selected node"
         rows = []
 
         def _convert_to_str(x):
@@ -1765,7 +1911,10 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
 
             cards = dbc.Row(rows)
         else:
-            cards = html.P(error_message, id="paperErrorMessage", style={"color": "red"})
+            cards = html.P(
+                error_message,
+                id="paperErrorMessage",
+                style={"color": "red"})
 
         modal = html.Div(
             [npmi_message] +
@@ -1774,7 +1923,8 @@ def display_tap_node(datanode, dataedge, statedatanode, statedataedge,
                 html.Div(
                     id="aggregated-entity-stats",
                     style={"min-height": "35pt", "margin-bottom": "10pt"}),
-                dbc.Modal([
+                dbc.Modal(
+                    [
                         dbc.ModalHeader("{} {}".format(
                             label,
                             "(displaying 200 results)"
@@ -1817,7 +1967,7 @@ def update_cytoscape_layout(layout, grouped, current_graph):
         layout_config = LAYOUT_CONFIGS[layout]
     else:
         layout_config = {
-            "name":  layout
+            "name": layout
         }
 
     return layout_config
@@ -1858,15 +2008,16 @@ def generate_stylesheet(elements,
         stylesheet = [
             style
             for style in stylesheet
-            if "style" in style and not (style["selector"] == 'node' and 'width' in style["style"])
+            if "style" in style and not (
+                style["selector"] == 'node' and "width" in style["style"])
         ]
         stylesheet.append({
             "selector": 'node',
             'style': {
                 "shape": node_shape,
-                'width':'data(' + node_freq_type + '_size)',
-                'height':'data(' + node_freq_type + '_size)',
-                'font-size':'data(' + node_freq_type + '_font_size)'
+                'width': 'data(' + node_freq_type + '_size)',
+                'height': 'data(' + node_freq_type + '_size)',
+                'font-size': 'data(' + node_freq_type + '_font_size)'
             }
 
         })
@@ -1892,16 +2043,11 @@ def generate_stylesheet(elements,
                     cluster_type,
                     t if isinstance(t, int) else "'{}'".format(t)),
                 "style": {
-                    "background-color": COLORS[t],
+                    "background-color": COLORS[str(t)],
                     "opacity": 1
                 }
             })
-#         stylesheet.append({
-#             "selector": '[type = "cluster"]',
-#             "style": {
-#                 "opacity": 0.2,
-#             },
-#         })
+
     if edge_freq_type:
         stylesheet = [
             style
@@ -2030,7 +2176,8 @@ def update_multi_options(search_value, value, elements, showgraph,
     if not search_value:
         raise PreventUpdate
     return search(
-        elements, search_value, value, showgraph, [], cluster_type, cluster_search, nodes_to_keep)
+        elements, search_value, value, showgraph, [], cluster_type,
+        cluster_search, nodes_to_keep)
 
 
 @visualization_app._app.callback(
@@ -2073,7 +2220,10 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
         types = visualization_app._configs["clustersearch"]
         visualization_app._is_initializing = True
     else:
-        types = get_all_clusters(val, cluster_type)
+        graph_object = visualization_app._graphs[val]["object"]
+        processor = visualization_app._graph_processor.from_graph_object(
+            graph_object)
+        types = get_all_clusters(processor, cluster_type)
 
     for lbl, v in components.cluster_types:
         if v == cluster_type:
@@ -2097,7 +2247,10 @@ def prepopulate_value(val, cluster_type, add_all_clusters, bt_reset):
     ],
 )
 def update_cluster_search(current_graph, cluster_type, search_value, value):
-    types = get_all_clusters(current_graph, cluster_type)
+    graph_object = visualization_app._graphs[current_graph]["object"]
+    processor = visualization_app._graph_processor.from_graph_object(
+        graph_object)
+    types = get_all_clusters(processor, cluster_type)
     res = []
     for t in types:
         if search_value:
@@ -2246,7 +2399,8 @@ def generate_legend(cluster_type, cluster_search, elements):
 
     for t in cluster_search:
         children.append(
-            dbc.Button([
+            dbc.Button(
+                [
                     html.Span(
                         className="legend-item",
                         style={
@@ -2256,7 +2410,7 @@ def generate_legend(cluster_type, cluster_search, elements):
                             "display": "inline-block",
                             "vertical-align": "text-bottom",
                             "margin-right": "5px",
-                            "background-color": COLORS[t]
+                            "background-color": COLORS[str(t)]
                         }),
                     t
                 ],
@@ -2286,7 +2440,8 @@ def update_merge_input(value, selected_nodes):
             options=options, searchable=False)
     else:
         return dbc.Input(
-            id="merge-label-input", placeholder="New entity name...", type="text")
+            id="merge-label-input", placeholder="New entity name...",
+            type="text")
 
 
 @visualization_app._app.callback(
@@ -2369,10 +2524,16 @@ def compute_aggregated_stats(button_clicked, tapped_node):
     if button_clicked:
         res = visualization_app._aggregated_entities_callback(
             tapped_node["data"]["id"])
-        list_group = dbc.ListGroup([
-            dbc.ListGroupItem("{}. {} ({})".format(i + 1, k, v))
-            for i, (k, v) in enumerate(res.items())
-        ])
+        if res is not None:
+            list_group = dbc.ListGroup([
+                dbc.ListGroupItem("{}. {} ({})".format(i + 1, k, v))
+                for i, (k, v) in enumerate(res.items())
+            ])
+        else:
+            list_group = html.P(
+                "Cannot fetch aggregated entities (manually renamed entity?)",
+                id="fetch-aggregated-error-message",
+                style={"color": "red"})
         entities_card_content = [
             html.H6(
                 "Top raw entities linked to '{}' (by paper frequency)".format(

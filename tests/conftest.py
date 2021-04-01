@@ -1,96 +1,224 @@
-#
-# Blue Brain Graph is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Blue Brain Graph is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-# General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Blue Brain Graph. If not, see <https://choosealicense.com/licenses/lgpl-3.0/>.
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
 
-import os
-from itertools import chain
+# Copyright 2020-2021 Blue Brain Project / EPFL
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+from bluegraph.core.io import PandasPGFrame
+
+from neo4j import GraphDatabase
+
+import numpy as np
 
 import pandas as pd
 
 import pytest
 
-from cord19kg.utils import mentions_to_occurrence, is_experiment_related, clean_up_entity, has_min_length
-from kganalytics.network_generation import generate_cooccurrence_network
+
+# Neo4j credentials (should be moved to some config files or env vars)
+NEO4J_URI = "bolt://localhost:7687"
+NEO4J_USER = "neo4j"
+NEO4J_PASSWORD = "admin"
+
+
+def generate_targets(nodes, s, density=0.2):
+    edges = []
+    for t in nodes:
+        if s < t:
+            edge = np.random.choice([0, 1], p=[1 - density, density])
+            if edge:
+                mi = np.random.normal(loc=0.5, scale=0.5)
+                if mi < 0:
+                    mi = 0
+                elif mi > 1:
+                    mi = 1
+                edges.append([
+                    s, t, mi, 1 / mi
+                    if mi != 0 else np.inf
+                ])
+    return edges
+
 
 @pytest.fixture(scope="session")
-def mentions_file_path():
-    return os.sep.join((os.path.abspath("."), "tests/data/mentions_data_sample_1000.csv"))
+def random_pgframe():
+    n_nodes = 50
+    density = 0.3
 
-@pytest.fixture(scope="session")
-def mentions(mentions_file_path):
-    mentions = pd.read_csv(mentions_file_path, nrows=1000)
-    # Extract unique paper/section/paragraph identifiers
-    mentions["paper"] = mentions["paper_id"].apply(
-        lambda x: x.split(":")[0])
-    mentions["section"] = mentions["paper_id"].apply(
-        lambda x: ":".join([x.split(":")[0], x.split(":")[1]]))
+    nodes = list(range(n_nodes))
 
-    mentions = mentions.rename(columns={"paper_id": "paragraph"})
-    return mentions
+    edges = sum(
+        map(lambda x: generate_targets(nodes, x, density), nodes), [])
+    edges = pd.DataFrame(
+        edges, columns=["@source_id", "@target_id", "mi", "distance"])
+    edges_df = edges.set_index(["@source_id", "@target_id"])
 
-@pytest.fixture(scope="session")
-def occurrence_data(mentions):
-    # Occurence data
-    occurrence_data, counts = mentions_to_occurrence(
-        mentions,
-        term_column="entity",
-        factor_columns=["paper", "section", "paragraph"],
-        term_cleanup=clean_up_entity,
-        term_filter=lambda x: has_min_length(x, 2),
-        mention_filter=lambda data: ~data["section"].apply(is_experiment_related),
-        dump_prefix="tests/data/example_")
+    frame = PandasPGFrame(nodes=nodes, edges=edges_df.index)
 
-    # Filter entities that occur only once (only in one paragraph, usually represent noisy terms)
-    occurrence_data = occurrence_data[occurrence_data["paragraph"].apply(lambda x: len(x) > 1)]
-    assert counts == {'paper': 38, 'section': 287, 'paragraph': 504}
-    assert len(occurrence_data) == 131
-    return occurrence_data, counts
+    frame.add_node_properties(
+        pd.DataFrame({
+            "@id": nodes,
+            "weight": np.random.rand(n_nodes)
+        }))
+    frame.node_prop_as_numeric("weight")
 
-@pytest.fixture(scope="session")
-def paper_comention_network_100_most_frequent(occurrence_data):
-
-    # Load 10000 lines of the mention data sample
+    frame.add_edge_properties(edges_df["mi"])
+    frame.edge_prop_as_numeric("mi")
+    frame.add_edge_properties(edges_df["distance"])
+    frame.edge_prop_as_numeric("distance")
+    return frame
 
 
-    # Use only 100 most frequent entities
-    paper_comention_network_100_most_frequent = generate_cooccurrence_network(
-        occurrence_data[0], "paper", occurrence_data[1]["paper"],
-        n_most_frequent=100,
-        parallelize=False)
-
-    assert paper_comention_network_100_most_frequent is not None
-    assert len(paper_comention_network_100_most_frequent) == 100
-
-    edge_attributes = set(chain.from_iterable(d.keys() for *_, d in paper_comention_network_100_most_frequent.edges(data=True)))
-
-    assert edge_attributes =={
-        "frequency",
-        "ppmi",
-        "npmi",
-        "distance_ppmi",
-        "distance_npmi"
-    }
-
-    return paper_comention_network_100_most_frequent
-
-@pytest.fixture(scope="session")
-def paper_comention_network_1000_edges(occurrence_data):
-
-    # Limit to 1000 edges
-    paper_comention_network_1000_edges = generate_cooccurrence_network(
-        occurrence_data[0], "paper", occurrence_data[1]["paper"],
-        limit=1000,
-        parallelize=False
+@pytest.fixture(scope="module")
+def neo4j_driver():
+    driver = GraphDatabase.driver(
+        NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    yield driver
+    cleanup_query = (
+        "MATCH (n) "
+        "WHERE any(l IN labels(n) WHERE l STARTS WITH 'Test') "
+        "DETACH DELETE n"
     )
+    session = driver.session()
+    session.run(cleanup_query)
+    session.close()
 
-    return paper_comention_network_1000_edges
+
+@pytest.fixture(scope="session")
+def path_test_graph():
+    nodes = ["A", "B", "C", "D", "E"]
+    sources = ["B", "A", "A", "A", "B", "C", "C", "E"]
+    targets = ["A", "C", "D", "E", "D", "B", "E", "D"]
+    weights = [2, 4, 8, 2, 2, 3, 4, 3]
+    edges = list(zip(sources, targets))
+    frame = PandasPGFrame(nodes=nodes, edges=edges)
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "distance": weights
+    })
+    frame.add_edge_properties(edge_weight)
+    frame.edge_prop_as_numeric("distance")
+    return frame
+
+
+@pytest.fixture(scope="session")
+def node_embedding_test_graph():
+    nodes = [
+        "Alice", "Bob", "Eric", "John", "Anna", "Laura", "Matt"
+    ]
+    age = [25, 9, 70, 42, 26, 35, 36]
+    height = [180, 122, 173, 194, 172, 156, 177]
+    weight = [75, 43, 68, 82, 70, 59, 81]
+    sources = [
+        "Alice", "Alice", "Bob", "Bob", "Bob", "Eric", "Anna", "Anna", "Matt"
+    ]
+    targets = [
+        "Bob", "Eric", "Eric", "John", "Anna", "Anna", "Laura", "John", "John"
+    ]
+    weights = [1.0, 2.2, 0.3, 4.1, 1.5, 21.0, 1.0, 2.5, 7.5]
+    edges = list(zip(sources, targets))
+    frame = PandasPGFrame(nodes=nodes, edges=edges)
+
+    # Add properties
+
+    a = pd.DataFrame()
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "age": age
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "height": height
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "weight": weight
+        }, prop_type="numeric")
+
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "distance": weights
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+    return frame
+
+
+@pytest.fixture(scope="session")
+def node_embedding_prediction_test_graph():
+    nodes = [
+        "Marie", "Ivan", "Sarah", "Claire"
+    ]
+    age = [45, 10, 65, 38]
+    height = [194, 122, 156, 177]
+    weight = [82, 44, 59, 81]
+    sources = [
+        "Marie", "Marie", "Ivan", "Claire"
+    ]
+    targets = [
+        "Ivan", "Sarah", "Claire", "Sarah"
+    ]
+    weights = [2.5, 11.0, 0.5, 2.5]
+    edges = list(zip(sources, targets))
+    frame = PandasPGFrame(nodes=nodes, edges=edges)
+
+    # Add properties
+
+    a = pd.DataFrame()
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "age": age
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "height": height
+        }, prop_type="numeric")
+    frame.add_node_properties(
+        {
+            "@id": nodes,
+            "weight": weight
+        }, prop_type="numeric")
+
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "distance": weights
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+    return frame
+
+
+@pytest.fixture(scope="session")
+def community_test_graph():
+    frame = PandasPGFrame.load_json(
+        "tests/zachari_karate_club.json")
+
+    sources = [s for s, _ in frame.edges()]
+    targets = [t for _, t in frame.edges()]
+    edge_weight = pd.DataFrame({
+        "@source_id": sources,
+        "@target_id": targets,
+        "strength": [
+            el if el > 0 else 0
+            for el in np.random.normal(
+                loc=0.5, scale=0.5, size=frame.number_of_edges())
+        ]
+    })
+    frame.add_edge_properties(edge_weight, prop_type="numeric")
+
+    return frame
