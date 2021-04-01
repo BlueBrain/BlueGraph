@@ -81,7 +81,7 @@ def random_pgframe():
 @pytest.fixture(scope="module")
 def neo4j_driver():
     driver = GraphDatabase.driver(
-        NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD), encrypted=False)
+        NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     yield driver
     cleanup_query = (
         "MATCH (n) "
