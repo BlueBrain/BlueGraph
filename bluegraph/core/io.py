@@ -718,8 +718,8 @@ class PandasPGFrame(PGFrame):
             ~self._nodes.index.isin(nodes_to_remove)]
         # Detach edges
         self.remove_edges(
-            self._edges.index.map(
-                lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove))
+            self._edges.index[self._edges.index.map(
+                lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove)])
 
     def remove_edges(self, edges_to_remove):
         self._edges = self._edges.loc[
@@ -961,12 +961,6 @@ class PandasPGFrame(PGFrame):
                 df["predicate"] = prop
                 triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
 
-            for prop in self.edge_properties():
-                df = pd.DataFrame(
-                    self._nodes[self._nodes[prop].notna()][prop]).reset_index()
-                df["predicate"] = prop
-                triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
-
         return np.concatenate(triple_sets)
 
     def filter_nodes(self, nodes):
@@ -1005,11 +999,11 @@ class PandasPGFrame(PGFrame):
 
     def copy(self):
         """Create a copy of the pgframe."""
-        nodes_copy = graph._nodes.copy()
-        edges_copy = graph._edges.copy()
+        nodes_copy = self._nodes.copy()
+        edges_copy = self._edges.copy()
 
-        node_prop_types = graph._node_prop_types.copy()
-        edge_prop_types = graph._edge_prop_types.copy()
+        node_prop_types = self._node_prop_types.copy()
+        edge_prop_types = self._edge_prop_types.copy()
         return PandasPGFrame.from_frames(
             nodes_copy, edges_copy,
             node_prop_types, edge_prop_types)
