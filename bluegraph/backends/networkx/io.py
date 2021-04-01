@@ -128,7 +128,9 @@ class NXGraphProcessor(GraphProcessor):
     def remove_edge(self, source, target):
         self.graph.remove_edge(source, target)
 
-    def add_edge(self, source, target, properties):
+    def add_edge(self, source, target, properties=None):
+        if properties is None:
+            properties = {}
         self.graph.add_edge(source, target, **properties)
 
     def set_edge_properties(self, source, target, properties):

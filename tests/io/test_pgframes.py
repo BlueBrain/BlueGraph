@@ -57,6 +57,39 @@ def test_pandas_pg_creation():
     frame.edge_prop_as_numeric("weight")
     assert(frame.is_numeric_node_prop("weight"))
     assert(frame.is_numeric_edge_prop("weight"))
+    # from_frames
+
+
+def test_pandas_modification():
+    # add_nodes
+    # add_edges
+    # add_node_properties
+    # remove_node_properties
+    # add_edge_properties
+    # remove_edge_properties
+    # remove_nodes
+    # remove_edges
+    # remove_isolated_nodes
+
+
+def test_pandas_getters():
+    # has_node_types
+    # has_edges_types
+    # nodes
+    # edges
+    # node_types
+    # edge_types
+    # node_properties
+    # edge_properties
+    # get_node_property_values
+    # get_edge_property_values
+    # get_node
+    # to_triples
+    # to_json
+    # filter_nodes
+    # filter_edges
+    # subgraph
+    # copy
 
 
 def test_neo4j_io(random_pgframe, neo4j_driver):

@@ -1172,7 +1172,7 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
-    def add_edge(self, source, target, properties):
+    def add_edge(self, source, target, properties=None):
         pass
 
     @abstractmethod
