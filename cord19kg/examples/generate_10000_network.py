@@ -40,23 +40,18 @@ pickled pandas dataframes.
 
 The following graphs are stored in the output folder:
 
-- the paper-based network: `Top_100000_network_paper_node_list.pkl`
-and `Top_100000_network_paper_edge_list.pkl`;
+- the paper-based network: `Top_100000_network_paper_graph.json`;
 
 - the minimum spanning tree of the paper-based network:
-`Top_100000_network_paper_tree_node_list.pkl` and
-`Top_100000_network_paper_tree_edge_list.pkl`;
+`Top_100000_network_paper_tree.json`;
 
-- the paragraph-based network:
-`Top_100000_network_paragraph_node_list.pkl`
-and `Top_100000_network_paper_edge_list.pkl`;
+- the paragraph-based network: `Top_100000_network_paragraph_graph.json`;
 
 - the minimum spanning tree of the paragraph-based network:
-`Top_100000_network_paper_paragraph_node_list.pkl` and
-`Top_100000_network_paper_paragraph_edge_list.pkl`;
+`Top_100000_network_paragraph_tree.json`;
 
-Try `kganalytics.export.load_network` to open the stored graphs as
-NetworkX graph objects.
+To open the stored graphs try `PandasPGFrame.load_json(<graph_json_file>)` to
+open the stored graphs as PandasPGFrame graph objects.
 
 """
 import json
