@@ -254,45 +254,45 @@ def test_gt_paths(path_test_graph):
     benchmark_directed_path_finder(finder)
 
 
-# def test_neo4j_paths(path_test_graph, neo4j_driver):
-#     finder = Neo4jPathFinder(
-#         pgframe=path_test_graph,
-#         driver=neo4j_driver,
-#         node_label="TestNode",
-#         edge_label="TestEdge", directed=False)
-#     benchmark_undirected_path_finder(finder)
+def test_neo4j_paths(path_test_graph, neo4j_driver):
+    finder = Neo4jPathFinder(
+        pgframe=path_test_graph,
+        driver=neo4j_driver,
+        node_label="TestNode",
+        edge_label="TestEdge", directed=False)
+    benchmark_undirected_path_finder(finder)
 
-#     finder.minimum_spanning_tree(
-#         "distance", write=True,
-#         write_edge_label="MST_A", start_node="A")
+    finder.minimum_spanning_tree(
+        "distance", write=True,
+        write_edge_label="MST_A", start_node="A")
 
-#     mst = {
-#         ('A', 'E'), ('A', 'B'), ('B', 'C'), ('B', 'D')
-#     }
+    mst = {
+        ('A', 'E'), ('A', 'B'), ('B', 'C'), ('B', 'D')
+    }
 
-#     graph = Neo4jGraphView(
-#         finder.driver, "TestNode", "MST_A")
+    graph = Neo4jGraphView(
+        finder.driver, "TestNode", "MST_A")
 
-#     assert_undirected_edges_equal(
-#         mst, Neo4jGraphProcessor.from_graph_object(graph).edges())
+    assert_undirected_edges_equal(
+        mst, Neo4jGraphProcessor.from_graph_object(graph).edges())
 
-#     finder.minimum_spanning_tree(
-#         "distance", write=True,
-#         write_edge_label="MST")
-#     graph = Neo4jGraphView(
-#         finder.driver, "TestNode", "MST")
-#     edges = Neo4jGraphProcessor.from_graph_object(graph).edges()
-#     assert(len(mst) == len(edges))
+    finder.minimum_spanning_tree(
+        "distance", write=True,
+        write_edge_label="MST")
+    graph = Neo4jGraphView(
+        finder.driver, "TestNode", "MST")
+    edges = Neo4jGraphProcessor.from_graph_object(graph).edges()
+    assert(len(mst) == len(edges))
 
-#     visited = set()
-#     for s, t in edges:
-#         visited.add(s)
-#         visited.add(t)
+    visited = set()
+    for s, t in edges:
+        visited.add(s)
+        visited.add(t)
 
-#     assert(visited == set(finder.nodes()))
+    assert(visited == set(finder.nodes()))
 
-#     finder = Neo4jPathFinder(
-#         driver=neo4j_driver,
-#         node_label="TestNode",
-#         edge_label="TestEdge", directed=True)
-#     benchmark_directed_path_finder(finder)
+    finder = Neo4jPathFinder(
+        driver=neo4j_driver,
+        node_label="TestNode",
+        edge_label="TestEdge", directed=True)
+    benchmark_directed_path_finder(finder)

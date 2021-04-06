@@ -188,37 +188,37 @@ def test_nx_communities(community_test_graph):
     assert(nx.get_node_attributes(nx_object, "h_community"))
 
 
-# def test_neo4j_communities(community_test_graph, neo4j_driver):
-#     coms = Neo4jCommunityDetector(
-#         pgframe=community_test_graph,
-#         driver=neo4j_driver,
-#         node_label="TestCommunityNode",
-#         edge_label="TestCommunityEdge", directed=False)
-#     l, g2, g4, lpa, h = _benchmark_comminities(coms, community_test_graph)
+def test_neo4j_communities(community_test_graph, neo4j_driver):
+    coms = Neo4jCommunityDetector(
+        pgframe=community_test_graph,
+        driver=neo4j_driver,
+        node_label="TestCommunityNode",
+        edge_label="TestCommunityEdge", directed=False)
+    l, g2, g4, lpa, h = _benchmark_comminities(coms, community_test_graph)
 
-#     # Assert all the node props are present
-#     query = "MATCH (n:TestCommunityNode) RETURN keys(n) AS props LIMIT 1"
-#     result = coms.execute(query)
-#     # assert(
-#     #     set([
-#     #         "louvain_community",
-#     #         "gn_2_community",
-#     #         "gn_4_community",
-#     #         "gn_4_int_community",
-#     #         "lpa_community",
-#     #         "h_community"]).issubset(set(result[0]["props"])))
+    # Assert all the node props are present
+    query = "MATCH (n:TestCommunityNode) RETURN keys(n) AS props LIMIT 1"
+    result = coms.execute(query)
+    # assert(
+    #     set([
+    #         "louvain_community",
+    #         "gn_2_community",
+    #         "gn_4_community",
+    #         "gn_4_int_community",
+    #         "lpa_community",
+    #         "h_community"]).issubset(set(result[0]["props"])))
 
-#     # Assert written props are equal to the streamed props
-#     query = "MATCH (n:TestCommunityNode) RETURN n.id AS node_id, n.louvain_community as louvain_community"
-#     result = coms.execute(query)
-#     assert(
-#         len(set(l.values())) ==
-#         len(set(
-#             {
-#                 record["node_id"]: record["louvain_community"]
-#                 for record in result
-#             }.values()))
-#     )
+    # Assert written props are equal to the streamed props
+    query = "MATCH (n:TestCommunityNode) RETURN n.id AS node_id, n.louvain_community as louvain_community"
+    result = coms.execute(query)
+    assert(
+        len(set(l.values())) ==
+        len(set(
+            {
+                record["node_id"]: record["louvain_community"]
+                for record in result
+            }.values()))
+    )
 
 
 def test_gt_communities(community_test_graph):

@@ -84,19 +84,19 @@ def random_pgframe():
     return frame
 
 
-# @pytest.fixture(scope="module")
-# def neo4j_driver():
-#     driver = GraphDatabase.driver(
-#         NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-#     yield driver
-#     cleanup_query = (
-#         "MATCH (n) "
-#         "WHERE any(l IN labels(n) WHERE l STARTS WITH 'Test') "
-#         "DETACH DELETE n"
-#     )
-#     session = driver.session()
-#     session.run(cleanup_query)
-#     session.close()
+@pytest.fixture(scope="module")
+def neo4j_driver():
+    driver = GraphDatabase.driver(
+        NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+    yield driver
+    cleanup_query = (
+        "MATCH (n) "
+        "WHERE any(l IN labels(n) WHERE l STARTS WITH 'Test') "
+        "DETACH DELETE n"
+    )
+    session = driver.session()
+    session.run(cleanup_query)
+    session.close()
 
 
 @pytest.fixture(scope="session")

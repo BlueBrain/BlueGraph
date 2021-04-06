@@ -168,92 +168,92 @@ def test_stellar_node_embedder(node_embedding_test_graph,
         set(embedding.index))
 
 
-# def test_neo4j_node_embedder(node_embedding_test_graph,
-#                              node_embedding_prediction_test_graph,
-#                              neo4j_driver):
+def test_neo4j_node_embedder(node_embedding_test_graph,
+                             node_embedding_prediction_test_graph,
+                             neo4j_driver):
 
-#     node_label = "TestPerson"
-#     edge_label = "TEST_KNOWS"
+    node_label = "TestPerson"
+    edge_label = "TEST_KNOWS"
 
-#     # Populate neo4j with the test property graph
-#     pgframe_to_neo4j(
-#         pgframe=node_embedding_test_graph, driver=neo4j_driver,
-#         node_label=node_label, edge_label=edge_label)
+    # Populate neo4j with the test property graph
+    pgframe_to_neo4j(
+        pgframe=node_embedding_test_graph, driver=neo4j_driver,
+        node_label=node_label, edge_label=edge_label)
 
-#     # Testing node2vec stream
-#     embedder = Neo4jNodeEmbedder(
-#         "node2vec",
-#         embeddingDimension=6, walkLength=20, iterations=1,
-#         edge_weight="weight")
-#     embedding = embedder.fit_model(
-#         driver=neo4j_driver, node_label=node_label, edge_label=edge_label)
-#     assert(len(embedding["embedding"].iloc[0]) == 6)
+    # Testing node2vec stream
+    embedder = Neo4jNodeEmbedder(
+        "node2vec",
+        embeddingDimension=6, walkLength=20, iterations=1,
+        edge_weight="weight")
+    embedding = embedder.fit_model(
+        driver=neo4j_driver, node_label=node_label, edge_label=edge_label)
+    assert(len(embedding["embedding"].iloc[0]) == 6)
 
-#     # Alternatively, create a graph view
-#     graph_view = Neo4jGraphView(
-#         neo4j_driver, node_label=node_label, edge_label=edge_label)
+    # Alternatively, create a graph view
+    graph_view = Neo4jGraphView(
+        neo4j_driver, node_label=node_label, edge_label=edge_label)
 
-#     # Testing node2vec write
-#     embedder.fit_model(
-#         graph_view=graph_view,
-#         write=True, write_property="node2vec")
-#     emb = _get_embedding_props(neo4j_driver, node_label, "node2vec")
-#     assert(len(emb) == 7)
-#     assert(set(embedding.index) == set(emb.keys()))
+    # Testing node2vec write
+    embedder.fit_model(
+        graph_view=graph_view,
+        write=True, write_property="node2vec")
+    emb = _get_embedding_props(neo4j_driver, node_label, "node2vec")
+    assert(len(emb) == 7)
+    assert(set(embedding.index) == set(emb.keys()))
 
-#     # Testing fastrp stream
-#     embedder = Neo4jNodeEmbedder(
-#         "fastrp", embeddingDimension=25,
-#         edge_weight="weight")
-#     embedding = embedder.fit_model(graph_view=graph_view)
-#     assert(len(embedding["embedding"].iloc[0]) == 25)
+    # Testing fastrp stream
+    embedder = Neo4jNodeEmbedder(
+        "fastrp", embeddingDimension=25,
+        edge_weight="weight")
+    embedding = embedder.fit_model(graph_view=graph_view)
+    assert(len(embedding["embedding"].iloc[0]) == 25)
 
-#     # Testing fastrp write
-#     embedding = embedder.fit_model(
-#         graph_view=graph_view,
-#         write=True, write_property="fastrp")
-#     emb = _get_embedding_props(neo4j_driver, node_label, "fastrp")
-#     assert(len(list(emb.values())[0]) == 25)
+    # Testing fastrp write
+    embedding = embedder.fit_model(
+        graph_view=graph_view,
+        write=True, write_property="fastrp")
+    emb = _get_embedding_props(neo4j_driver, node_label, "fastrp")
+    assert(len(list(emb.values())[0]) == 25)
 
-#     # Testing GraphSage train and stream predict
-#     embedder = Neo4jNodeEmbedder(
-#         "graphsage", feature_props=["age", "height", "weight"],
-#         embeddingDimension=3)
-#     embedding = embedder.fit_model(graph_view=graph_view)
-#     assert(len(emb) == 7)
-#     assert(set(embedding.index) == set(emb.keys()))
-#     assert(len(embedding["embedding"].iloc[0]) == 3)
+    # Testing GraphSage train and stream predict
+    embedder = Neo4jNodeEmbedder(
+        "graphsage", feature_props=["age", "height", "weight"],
+        embeddingDimension=3)
+    embedding = embedder.fit_model(graph_view=graph_view)
+    assert(len(emb) == 7)
+    assert(set(embedding.index) == set(emb.keys()))
+    assert(len(embedding["embedding"].iloc[0]) == 3)
 
-#     # Testing GraphSage write predicts (passing all the credentials)
-#     embedder.predict_embeddings(
-#         pgframe=node_embedding_prediction_test_graph,
-#         driver=neo4j_driver,
-#         node_label="TestPredictPerson",
-#         edge_label="TEST_PREDICT_KNOWS",
-#         write=True, write_property="graphsage"
-#     )
-#     emb = _get_embedding_props(neo4j_driver, "TestPredictPerson", "fastrp")
-#     assert(len(emb) == 4)
-#     assert(
-#         set(node_embedding_prediction_test_graph.nodes()) ==
-#         set(emb.keys()))
+    # Testing GraphSage write predicts (passing all the credentials)
+    embedder.predict_embeddings(
+        pgframe=node_embedding_prediction_test_graph,
+        driver=neo4j_driver,
+        node_label="TestPredictPerson",
+        edge_label="TEST_PREDICT_KNOWS",
+        write=True, write_property="graphsage"
+    )
+    emb = _get_embedding_props(neo4j_driver, "TestPredictPerson", "fastrp")
+    assert(len(emb) == 4)
+    assert(
+        set(node_embedding_prediction_test_graph.nodes()) ==
+        set(emb.keys()))
 
-#     test_graph_view = Neo4jGraphView(
-#         neo4j_driver,
-#         node_label="TestPredictPerson",
-#         edge_label="TEST_PREDICT_KNOWS")
+    test_graph_view = Neo4jGraphView(
+        neo4j_driver,
+        node_label="TestPredictPerson",
+        edge_label="TEST_PREDICT_KNOWS")
 
-#     # Testing GraphSage write predicts (passing graph view)
-#     embedder.predict_embeddings(
-#         graph_view=test_graph_view,
-#         write=True, write_property="graphsage"
-#     )
-#     emb = _get_embedding_props(neo4j_driver, "TestPredictPerson", "fastrp")
-#     assert(len(emb) == 4)
-#     assert(
-#         set(node_embedding_prediction_test_graph.nodes()) ==
-#         set(emb.keys()))
+    # Testing GraphSage write predicts (passing graph view)
+    embedder.predict_embeddings(
+        graph_view=test_graph_view,
+        write=True, write_property="graphsage"
+    )
+    emb = _get_embedding_props(neo4j_driver, "TestPredictPerson", "fastrp")
+    assert(len(emb) == 4)
+    assert(
+        set(node_embedding_prediction_test_graph.nodes()) ==
+        set(emb.keys()))
 
-#     embedder.save("neo4j_sage_emedder", compress=True)
-#     embedder = Neo4jNodeEmbedder.load("neo4j_sage_emedder.zip")
-#     embedder.info()
+    embedder.save("neo4j_sage_emedder", compress=True)
+    embedder = Neo4jNodeEmbedder.load("neo4j_sage_emedder.zip")
+    embedder.info()

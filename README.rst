@@ -71,13 +71,27 @@ Installation
 
 It is recommended to use a virtual environment such as `venv <https://docs.python.org/3.6/library/venv.html>`_  or `conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
+
+Installing dependencies
+^^^^^^^^^^^^^^^^^^^^^^^
+
 If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
+
+Similarly, if you want to use the `bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook Faiss library separately (as it is not a pure Python library and it cannot be simply installed by running `pip install`). Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (`conda` and `conda-forge` installation available).
+
+Alternatively, you can install `graph-tool` and the Facebook Faiss library using `conda` by creating a new environment with the right dependencies, as follows:
+
+::
+
+  conda create --name <your_environment> -c conda-forge graph-tool faiss-gpu python=<your_python>
+  conda activate <your_environment>
+
 
 The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided.
 
 
-Finally, if you want to use the `bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook Faiss library separately. Similarly to `graph-tool`, it is not a pure Python library and it cannot be simply installed by running `pip install`. Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (`conda` and `conda-forge` installation available).
-
+Installing BlueGraph
+^^^^^^^^^^^^^^^^^^^^^
 
 Development version supporting all the backends can be installed from the source by cloning the current repository, i.e. running the following commands:
 ::
