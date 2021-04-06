@@ -152,15 +152,15 @@ def test_pandas_getters(random_pgframe):
     assert(new_frame.number_of_edges())
 
 
-def test_neo4j_io(random_pgframe, neo4j_driver):
-    pgframe_to_neo4j(
-        random_pgframe, driver=neo4j_driver,
-        node_label="TestIONode", edge_label="TestIOEdge")
-    frame = neo4j_to_pgframe(
-        driver=neo4j_driver,
-        node_label="TestIONode", edge_label="TestIOEdge")
-    assert(frame.number_of_nodes() == random_pgframe.number_of_nodes())
-    assert(frame.number_of_edges() == random_pgframe.number_of_edges())
+# def test_neo4j_io(random_pgframe, neo4j_driver):
+#     pgframe_to_neo4j(
+#         random_pgframe, driver=neo4j_driver,
+#         node_label="TestIONode", edge_label="TestIOEdge")
+#     frame = neo4j_to_pgframe(
+#         driver=neo4j_driver,
+#         node_label="TestIONode", edge_label="TestIOEdge")
+#     assert(frame.number_of_nodes() == random_pgframe.number_of_nodes())
+#     assert(frame.number_of_edges() == random_pgframe.number_of_edges())
 
 
 def test_stellargraph_io(random_pgframe):

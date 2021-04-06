@@ -56,21 +56,21 @@ def test_nx_processor(random_pgframe):
     _test_processor(processor, test_nodes, test_edges)
 
 
-def test_neo4j_processor(random_pgframe, neo4j_driver):
-    test_nodes = random_pgframe.nodes()
-    test_edges = random_pgframe.edges()
-    processor = Neo4jGraphProcessor(
-        pgframe=random_pgframe,
-        driver=neo4j_driver,
-        node_label="TestProcessingNode",
-        edge_label="TestProcessingEdge",
-        directed=False)
-    _test_processor(processor, test_nodes, test_edges)
-    processor._get_identity_view()._clear()
-    processor = Neo4jGraphProcessor(
-        pgframe=random_pgframe,
-        driver=neo4j_driver,
-        node_label="TestProcessingNode",
-        edge_label="TestProcessingEdge",
-        directed=True)
-    _test_processor(processor, test_nodes, test_edges)
+# def test_neo4j_processor(random_pgframe, neo4j_driver):
+#     test_nodes = random_pgframe.nodes()
+#     test_edges = random_pgframe.edges()
+#     processor = Neo4jGraphProcessor(
+#         pgframe=random_pgframe,
+#         driver=neo4j_driver,
+#         node_label="TestProcessingNode",
+#         edge_label="TestProcessingEdge",
+#         directed=False)
+#     _test_processor(processor, test_nodes, test_edges)
+#     processor._get_identity_view()._clear()
+#     processor = Neo4jGraphProcessor(
+#         pgframe=random_pgframe,
+#         driver=neo4j_driver,
+#         node_label="TestProcessingNode",
+#         edge_label="TestProcessingEdge",
+#         directed=True)
+#     _test_processor(processor, test_nodes, test_edges)

@@ -110,52 +110,52 @@ def test_gt_processor(random_pgframe):
     assert_approx_equal_metrics(cc, c)
 
 
-def test_neo4j_processor(random_pgframe, neo4j_driver):
-    processor = Neo4jMetricProcessor(
-        pgframe=random_pgframe,
-        driver=neo4j_driver,
-        node_label="TestNode",
-        edge_label="TestEdge",
-        directed=False)
-    d, p, b, c = _benchmark_processor(processor)
+# def test_neo4j_processor(random_pgframe, neo4j_driver):
+#     processor = Neo4jMetricProcessor(
+#         pgframe=random_pgframe,
+#         driver=neo4j_driver,
+#         node_label="TestNode",
+#         edge_label="TestEdge",
+#         directed=False)
+#     d, p, b, c = _benchmark_processor(processor)
 
-    processor._get_adjacency_matrix(
-        random_pgframe.nodes(), weight="mi")
-    processor._get_node_property_values(
-        "weight", random_pgframe.nodes())
+#     processor._get_adjacency_matrix(
+#         random_pgframe.nodes(), weight="mi")
+#     processor._get_node_property_values(
+#         "weight", random_pgframe.nodes())
 
-    # Assert all the node props are present
-    query = "MATCH (n:TestNode) RETURN keys(n) AS props LIMIT 1"
-    result = processor.execute(query)
-    assert(
-        set(result[0]["props"]) == set(
-            ["id", "weight", "degree", "pagerank", "betweenness", "closeness"]))
+#     # Assert all the node props are present
+#     query = "MATCH (n:TestNode) RETURN keys(n) AS props LIMIT 1"
+#     result = processor.execute(query)
+#     assert(
+#         set(result[0]["props"]) == set(
+#             ["id", "weight", "degree", "pagerank", "betweenness", "closeness"]))
 
-    # Assert written props are equal to the streamed props
-    query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.degree as degree"
-    result = processor.execute(query)
-    assert_approx_equal_metrics(
-        {record["node_id"]: record["degree"]
-         for record in result}, d)
+#     # Assert written props are equal to the streamed props
+#     query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.degree as degree"
+#     result = processor.execute(query)
+#     assert_approx_equal_metrics(
+#         {record["node_id"]: record["degree"]
+#          for record in result}, d)
 
-    query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.pagerank as pagerank"
-    result = processor.execute(query)
-    assert_approx_equal_metrics(
-        {record["node_id"]: record["pagerank"]
-         for record in result}, p)
+#     query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.pagerank as pagerank"
+#     result = processor.execute(query)
+#     assert_approx_equal_metrics(
+#         {record["node_id"]: record["pagerank"]
+#          for record in result}, p)
 
-    query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.betweenness as betweenness"
-    result = processor.execute(query)
-    assert_approx_equal_metrics(
-        {
-            record["node_id"]: record["betweenness"]
-            for record in result
-        }, b)
+#     query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.betweenness as betweenness"
+#     result = processor.execute(query)
+#     assert_approx_equal_metrics(
+#         {
+#             record["node_id"]: record["betweenness"]
+#             for record in result
+#         }, b)
 
-    query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.closeness as closeness"
-    result = processor.execute(query)
-    assert_approx_equal_metrics(
-        {
-            record["node_id"]: record["closeness"]
-            for record in result
-        }, c)
+#     query = "MATCH (n:TestNode) RETURN n.id AS node_id, n.closeness as closeness"
+#     result = processor.execute(query)
+#     assert_approx_equal_metrics(
+#         {
+#             record["node_id"]: record["closeness"]
+#             for record in result
+#         }, c)
