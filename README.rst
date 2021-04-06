@@ -31,8 +31,7 @@ Using the built-in `PGFrame` data structure (currently, `pandas <https://pandas.
 - `StellarGraph <https://stellargraph.readthedocs.io/en/stable/>`_ (for the representation learning API).
 
 
-This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset. 
-
+This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset.
 
 :code:`bluegraph` package
 -------------------------
