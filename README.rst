@@ -134,7 +134,7 @@ Licensing
 ---------
 - Blue Graph is distributed under the Apache 2 license.
 - Included example scripts and notebooks (`BlueGraph/examples <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the 3-Clause BSD License.
-- Data files provided in the repository are distributed under the X license.
+- Data files stored in the repository are distributed under the `Commons Attribution 4.0 International license (CC BY 4.0) <https://creativecommons.org/licenses/by/4.0/>`_ License.
 
 Acknowledgements
 ----------------
