@@ -246,7 +246,7 @@ class GTGraphProcessor(GraphProcessor):
                 for s, t in self.graph.iter_edges()
             ]
         else:
-            props = self.graph.ep.keys()
+            props = list(self.graph.ep.keys())
             result = []
             for edge in self.graph.iter_edges(eprops=[
                     self.graph.ep[p] for p in props]):
