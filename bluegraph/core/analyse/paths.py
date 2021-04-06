@@ -40,7 +40,7 @@ def pretty_print_paths(paths, as_repr=False):
         print(line)
 
 
-def pretty_print_tripaths(a, b, c, n, a_b_paths, b_c_paths):
+def pretty_print_tripaths(a, b, c, n, a_b_paths, b_c_paths, as_repr=False):
     a_b_paths_repr = [
         " -> ".join(p[1:-1]) for p in a_b_paths
     ]
@@ -55,21 +55,25 @@ def pretty_print_tripaths(a, b, c, n, a_b_paths, b_c_paths):
     a_repr = "{} ->".format(a)
     b_repr = "-> {} ->".format(b)
     c_repr = "-> {}".format(c)
-    print("{}{}{}{}{}".format(
+    lines = ["{}{}{}{}{}".format(
         a_repr,
         " " * max_left,
         b_repr,
         " " * max_right,
-        c_repr))
+        c_repr)]
     for i in range(n):
         if i >= len(a_b_paths) and i >= len(b_c_paths):
             break
         left = a_b_paths_repr[i] if i < len(a_b_paths) else (" " * max_left)
         right = b_c_paths_repr[i] if i < len(b_c_paths) else (" " * max_right)
-        print(
+        lines += (
             " " * len(a_repr), left,
             " " * (max_left - len(left) + len(b_repr)),
             right)
+    if as_repr:
+        return "\n".join(lines)
+    for line in lines:
+        print(line)
 
 
 def graph_elements_from_paths(paths):

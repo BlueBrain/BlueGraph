@@ -27,8 +27,10 @@ import pytest
 import nltk
 
 
-nltk.download("punkt")
+# Download nltk corpora used in tests
+nltk.download('punkt')
 nltk.download('words')
+nltk.download('stopwords')
 
 
 # Neo4j credentials (should be moved to some config files or env vars)

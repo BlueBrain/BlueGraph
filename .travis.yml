@@ -45,7 +45,7 @@ services:
   - neo4j
 
 script:
-  - pytest --cov=./
+  - pytest --cov=./bluegraph
 
 after_success:
   - codecov

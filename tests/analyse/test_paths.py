@@ -13,7 +13,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-
+from bluegraph.core.analyse.paths import pretty_print_paths, pretty_print_tripaths
 from bluegraph.backends.networkx import NXPathFinder, NXGraphProcessor
 from bluegraph.backends.graph_tool import GTPathFinder, GTGraphProcessor
 from bluegraph.backends.neo4j import Neo4jPathFinder, Neo4jGraphView, Neo4jGraphProcessor
@@ -75,6 +75,7 @@ def benchmark_undirected_path_finder(finder):
     # ------ Test all shortest paths ----------
     res = finder.all_shortest_paths(
         "A", "D")
+    pretty_print_paths(res, as_repr=True)
     assert(res == [("A", "D")])
     res = finder.all_shortest_paths(
         "A", "D", exclude_edge=True)
@@ -136,6 +137,7 @@ def benchmark_undirected_path_finder(finder):
     a_b, b_d = finder.shortest_tripath("A", "B", "D", distance="distance")
     assert(a_b == ("A", "B"))
     assert(b_d == ("B", "D"))
+    pretty_print_tripaths("A", "B", "D", 1, [a_b], [b_d], as_repr=True)
 
     a_b, b_d = finder.shortest_tripath(
         "A", "B", "D", distance="distance", exclude_edge=True)
@@ -155,6 +157,8 @@ def benchmark_undirected_path_finder(finder):
             ('A', 'B'), ('A', 'C', 'B'), ('A', 'D', 'B')
         ]))
         assert(set(b_d) == set([('B', 'D'), ('B', 'A', 'D')]))
+
+        pretty_print_tripaths("A", "B", "D", 3, a_b, b_d, as_repr=True)
 
         a_b, b_d = finder.n_shortest_tripaths(
             "A", "B", "D", 3, distance="distance", exclude_edge=True)
