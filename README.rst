@@ -71,7 +71,7 @@ Installation
 
 It is recommended to use a virtual environment such as `venv <https://docs.python.org/3.6/library/venv.html>`_  or `conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
-If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an oridinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
+If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
 
 The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided.
 
@@ -103,16 +103,16 @@ Getting started
 ---------------
 The `examples directory <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ contains a set of Jupyter notebooks providing tutorials and usecases for BlueGraph.
 
-To get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding, see the `PGFrames and sematic encoding tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_ notebook.
+To get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding, see the `PGFrames and semantic encoding tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/notebooks/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_ notebook.
 
 To get familiar with the ideas behind the co-occurrence analysis and the graph analytics interface provided by BlueGraph we recommend to run the following example notebooks: 
 
-- `Literature exploration (PGFrames + in-memory analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/Literature%20exploration%20(PGFrames%20%2B%20in-memory%20analytics%20tutorial).ipynb>`_  illustrates how to use BlueGraphs's analytics API for in-memory graph backends based on the `NetworkX` and the `graph-tool` libraries.
-- `NASA keywords (PGFrames + Neo4j analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/NASA%20keywords%20(PGFrames%20%2B%20Neo4j%20analytics%20tutorial).ipynb>`_ illustrates how to use the Neo4j-based analytics API for persistent property graphs.
+- `Literature exploration (PGFrames + in-memory analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/notebooks/Literature%20exploration%20(PGFrames%20%2B%20in-memory%20analytics%20tutorial).ipynb>`_  illustrates how to use BlueGraphs's analytics API for in-memory graph backends based on the `NetworkX` and the `graph-tool` libraries.
+- `NASA keywords (PGFrames + Neo4j analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/notebooks/NASA%20keywords%20(PGFrames%20%2B%20Neo4j%20analytics%20tutorial).ipynb>`_ illustrates how to use the Neo4j-based analytics API for persistent property graphs.
 
-`Embedding and downstream tasks tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/Embedding%20and%20downstream%20tasks%20tutorial.ipynb>`_ starts from the co-occurrence graph generation example and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification, edge prediction and embedding pipeline building.
+`Embedding and downstream tasks tutorial <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/notebooks/Embedding%20and%20downstream%20tasks%20tutorial.ipynb>`_ starts from the co-occurrence graph generation example and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification, edge prediction and embedding pipeline building.
 
-Finally, `Create and push embedding pipeline into Nexus.ipynb <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/Create%20and%20push%20embedding%20pipeline%20into%20Nexus.ipynb>`_ illustrates how embedding pipelines can be created and pushed to `Nexus <https://bluebrainnexus.io/>`_ and
+Finally, `Create and push embedding pipeline into Nexus.ipynb <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/notebooks/Create%20and%20push%20embedding%20pipeline%20into%20Nexus.ipynb>`_ illustrates how embedding pipelines can be created and pushed to `Nexus <https://bluebrainnexus.io/>`_ and
 `Embedding service API <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/services/embedder/examples/notebooks/Embedding%20service%20API.ipynb>`_ shows how embedding service that retrieves the embedding pipelines from Nexus can be used.
 
 Getting started with cord19kg
@@ -133,12 +133,12 @@ Licensing
 ---------
 - Blue Graph is distributed under the Apache 2 license.
 - Included example scripts and notebooks (`BlueGraph/examples <https://github.com/BlueBrain/BlueGraph/tree/bluegraph_design/examples>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueBrainGraph/tree/master/cord19kg/examples>`_) are distributed under the 3-Clause BSD License.
-- Data files provided in the repository are distributed under the X license.
+- Data files stored in the repository are distributed under the `Commons Attribution 4.0 International license (CC BY 4.0) <https://creativecommons.org/licenses/by/4.0/>`_ License.
 
-Aknowledgements
----------------
+Acknowledgements
+----------------
 
-This project has received funding from the EPFL Blue Brain Project (funded by the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology).
+The development of this project was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology.
 
 .. |Travis_badge| image:: https://travis-ci.com/BlueBrain/BlueGraph.svg?branch=master
     :target: https://travis-ci.com/BlueBrain/BlueGraph
