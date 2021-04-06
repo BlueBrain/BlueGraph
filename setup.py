@@ -49,7 +49,7 @@ setup(
         "matplotlib",
         "nltk",
         "nexusforge",
-        "gensim",
+        "gensim==3.8.3",
         "tensorflow"
     ],
     package_data={
