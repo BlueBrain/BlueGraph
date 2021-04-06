@@ -5,6 +5,6 @@ scipy
 matplotlib
 nltk
 git+https://github.com/BlueBrain/nexus-forge.git
-gensim
+gensim==3.8.3
 tensorflow
 stellargraph
