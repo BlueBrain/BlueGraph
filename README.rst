@@ -93,6 +93,12 @@ The same holds for the Neo4j backend: in order to use it, the database should be
 Installing BlueGraph
 ^^^^^^^^^^^^^^^^^^^^^
 
+Make sure you are using pip v21.0.1, otherwise, update it using:
+
+::
+  
+  pip install --upgrade pip wheel setuptools
+
 Development version supporting all the backends can be installed from the source by cloning the current repository, i.e. running the following commands:
 ::
 
