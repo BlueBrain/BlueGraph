@@ -72,18 +72,20 @@ Installation
 It is recommended to use a virtual environment such as `venv <https://docs.python.org/3.6/library/venv.html>`_  or `conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
 
-Installing dependencies
-^^^^^^^^^^^^^^^^^^^^^^^
+.. _installing_deps:
 
-If you want to use `graph-tool` as a backend, you need to manually install the library, as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
+Installing backend dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Similarly, if you want to use the `bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook Faiss library separately (as it is not a pure Python library and it cannot be simply installed by running `pip install`). Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (`conda` and `conda-forge` installation available).
+If you want to use `graph-tool` as a backend, you need to manually install the library (it cannot be simply installed by running `pip install`), as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
 
-Alternatively, you can install `graph-tool` and the Facebook Faiss library using `conda` by creating a new environment with the right dependencies, as follows:
+Similarly, if you want to use the `bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook Faiss library separately. Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (`conda` and `conda-forge` installation available).
+
+You can install both `graph-tool` and the Facebook `Faiss` library by creating a new environment with the right dependencies using `conda`, as follows:
 
 ::
 
-  conda create --name <your_environment> -c conda-forge graph-tool faiss-gpu python=<your_python>
+  conda create --name <your_environment> -c conda-forge graph-tool faiss python=<your_python>
   conda activate <your_environment>
 
 
@@ -93,30 +95,49 @@ The same holds for the Neo4j backend: in order to use it, the database should be
 Installing BlueGraph
 ^^^^^^^^^^^^^^^^^^^^^
 
-Make sure you are using pip v21.0.1, otherwise, update it using:
+BlueGraph supports Python versions >= 3.7 and pip >= 21.0.1. To update pip from the older versions run:
 
 ::
   
   pip install --upgrade pip wheel setuptools
 
-Development version supporting all the backends can be installed from the source by cloning the current repository, i.e. running the following commands:
-::
 
-    git clone https://github.com/BlueBrain/BlueGraph.git
-    cd BlueGraph
-    pip install .[all]
-
-You can also install a single backend by running the following commands.
+The development version of BlueGraph can be installed from the source by cloning the current repository as follows:
 
 ::
 
     git clone https://github.com/BlueBrain/BlueGraph.git
     cd BlueGraph
+
+
+Basic version including only the NetworkX backend can be installed using:
+
+::
+
+    pip install .
+
+
+The prerequisites for using the `graph-tool` backend can be found in 'Installing backend dependencies'. You can also install additional backends for Neo4j and StellarGraph by running the following:
+
+::
+
     pip install .[<backend>]
 
 
-Where `<backend>` has one of the following values `networkx`,  `graph-tool`, `neo4j`,  `stellargraph`.
+Where `<backend>` has one of the following values `neo4j` or `stellargraph`.
 
+Alternatively, a version supporting all the backends can be installed by running the following commands:
+
+::
+
+    pip install .[all]
+
+
+In order to use the `cord19kg` package and its interactive Jupyter applications, run:
+
+::
+
+    pip install .[cord19kg]
 
 
 Getting started

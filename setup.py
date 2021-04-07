@@ -50,7 +50,9 @@ setup(
         "nltk",
         "nexusforge",
         "gensim==3.8.3",
-        "tensorflow"
+        "tensorflow",
+        "networkx>=2",
+        "python-louvain"
     ],
     package_data={
         'cord19kg.apps': [
@@ -72,8 +74,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets",
-            "networkx",
-            "python-louvain",
             "neo4j",
             "stellargraph"
         ],
@@ -88,10 +88,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"
-        ],
-        "networkx": [
-            "networkx",
-            "python-louvain"
         ],
         "neo4j": [
             "neo4j"
@@ -108,8 +104,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets",
-            "networkx",
-            "python-louvain",
             "neo4j",
             "stellargraph"
         ]
