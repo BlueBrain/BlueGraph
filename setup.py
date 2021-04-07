@@ -42,7 +42,7 @@ setup(
         "setuptools_scm",
     ],
     install_requires=[
-        "numpy>=1.16.5",
+        "numpy>=1.20.1",
         "pandas",
         "sklearn",
         "scipy",
