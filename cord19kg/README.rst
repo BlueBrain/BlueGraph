@@ -15,6 +15,10 @@ The co-occurence and knowledge graphs interactive building, analysis and explora
 4. Co-occurrence and knowledge graph Generation using `BlueBrain/BlueGraph <https://github.com/BlueBrain/BlueGraph>`_.
 5. Interactive Graph Exploration and Analysis using the `cord19kg package visualization and analysis app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_.
 
+.. image:: ./examples/figures/cord19Kg_bluegraph.png
+  :width: 800
+  :alt: Blue Brain Project CORD-19 co-occurrence and knowledge graphs generation, analysis and exploration pipeline 
+
 Two use cases using the aforementioned pipeline are provided in this repository:
 
 **A. Topic centered co-occurrence and knowledge graphs analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_) that can be automatically ran on |Glucose-COVID-19-Binder|:
@@ -31,7 +35,7 @@ Two use cases using the aforementioned pipeline are provided in this repository:
        
 3. Entity Linking and Curation: extracted entities are linked to concepts from the `NCIt ontology <https://ncithesaurus.nci.nih.gov/ncitbrowser/>`_. The resulting linked entities can be further curated using an interactive plotly-dash based `curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
 
-   - The ontology linked entities dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/
+   - The ontology linked entities dataset can be found  `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/
    _ontology_linking_3000_papers.csv.zip>`_.
    - The ontology linking is yielding very fine grained types that get normalised and mapped to the 9 entity types of interest. The corresponding type mappings are available `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/NCIT_type_mapping.json>`_.
         
