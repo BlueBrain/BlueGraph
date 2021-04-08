@@ -28,11 +28,13 @@ Two use cases using the aforementioned pipeline are provided in this repository:
    - The meta-data for the selected 3000 papers can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/Glucose_risk_3000_paper_meta_data.csv>`_.
    - The semantic search can be reproduced using `this external notebook <https://github.com/BlueBrain/Search-Graph-Examples>`__.
 
+
 2. Named Entity Recognition from the 3000 papers: named entities of the following 9 types are extracted: "Cell Compartment", "Cell Type", "Chemical", "Symptom / Disease", "Drug", "Organ / System", "Organism", "Biological Process / Pathway" and "Protein".
 
    - The dataset with extracted named entities can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/Glucose_risk_3000_papers.csv.zip>`_.
    - The entity extraction can be reproduced using `this external notebook <https://github.com/BlueBrain/Search-Graph-Examples>`_.
-       
+
+
 3. Entity Linking and Curation: extracted entities are linked to concepts from the `NCIt ontology <https://ncithesaurus.nci.nih.gov/ncitbrowser/>`_. The resulting linked entities can be further curated using an interactive plotly-dash based `curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
 
    - The ontology linked entities dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/ontology_linking_3000_papers.csv.zip>`_.
@@ -46,8 +48,8 @@ Two use cases using the aforementioned pipeline are provided in this repository:
 
 **B. Co-occurrence analysis of the entire CORD-19v47 dataset** consists of the previously described steps 2-5 (i.e. no prior semantic search is performed) and can be reproduced using the provided `generate_10000_network.py <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/generate_10000_network.py>`_ script. In this usecase, 10'000 most frequent entities are used to build the co-occurrence graphs (note that the generated networks are highly dense and contain a large number of edges, for example, ~44M edges for the paper-based network, and the process of their generation, even if parallelized, is highly costly).
 
-- The dataset containing extracted and linked entities for the entire CORD-19v47 dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/CORD_19_v47_occurrence_top_10000.json.zip>`__.
-- The script outputs generated co-occurrence graphs based on paper-/paragraph-level co-occurrence and their minimum spanning trees (based on the NPMI distance score) and stores them as JSON. In addition, it computes centrality measures and community partition and stores them as node attributes. 
+1. The dataset containing extracted and linked entities for the entire CORD-19v47 dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/CORD_19_v47_occurrence_top_10000.json.zip>`__.
+2. The script outputs generated co-occurrence graphs based on paper-/paragraph-level co-occurrence and their minimum spanning trees (based on the NPMI distance score) and stores them as JSON. In addition, it computes centrality measures and community partition and stores them as node attributes. 
 
 
 .. _installation:
