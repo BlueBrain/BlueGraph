@@ -2,8 +2,6 @@
 CORD-19 co-occurrence and knowledge graphs generation, analysis and exploration
 ===============================================================================
 
-Interactive exploration and analysis of the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset using co-occurrence graphs of named entities. 
-
 About
 -----
 
@@ -19,7 +17,7 @@ The co-occurence and knowledge graphs interactive building, analysis and explora
 
 Two use cases using the aforementioned pipeline are provided in this repository:
 
-**Topic centered co-occurrence and knowledge graphs analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_):
+**A. Topic centered co-occurrence and knowledge graphs analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_) that can be automatically ran on |Glucose-COVID-19-Binder|:
 
 1. Semantic Search on the CORD-19 dataset: the 3000 most relevant papers resulting from the query *'Glucose as a risk factor in COVID-19'* are selected.
 
@@ -42,7 +40,7 @@ Two use cases using the aforementioned pipeline are provided in this repository:
 5. Interactive Graph Exploration and Analysis: the generated paper- and paragraph-based graphs can be interactively analysed and explored based on node centrality measures (PageRank, weighted degree), community partitions, shortest paths search and minimum spanning trees using an interactive plotly-dash and dash-cytoscape based `visualization and exploration app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_
 
 
-**Co-occurrence analysis of the entire CORD-19v47 dataset** consists of the previously described steps 2-5 (i.e. no prior semantic search is performed) and can be reproduced using the provided `generate_10000_network.py <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/generate_10000_network.py>`_ script. In this usecase, 10'000 most frequent entities are used to build the co-occurrence graphs (note that the generated networks are highly dense and contain a large number of edges, for example, ~44M edges for the paper-based network, and the process of their generation, even if parallelized, is highly costly).
+**B. Co-occurrence analysis of the entire CORD-19v47 dataset** consists of the previously described steps 2-5 (i.e. no prior semantic search is performed) and can be reproduced using the provided `generate_10000_network.py <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/generate_10000_network.py>`_ script. In this usecase, 10'000 most frequent entities are used to build the co-occurrence graphs (note that the generated networks are highly dense and contain a large number of edges, for example, ~44M edges for the paper-based network, and the process of their generation, even if parallelized, is highly costly).
 
 - The dataset containing extracted and linked entities for the entire CORD-19v47 dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/CORD_19_v47_occurrence_top_10000.json.zip>`__.
 - The script outputs generated co-occurrence graphs based on paper-/paragraph-level co-occurrence and their minimum spanning trees (based on the NPMI distance score) and stores them as JSON. In addition, it computes centrality measures and community partition and stores them as node attributes. 
@@ -112,5 +110,6 @@ The `Topic-centered co-occurrence network analysis of CORD-19 <https://github.co
 
 The :code:`generate_10000_networks.py` `script <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/generate_10000_network.py>`_ allows the user to generate the co-occurrence networks for 10'000 most frequent entities extracted from the entire CORD-19v47 database (based on paper- and paragraph- level entity co-occurrence). To run the script, simply execute :code:`python generate_10000_networks.py` from the examples folder. Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
 
-
-
+.. |Glucose-COVID-19-Binder| image:: https://mybinder.org/badge_logo.svg
+    :alt: Binder
+    :target: https://mybinder.org/v2/gh/BlueBrain/BlueGraph/master?filepath=cord19kg%2Fexamples%2Fnotebooks
