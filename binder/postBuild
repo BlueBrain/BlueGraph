@@ -1,0 +1,4 @@
+set -ex
+
+# Install the cord19kg package
+pip install .[cord19kg]
