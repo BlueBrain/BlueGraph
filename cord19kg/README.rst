@@ -11,7 +11,7 @@ The co-occurence and knowledge graphs interactive building, analysis and explora
 
 1. Semantic Search on the CORD-19 dataset to select papers of interest using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
 2. Named Entity Recognition using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
-3. Entity Linking (to concepts from the `National Cancer Institute Thesaurus (NCIt)<https://ncithesaurus.nci.nih.gov/ncitbrowser/>`_) using `BlueBrain/nexus-forge <https://github.com/BlueBrain/nexus-forge>`_ and interactive Entity Curation using the `cord19kg package curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
+3. Entity Linking (to concepts from the `National Cancer Institute Thesaurus (NCIt) <https://ncithesaurus.nci.nih.gov/ncitbrowser>`_ using `BlueBrain/nexus-forge <https://github.com/BlueBrain/nexus-forge>`_ and interactive Entity Curation using the `cord19kg package curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
 4. Co-occurrence and knowledge graph Generation using `BlueBrain/BlueGraph <https://github.com/BlueBrain/BlueGraph>`_.
 5. Interactive Graph Exploration and Analysis using the `cord19kg package visualization and analysis app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_.
 
@@ -35,8 +35,8 @@ Two use cases using the aforementioned pipeline are provided in this repository:
        
 3. Entity Linking and Curation: extracted entities are linked to concepts from the `NCIt ontology <https://ncithesaurus.nci.nih.gov/ncitbrowser/>`_. The resulting linked entities can be further curated using an interactive plotly-dash based `curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
 
-   - The ontology linked entities dataset can be found  `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/
-   _ontology_linking_3000_papers.csv.zip>`_.
+   - The ontology linked entities dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/ontology_linking_3000_papers.csv.zip>`_.
+   
    - The ontology linking is yielding very fine grained types that get normalised and mapped to the 9 entity types of interest. The corresponding type mappings are available `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/NCIT_type_mapping.json>`_.
         
 4. Co-occurrence and Knowledge Graphs Generation: paper- and paragraph-based co-occurrences of the top 1500 most frequent entities are used to build a knowledge graph whose nodes represent linked entities and whose edges represent entity co-occurrences. The edges are weighted using raw co-occurrence frequencies and mutual-information-based scores: positive pointwise mutual information (PPMI) and normalized point-wise mutual information (NPMI).
