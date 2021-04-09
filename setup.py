@@ -37,20 +37,22 @@ setup(
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueGraph",
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     setup_requires=[
         "setuptools_scm",
     ],
     install_requires=[
-        "numpy>=1.16.5",
+        "numpy>=1.20.1",
         "pandas",
         "sklearn",
         "scipy",
         "matplotlib",
         "nltk",
         "nexusforge",
-        "gensim",
-        "tensorflow"
+        "gensim==3.8.3",
+        "tensorflow",
+        "networkx>=2",
+        "python-louvain"
     ],
     package_data={
         'cord19kg.apps': [
@@ -72,8 +74,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets",
-            "networkx",
-            "python-louvain",
             "neo4j",
             "stellargraph"
         ],
@@ -88,10 +88,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"
-        ],
-        "networkx": [
-            "networkx",
-            "python-louvain"
         ],
         "neo4j": [
             "neo4j"
@@ -108,8 +104,6 @@ setup(
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets",
-            "networkx",
-            "python-louvain",
             "neo4j",
             "stellargraph"
         ]

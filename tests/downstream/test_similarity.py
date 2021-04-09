@@ -15,7 +15,10 @@
 #    limitations under the License.
 
 import numpy as np
-from bluegraph.downstream.similarity import SimilarityProcessor
+
+from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
+from bluegraph.downstream.similarity import (SimilarityProcessor,
+                                             NodeSimilarityProcessor)
 
 
 def test_faiss_similarity():
@@ -82,3 +85,27 @@ def test_faiss_similarity():
     # ind, dist = sim.get_similar_points(
     #     existing_indices=["element4", "element5"], k=4)
 
+def test_node_similarity(random_pgframe):
+    random_pgframe.rename_nodes({
+        n: str(n)
+        for n in random_pgframe.nodes()
+    })
+
+    node2vec_embedder = StellarGraphNodeEmbedder(
+        "node2vec", edge_weight="mi",
+        embedding_dimension=10, length=5, number_of_walks=10)
+    node2vec_embedding = node2vec_embedder.fit_model(random_pgframe)
+    random_pgframe.add_node_properties(
+        node2vec_embedding.rename(columns={"embedding": "node2vec"}))
+    node2vec_l2 = NodeSimilarityProcessor(
+        random_pgframe, "node2vec", similarity="euclidean")
+    node2vec_cosine = NodeSimilarityProcessor(
+        random_pgframe, "node2vec", similarity="cosine")
+    similar = node2vec_l2.get_similar_nodes(["0", "1"], k=10)
+    assert("0" in similar)
+    assert("1" in similar)
+    assert(len(similar["0"]) == 10 and len(similar["1"]) == 10)
+    similar = node2vec_cosine.get_similar_nodes(["0", "1"], k=10)
+    assert("0" in similar)
+    assert("1" in similar)
+    assert(len(similar["0"]) == 10 and len(similar["1"]) == 10)

@@ -1,10 +1,11 @@
-numpy
+numpy>=1.20.1
 pandas
 sklearn
 scipy
 matplotlib
 nltk
 git+https://github.com/BlueBrain/nexus-forge.git
-gensim
+gensim==3.8.3
+pyjwt==1.7.1
 tensorflow
 stellargraph

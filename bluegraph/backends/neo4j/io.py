@@ -317,10 +317,11 @@ class Neo4jGraphProcessor(GraphProcessor):
 
     def get_node(self, node):
         query = (
-            f"MATCH (n:{self.node_label} {{id: {node}}}) "
+            f"MATCH (n:{self.node_label} {{id: '{node}'}}) "
             "RETURN properties(n) as props"
         )
         result = self.execute(query)
+        properties = {}
         for record in result:
             properties = record["props"]
         del properties["id"]
@@ -328,7 +329,7 @@ class Neo4jGraphProcessor(GraphProcessor):
 
     def remove_node(self, node):
         query = (
-            f"MATCH (n:{self.node_label} {{id: {node}}}) "
+            f"MATCH (n:{self.node_label} {{id: '{node}'}}) "
             "DETACH DELETE n"
         )
         self.execute(query)
@@ -337,7 +338,8 @@ class Neo4jGraphProcessor(GraphProcessor):
         query = (
             "MATCH {} \n".format(", ".join(
                 [
-                    "(`{}`:{})".format(k, self.node_label)
+                    "(`{}`:{} {{id: '{}'}})".format(
+                        k, self.node_label, k)
                     for k in node_mapping.keys()
                 ])
             ) + "\n".join([
@@ -348,21 +350,26 @@ class Neo4jGraphProcessor(GraphProcessor):
         self.execute(query)
 
     def set_node_properties(self, node, properties):
+        property_repr = ", ".join(
+            _generate_property_repr(properties))
         query = (
             f"""MATCH (n:{self.node_label} {{id: '{node}'}})
             SET n = {{}}
+            SET n.id = '{node}'
             SET n += {{ {property_repr} }}
             """
         )
         result = self.execute(query)
 
-    def add_edge(self, source, target, properties):
-        property_repr = ", ".join(
-            _generate_property_repr(properties))
+    def add_edge(self, source, target, properties=None):
+        property_repr = ""
+        if properties is not None:
+            property_repr = "{" + ", ".join(
+                _generate_property_repr(properties)) + "}"
         query = (
-            f"""MATCH (n:{self.node_label} {{id: {source}}}),
-                (m:{self.node_label} {{id: {target}}})
-            CREATE (n)-[r:{self.edge_label} {{{property_repr}}}]->(m)
+            f"""MATCH (n:{self.node_label} {{id: '{source}'}}),
+                (m:{self.node_label} {{id: '{target}'}})
+            CREATE (n)-[r:{self.edge_label} {property_repr}]->(m)
             """
         )
         result = self.execute(query)
@@ -371,8 +378,8 @@ class Neo4jGraphProcessor(GraphProcessor):
         property_repr = ", ".join(
             _generate_property_repr(properties))
         query = (
-            f"MATCH (n:{self.node_label} {{id: {source}}})-"
-            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            f"MATCH (n:{self.node_label} {{id: '{source}'}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: '{target}'}}) "
             "SET r = {} "
             f"SET r += {{ {property_repr} }}"
         )
@@ -380,8 +387,8 @@ class Neo4jGraphProcessor(GraphProcessor):
 
     def remove_edge(self, source, target):
         query = (
-            f"MATCH (n:{self.node_label} {{id: {source}}})-"
-            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            f"MATCH (n:{self.node_label} {{id: '{source}'}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: '{target}'}}) "
             "DELETE r"
         )
         result = self.execute(query)
@@ -403,14 +410,13 @@ class Neo4jGraphProcessor(GraphProcessor):
 
     def get_edge(self, source, target):
         query = (
-            f"MATCH (n:{self.node_label} {{id: {source}}})-"
-            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: {target}}}) "
+            f"MATCH (n:{self.node_label} {{id: '{source}'}})-"
+            f"[r:{self.edge_label}]-(m:{self.node_label} {{id: '{target}'}}) "
             "RETURN properties(r) as props"
         )
         result = self.execute(query)
         for record in result:
             properties = record["props"]
-        del properties["id"]
         return properties
 
     def neighbors(self, node_id):

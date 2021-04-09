@@ -47,6 +47,17 @@ def _get_node_id(graph, vertex_obj):
     return graph.vp["@id"][vertex_obj]
 
 
+def _infer_type(value):
+    prop_type = "string"
+    if isinstance(value, float):
+        prop_type = "double"
+    elif isinstance(value, int):
+        prop_type = "int32_t"
+    elif isinstance(value, bool):
+        prop_type = "bool"
+    return prop_type
+
+
 def pgframe_to_graph_tool(pgframe, directed=True):
     """Create a graph-tool graph from the PGFrame."""
     graph = gt.Graph(directed=directed)
@@ -217,6 +228,9 @@ class GTGraphProcessor(GraphProcessor):
     def set_node_properties(self, node, properties):
         vertex = _get_vertex_obj(self.graph, node)
         for k, v in properties.items():
+            if k not in self.graph.vertex_properties.keys():
+                vp = self.graph.new_vertex_property(_infer_type(v))
+                self.graph.vertex_properties[k] = vp
             if v is not None:
                 self.graph.vertex_properties[k][vertex] = v
             else:
@@ -232,7 +246,7 @@ class GTGraphProcessor(GraphProcessor):
                 for s, t in self.graph.iter_edges()
             ]
         else:
-            props = self.graph.ep.keys()
+            props = list(self.graph.ep.keys())
             result = []
             for edge in self.graph.iter_edges(eprops=[
                     self.graph.ep[p] for p in props]):
@@ -260,23 +274,30 @@ class GTGraphProcessor(GraphProcessor):
         e = _get_edge_obj(self.graph, source, target)
         self.graph.remove_edge(e)
 
-    def add_edge(self, source, target, properties):
+    def add_edge(self, source, target, properties=None):
         s = _get_vertex_obj(self.graph, source)
         t = _get_vertex_obj(self.graph, target)
         e = self.graph.add_edge(s, t)
-        for k, v in properties.items():
-            self.graph.edge_properties[k][e] = v
+        if properties is not None:
+            for k, v in properties.items():
+                if k not in self.graph.edge_properties.keys():
+                    ep = self.graph.new_edge_property(_infer_type(v))
+                    self.graph.edge_properties[k] = ep
+                self.graph.edge_properties[k][e] = v
 
     def set_edge_properties(self, source, target, properties):
         edge = _get_edge_obj(self.graph, source, target)
         for k, v in properties.items():
+            if k not in self.graph.edge_properties.keys():
+                vp = self.graph.new_edge_property(_infer_type(v))
+                self.graph.edge_properties[k] = vp
             if v is not None:
                 self.graph.edge_properties[k][edge] = v
             else:
-                self.graph.edge_properties[k][edge] = 'nan'
+                self.graph.edge_properties[k][edge] = math.nan
         for k in self.graph.edge_properties.keys():
             if k not in properties:
-                self.graph.edge_properties[k][edge] = 'nan'
+                self.graph.edge_properties[k][edge] = math.nan
 
     def neighbors(self, node_id):
         """Get neighors of the node."""
@@ -289,7 +310,6 @@ class GTGraphProcessor(GraphProcessor):
     def subgraph(self, nodes_to_include=None, edges_to_include=None,
                  nodes_to_exclude=None, edges_to_exclude=None):
         """Produce a graph induced by the input nodes."""
-        node_ids = list(self.graph.vp["@id"])
         if nodes_to_include is None:
             node_filter_prop = self.graph.new_vertex_property(
                 "bool", val=True)

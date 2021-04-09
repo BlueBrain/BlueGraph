@@ -83,6 +83,10 @@ class PGFrame(ABC):
         pass
 
     @abstractmethod
+    def rename_nodes(self, mapping):
+        pass
+
+    @abstractmethod
     def remove_edges(self, edges_to_remove):
         pass
 
@@ -673,6 +677,25 @@ class PandasPGFrame(PGFrame):
     def remove_node_properties(self, prop_column):
         self._nodes = self._nodes.drop(columns=[prop_column])
 
+    def rename_nodes(self, mapping):
+        reset_nodes = self._nodes.reset_index()
+        reset_nodes["@id"] = [
+            mapping[el] if el in mapping else el
+            for el in self._nodes.index
+        ]
+        self._nodes = reset_nodes.set_index(
+            ["@id"])
+
+        reset_edges = self._edges.reset_index()
+        reset_edges["@source_id"] = [
+            mapping[s] if s in mapping else s
+            for s, _ in self._edges.index]
+        reset_edges["@target_id"] = [
+            mapping[t] if t in mapping else t
+            for _, t in self._edges.index]
+        self._edges = reset_edges.set_index(
+            ["@source_id", "@target_id"])
+
     def add_edge_properties(self, prop_column, prop_type=None):
         if not isinstance(prop_column, pd.DataFrame):
             prop_column = pd.DataFrame(prop_column)
@@ -718,8 +741,8 @@ class PandasPGFrame(PGFrame):
             ~self._nodes.index.isin(nodes_to_remove)]
         # Detach edges
         self.remove_edges(
-            self._edges.index.map(
-                lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove))
+            self._edges.index[self._edges.index.map(
+                lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove)])
 
     def remove_edges(self, edges_to_remove):
         self._edges = self._edges.loc[
@@ -961,12 +984,6 @@ class PandasPGFrame(PGFrame):
                 df["predicate"] = prop
                 triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
 
-            for prop in self.edge_properties():
-                df = pd.DataFrame(
-                    self._nodes[self._nodes[prop].notna()][prop]).reset_index()
-                df["predicate"] = prop
-                triple_sets.append(df[["@id", "predicate", prop]].to_numpy())
-
         return np.concatenate(triple_sets)
 
     def filter_nodes(self, nodes):
@@ -1005,11 +1022,11 @@ class PandasPGFrame(PGFrame):
 
     def copy(self):
         """Create a copy of the pgframe."""
-        nodes_copy = graph._nodes.copy()
-        edges_copy = graph._edges.copy()
+        nodes_copy = self._nodes.copy()
+        edges_copy = self._edges.copy()
 
-        node_prop_types = graph._node_prop_types.copy()
-        edge_prop_types = graph._edge_prop_types.copy()
+        node_prop_types = self._node_prop_types.copy()
+        edge_prop_types = self._edge_prop_types.copy()
         return PandasPGFrame.from_frames(
             nodes_copy, edges_copy,
             node_prop_types, edge_prop_types)
@@ -1172,7 +1189,7 @@ class GraphProcessor(ABC):
         pass
 
     @abstractmethod
-    def add_edge(self, source, target, properties):
+    def add_edge(self, source, target, properties=None):
         pass
 
     @abstractmethod

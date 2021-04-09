@@ -27,10 +27,11 @@ from sklearn.impute import SimpleImputer
 
 
 from .utils import (Word2VecModel,
-                    normalize_to_set,
                     _get_encoder_type,
                     _generate_type_repr)
+from bluegraph.core.utils import normalize_to_set
 from bluegraph.core.io import PandasPGFrame
+from bluegraph.exceptions import BlueGraphException
 
 
 class SemanticPGEncoder(ABC):
@@ -271,13 +272,14 @@ class SemanticPGEncoder(ABC):
             # Encode edges
             for edge_type in pgframe.edge_types():
                 edge_type_repr = _generate_type_repr(edge_type)
-                for prop, encoder in self._edge_encoders[edge_type_repr].items():
-                    _aggregate_encoding_of(
-                        pgframe.edges(typed_by=edge_type, raw_frame=True),
-                        encoder,
-                        transformed_pgframe.add_edge_properties,
-                        True,
-                        element_type=edge_type)
+                if edge_type_repr in self._edge_encoders:
+                    for prop, encoder in self._edge_encoders[edge_type_repr].items():
+                        _aggregate_encoding_of(
+                            pgframe.edges(typed_by=edge_type, raw_frame=True),
+                            encoder,
+                            transformed_pgframe.add_edge_properties,
+                            True,
+                            element_type=edge_type)
         else:
             # Encode nodes
             for prop, encoder in self._node_encoders.items():
@@ -450,3 +452,6 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         encoder.fit(
             np.reshape(series.to_list(), (series.shape[0], 1)))
         return encoder
+
+    class EncodingException(BlueGraphException):
+        pass
