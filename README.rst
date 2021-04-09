@@ -30,8 +30,8 @@ Using the built-in :code:`PGFrame` data structure (currently, `pandas <https://p
 - `Neo4j <https://neo4j.com/>`_ (for the analytics and representation learning API);
 - `StellarGraph <https://stellargraph.readthedocs.io/en/stable/>`_ (for the representation learning API).
 
+This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset and analysing the generated graph to perform literature review of the role of glucose metabolism deregulations in the progression of COVID-19. For more details on how the knowledge graph is built, explored and analysed, see `COVID-19 co-occurrence graph generation and analysis <https://github.com/BlueBrain/BlueGraph/tree/master/cord19kg#readme>`__.
 
-This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset.
 
 :code:`bluegraph` package
 -------------------------
