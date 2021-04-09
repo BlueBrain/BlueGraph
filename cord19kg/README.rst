@@ -1,27 +1,27 @@
 ===============================================================================
-CORD-19 co-occurrence and knowledge graphs generation, analysis and exploration
+CORD-19 co-occurrence knowledge graph generation, analysis and exploration
 ===============================================================================
 
 About
 -----
 
-This `cord19kg` package contains a collection of tools, jupyter notebooks and interactive applications for building, analysing and exploring co-occurrence and knowledge graphs from entities extracted from the `CORD-19 v47 <https://www.kaggle.com/dataset/08dd9ead3afd4f61ef246bfd6aee098765a19d9f6dbf514f0142965748be859b/version/47>`_ dataset.
+This `cord19kg` package contains a collection of tools, jupyter notebooks and interactive applications for building, analysing and exploring co-occurrence knowledge graphs from entities extracted from the `CORD-19 v47 <https://www.kaggle.com/dataset/08dd9ead3afd4f61ef246bfd6aee098765a19d9f6dbf514f0142965748be859b/version/47>`_ dataset.
 
 The co-occurence and knowledge graphs interactive building, analysis and exploration pipeline implemented in this repository is part of a bigger Blue Brain pipeline and effort for performing literature review of the *role of glucose metabolism deregulations in the progression of COVID-19*. The Blue Brain pipeline is made of the following steps:
 
 1. Semantic Search on the CORD-19 dataset to select papers of interest using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
 2. Named Entity Recognition using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
 3. Entity Linking (to concepts from the `National Cancer Institute Thesaurus (NCIt) <https://ncithesaurus.nci.nih.gov/ncitbrowser>`_ using `BlueBrain/nexus-forge <https://github.com/BlueBrain/nexus-forge>`_ and interactive Entity Curation using the `cord19kg package curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
-4. Co-occurrence and knowledge graph Generation using `BlueBrain/BlueGraph <https://github.com/BlueBrain/BlueGraph>`_.
+4. Co-occurrence knowledge graph generation using `BlueBrain/BlueGraph <https://github.com/BlueBrain/BlueGraph>`_.
 5. Interactive Graph Exploration and Analysis using the `cord19kg package visualization and analysis app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_.
 
 .. image:: ./examples/figures/cord19Kg_bluegraph.png
   :width: 800
-  :alt: Blue Brain Project CORD-19 co-occurrence and knowledge graphs generation, analysis and exploration pipeline 
+  :alt: Blue Brain Project CORD-19 co-occurrence knowledge graph generation, analysis and exploration pipeline 
 
 Two use cases using the aforementioned pipeline are provided in this repository:
 
-**A. Topic centered co-occurrence and knowledge graphs analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_) that can be automatically ran on |Glucose-COVID-19-Binder|:
+**A. Topic centered co-occurrence knowledge graph analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_) that can be automatically ran on |Glucose-COVID-19-Binder|:
 
 1. Semantic Search on the CORD-19 dataset: the 3000 most relevant papers resulting from the query *'Glucose as a risk factor in COVID-19'* are selected.
 
@@ -41,7 +41,7 @@ Two use cases using the aforementioned pipeline are provided in this repository:
    
    - The ontology linking is yielding very fine grained types that get normalised and mapped to the 9 entity types of interest. The corresponding type mappings are available `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/NCIT_type_mapping.json>`_.
         
-4. Co-occurrence and Knowledge Graphs Generation: paper- and paragraph-based co-occurrences of the top 1500 most frequent entities are used to build a knowledge graph whose nodes represent linked entities and whose edges represent entity co-occurrences. The edges are weighted using raw co-occurrence frequencies and mutual-information-based scores: positive pointwise mutual information (PPMI) and normalized point-wise mutual information (NPMI).
+4. Co-occurrence Knowledge Graph Generation: paper- and paragraph-based co-occurrences of the top 1500 most frequent entities are used to build a knowledge graph whose nodes represent linked entities and whose edges represent entity co-occurrences. The edges are weighted using raw co-occurrence frequencies and mutual-information-based scores: positive pointwise mutual information (PPMI) and normalized point-wise mutual information (NPMI).
 
 5. Interactive Graph Exploration and Analysis: the generated paper- and paragraph-based graphs can be interactively analysed and explored based on node centrality measures (PageRank, weighted degree), community partitions, shortest paths search and minimum spanning trees using an interactive plotly-dash and dash-cytoscape based `visualization and exploration app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_
 
@@ -114,7 +114,7 @@ The :code:`cord19kg` packages provides `examples <https://github.com/BlueBrain/B
 
 The `Topic-centered co-occurrence network analysis of CORD-19 <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_ notebook provides a full analysis pipeline on the selection of 3000 articles obtained by searching the CORD-19 dataset using the query *"Glucose is a risk factor for COVID-19"* (the search is performed using `BlueSearch <https://github.com/BlueBrain/BlueBrainSearch>`_).
 
-The :code:`generate_10000_networks.py` `script <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/generate_10000_network.py>`_ allows the user to generate the co-occurrence networks for 10'000 most frequent entities extracted from the entire CORD-19v47 database (based on paper- and paragraph- level entity co-occurrence). To run the script, simply execute :code:`python generate_10000_networks.py` from the examples folder. Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
+The :code:`generate_10000_networks.py` `script <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/generate_10000_network.py>`_ allows the user to generate the co-occurrence graphs for 10'000 most frequent entities extracted from the entire CORD-19v47 database (based on paper- and paragraph- level entity co-occurrence). To run the script, simply execute :code:`python generate_10000_networks.py` from the examples folder. Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
 
 .. |Glucose-COVID-19-Binder| image:: https://mybinder.org/badge_logo.svg
     :alt: Binder
