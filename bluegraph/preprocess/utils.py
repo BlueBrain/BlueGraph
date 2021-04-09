@@ -27,54 +27,6 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.model_selection import train_test_split
 
 
-def str_to_set(s):
-    """Parse string representation of a set."""
-    if s[0] == "{":
-        s = s[1:-1]
-        return set([t.strip()[1:-1] for t in s.split(",")])
-    return s
-
-
-def is_nan(value):
-    """Check if the value is nan."""
-    if isinstance(value, float):
-        return math.isnan(value)
-    else:
-        return False
-
-
-def _aggregate_values(values):
-    value_set = set()
-    for el in values:
-        if isinstance(el, set):
-            value_set.update(el)
-        elif not is_nan(el):
-            value_set.add(el)
-    if len(value_set) == 1:
-        return list(value_set)[0]
-    elif len(value_set) == 0:
-        return math.nan
-    return value_set
-
-
-def element_has_type(element_type, query_type):
-    if not isinstance(element_type, set):
-        element_type = {element_type}
-    if not isinstance(query_type, set):
-        query_type = {query_type}
-    return query_type.issubset(element_type)
-
-
-def normalize_to_set(x):
-    """Normalize the value to a set."""
-    if isinstance(x, set):
-        return x
-    elif isinstance(x, float) and math.isnan(x):
-        return set()
-    else:
-        return {x}
-
-
 def _get_encoder_type(pgframe, prop, is_edge=False):
     encoder_type = "category"
     if is_edge is False:

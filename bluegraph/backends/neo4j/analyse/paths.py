@@ -50,8 +50,8 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             "CALL {}({{\n".format(procedure) +
             "{},\n{}".format(
                 node_edge_selector, distance_setter) +
-            "    startNode: start,\n" +
-            "    endNode: end{}\n".format(extra_params) +
+            "    sourceNode: id(start),\n" +
+            "    targetNode: id(end){}\n".format(extra_params) +
             "})\n"
         )
         return query
@@ -67,10 +67,11 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             graph._generate_st_match_query(source, target) +
             Neo4jPathFinder._generate_path_search_call(
                 graph, source, target,
-                "gds.alpha.shortestPath.stream",
+                "gds.beta.shortestPath.dijkstra.stream",
                 distance, exclude_edge) +
-            "YIELD nodeId\n"
-            "RETURN gds.util.asNode(nodeId).id AS node_id\n"
+            "YIELD nodeIds\n"
+            "UNWIND [n IN nodeIds | gds.util.asNode(n).id] AS node_id \n"
+            "RETURN node_id"
         )
         result = graph.execute(query)
         return tuple(record["node_id"] for record in result)
@@ -103,7 +104,7 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             graph._generate_st_match_query(source, target) +
             Neo4jPathFinder._generate_path_search_call(
                 graph, source, target,
-                "gds.alpha.kShortestPaths.stream",
+                "gds.beta.shortestPath.yens.stream",
                 distance, exclude_edge,
                 extra_params={"k": n}) +
             "YIELD nodeIds\n"

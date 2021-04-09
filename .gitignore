@@ -28,3 +28,4 @@ __MACOSX/
 .tox/
 .eggs
 bluegraph/version.py
+tests/data/*

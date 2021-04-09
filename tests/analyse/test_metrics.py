@@ -44,6 +44,12 @@ def _benchmark_processor(processor):
     c = processor.closeness_centrality(distance="distance")
     processor.closeness_centrality(
         distance="distance", write=True, write_property="closeness")
+
+    res = processor.compute_all_node_metrics(
+        degree_weights=["mi"],
+        pagerank_weights=["mi"],
+        betweenness_weights=["distance"],
+        closeness_weights=["distance"])
     return (d, p, b, c)
 
 

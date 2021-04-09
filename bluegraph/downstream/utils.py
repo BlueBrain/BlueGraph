@@ -68,7 +68,7 @@ def cluster_nodes(node_embeddings, k=4):
 
 
 def plot_2d(pgframe, vector_prop=None, vectors=None, label_prop=None, labels=None,
-            title=None):
+            title=None, silent=False):
     """Plot a 2D representation of nodes."""
     if vectors is None:
         if vector_prop is None:
@@ -118,4 +118,5 @@ def plot_2d(pgframe, vector_prop=None, vectors=None, label_prop=None, labels=Non
         else "2D visualization of the input node representation"
     )
     ax.set_title(title)
-    plt.show()
+    if not silent:
+        plt.show()

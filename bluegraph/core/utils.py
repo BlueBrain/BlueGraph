@@ -14,15 +14,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 import math
-
 import pandas as pd
 
 
 def normalize_to_set(value):
     if not isinstance(value, set):
-        if math.isnan(value):
+        if isinstance(value, str) or not math.isnan(value):
+            return {value}
+        elif math.isnan(value):
             return set()
-        elif isinstance(value, str) or not math.isnan(value):
+        else:
             return {value}
     return value
 

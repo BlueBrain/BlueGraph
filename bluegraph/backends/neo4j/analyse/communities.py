@@ -16,21 +16,7 @@
 from bluegraph.core.analyse.communities import CommunityDetector
 from ..io import Neo4jGraphProcessor, Neo4jGraphView
 
-"""Graph-tool-based community detection interface.
 
-    This class provides a simple interface for detecting communities
-    of densely connected nodes and evaluating community partitions.
-
-    Currently supported community detection strategies for 'graph-tool':
-
-    - Statistical inference (`strategy="sbm"`)
-    - Hierarchical clustering (`strategy="hierarchical"`)
-
-    References
-    ----------
-
-    - https://graph-tool.skewed.de/static/doc/demos/inference/inference.html
-    """
 class Neo4jCommunityDetector(Neo4jGraphProcessor, CommunityDetector):
     """Neo4j-based community detection interface.
 

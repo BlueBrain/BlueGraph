@@ -35,18 +35,26 @@ from bluegraph.backends.networkx import (NXMetricProcessor,
                                          NXGraphProcessor,
                                          networkx_to_pgframe,
                                          pgframe_to_networkx)
-from bluegraph.backends.neo4j import (Neo4jMetricProcessor,
-                                      Neo4jCommunityDetector,
-                                      Neo4jPathFinder,
-                                      Neo4jGraphProcessor,
-                                      neo4j_to_pgframe,
-                                      pgframe_to_neo4j)
-from bluegraph.backends.graph_tool import (GTMetricProcessor,
-                                           GTCommunityDetector,
-                                           GTPathFinder,
-                                           GTGraphProcessor,
-                                           graph_tool_to_pgframe,
-                                           pgframe_to_graph_tool)
+try:
+    from bluegraph.backends.neo4j import (Neo4jMetricProcessor,
+                                          Neo4jCommunityDetector,
+                                          Neo4jPathFinder,
+                                          Neo4jGraphProcessor,
+                                          neo4j_to_pgframe,
+                                          pgframe_to_neo4j)
+    DISABLED_NEO4J = False
+except ImportError:
+    DISABLED_NEO4J = True
+try:
+    from bluegraph.backends.graph_tool import (GTMetricProcessor,
+                                               GTCommunityDetector,
+                                               GTPathFinder,
+                                               GTGraphProcessor,
+                                               graph_tool_to_pgframe,
+                                               pgframe_to_graph_tool)
+    DISABLED_GRAPH_TOOL = False
+except ImportError:
+    DISABLED_GRAPH_TOOL = True
 
 
 BACKEND_MAPPING = {
@@ -57,16 +65,21 @@ BACKEND_MAPPING = {
         "to_pgframe": networkx_to_pgframe,
         "from_pgframe": pgframe_to_networkx,
         "object_processor": NXGraphProcessor,
-    },
-    "neo4j": {
+    }
+}
+
+if not DISABLED_NEO4J:
+    BACKEND_MAPPING["neo4j"] = {
         "metrics": Neo4jMetricProcessor,
         "communities": Neo4jCommunityDetector,
         "paths": Neo4jPathFinder,
         "to_pgframe": neo4j_to_pgframe,
         "from_pgframe": pgframe_to_neo4j,
         "object_processor": Neo4jGraphProcessor,
-    },
-    "graph_tool": {
+    }
+
+if not DISABLED_GRAPH_TOOL:
+    BACKEND_MAPPING["graph_tool"] = {
         "metrics": GTMetricProcessor,
         "communities": GTCommunityDetector,
         "paths": GTPathFinder,
@@ -74,7 +87,7 @@ BACKEND_MAPPING = {
         "from_pgframe": pgframe_to_graph_tool,
         "object_processor": GTGraphProcessor
     }
-}
+
 
 NON_ASCII_REPLACE = {
     "α": "alpha",
