@@ -5,9 +5,9 @@ CORD-19 co-occurrence knowledge graph generation, analysis and exploration
 About
 -----
 
-The `cord19kg` package contains a collection of tools, jupyter notebooks and interactive applications for building, analysing and exploring co-occurrence knowledge graphs from entities extracted from the `CORD-19 v47 <https://www.kaggle.com/dataset/08dd9ead3afd4f61ef246bfd6aee098765a19d9f6dbf514f0142965748be859b/version/47>`_ dataset.
+The `cord19kg` package contains a collection of tools, Jupyter notebooks and interactive applications for building, analysing and exploring co-occurrence knowledge graphs from entities extracted from the `CORD-19 v47 <https://www.kaggle.com/dataset/08dd9ead3afd4f61ef246bfd6aee098765a19d9f6dbf514f0142965748be859b/version/47>`_ dataset.
 
-The co-occurence and knowledge graphs interactive building, analysis and exploration pipeline implemented in this repository is part of a bigger Blue Brain pipeline and effort for performing literature review of the *role of glucose metabolism deregulations in the progression of COVID-19*. The Blue Brain pipeline is made of the following steps:
+The co-occurence knowledge graph interactive building, analysis and exploration pipeline implemented in this repository is part of a bigger Blue Brain pipeline and effort for performing literature review of the *role of glucose metabolism deregulations in the progression of COVID-19*. The Blue Brain pipeline is made of the following steps:
 
 1. Semantic Search on the CORD-19 dataset to select papers of interest using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
 2. Named Entity Recognition using `BlueBrain/Search <https://github.com/BlueBrain/Search>`_.
