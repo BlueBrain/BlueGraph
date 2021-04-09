@@ -48,8 +48,11 @@ def mutual_information(co_freq, s_freq, t_freq, total_instances, mitype=None):
                 ) * (co_freq / total_instances)
             elif mitype == "normalized":
                 alpha = - math.log2(co_freq / total_instances)
-                mi = math.log2(
-                    (total_instances * co_freq) / (s_freq * t_freq)) / alpha
+                mi = (
+                    (math.log2(
+                        (total_instances * co_freq) / (s_freq * t_freq)) / alpha)
+                    if alpha != 0 else 0
+                )
             elif mitype == "pmi2":
                 mi = math.log2((co_freq ** 2) / (s_freq * t_freq))
             elif mitype == "pmi3":
@@ -187,7 +190,8 @@ class CooccurrenceGenerator(object):
     def _scan_targets(self, indices_to_nodes, node_property, source_index,
                       factor_aggregator, compute_statistics,
                       total_factor_instances,
-                      generated_edges, reverse_edges=False, limit=None):
+                      generated_edges, reverse_edges=False, limit=None,
+                      verbose=False):
         """Scan possible co-occurrence targets for the input source term."""
         edge_list = []
         for target_index in range(source_index + 1, len(indices_to_nodes)):
@@ -226,7 +230,8 @@ class CooccurrenceGenerator(object):
 
             if limit:
                 if len(generated_edges) + len(edge_list) == limit:
-                    print("Reached the edge limit ({})".format(limit))
+                    if verbose:
+                        print("Reached the edge limit ({})".format(limit))
                     return edge_list
 
         return edge_list
@@ -235,7 +240,7 @@ class CooccurrenceGenerator(object):
                        factor_aggregator, compute_statistics,
                        total_factor_instances,
                        all_edges, reverse_edges, task_queue,
-                       generated_edges, limit=None):
+                       generated_edges, limit=None, verbose=False):
         """Main scanning loop of the edge scanner."""
         first_scan = True
 
@@ -253,7 +258,8 @@ class CooccurrenceGenerator(object):
                     indices_to_nodes, node_property, source_index,
                     factor_aggregator, compute_statistics,
                     total_factor_instances,
-                    all_edges, reverse_edges, limit=limit)
+                    all_edges, reverse_edges, limit=limit,
+                    verbose=verbose)
                 generated_edges += edge_list
 
     def _generate_cooccurrence(self, sources,
@@ -262,14 +268,15 @@ class CooccurrenceGenerator(object):
                                total_factor_instances,
                                reverse_edges,
                                compute_statistics,
-                               parallelize, cores, limit):
+                               parallelize, cores, limit, verbose=False):
         indices_to_nodes = {i: n for i, n in enumerate(sources)}
 
         all_edges = []
 
         total_pairs = (len(sources) * (len(sources) - 1)) / 2
-        print("Examining {} pairs of terms for co-occurrence...".format(
-            int(total_pairs)))
+        if verbose:
+            print("Examining {} pairs of terms for co-occurrence...".format(
+                int(total_pairs)))
 
         if parallelize:
             # Create worker processes
@@ -296,7 +303,7 @@ class CooccurrenceGenerator(object):
                         total_factor_instances,
                         all_edges,
                         reverse_edges, task_queue,
-                        generated_edges, limit),
+                        generated_edges, limit, verbose),
                 )
                 process.start()
                 processes.append(process)
@@ -336,7 +343,7 @@ class CooccurrenceGenerator(object):
                             total_factor_instances=None,
                             compute_statistics=None,
                             parallelize=False,
-                            cores=4, limit=None):
+                            cores=4, limit=None, verbose=False):
         if compute_statistics is None:
             compute_statistics = []
             total_factor_instances = None
@@ -349,7 +356,8 @@ class CooccurrenceGenerator(object):
                         self.pgframe.nodes(
                             raw_frame=True, typed_by=node_type)))
                 else:
-                    print("Computing total factor instances...")
+                    if verbose:
+                        print("Computing total factor instances...")
                     total_factor_instances = len(
                         factor_aggregator(
                             self.pgframe.nodes(
@@ -360,7 +368,7 @@ class CooccurrenceGenerator(object):
         return self._generate_cooccurrence(
             sources, node_property, factor_aggregator,
             total_factor_instances, None, compute_statistics,
-            parallelize, cores, limit)
+            parallelize, cores, limit, verbose)
 
     def generate_from_edges(self, edge_type,
                             factor_aggregator=None,
@@ -368,7 +376,7 @@ class CooccurrenceGenerator(object):
                             reverse_edges=False,
                             compute_statistics=None,
                             parallelize=False,
-                            cores=4, limit=None):
+                            cores=4, limit=None, verbose=False):
 
         if compute_statistics is None:
             compute_statistics = []
@@ -380,16 +388,17 @@ class CooccurrenceGenerator(object):
                 if factor_aggregator is None:
                     if not reverse_edges:
                         targets = self.pgframe._edges[
-                                    self.pgframe._edges["@type"] == edge_type
-                                ].index.get_level_values(1).unique()
+                            self.pgframe._edges["@type"] == edge_type
+                        ].index.get_level_values(1).unique()
                     else:
                         targets = self.pgframe._edges[
-                                self.pgframe._edges["@type"] == edge_type
-                            ].index.get_level_values(0).unique()
+                            self.pgframe._edges["@type"] == edge_type
+                        ].index.get_level_values(0).unique()
                     if total_factor_instances is None:
                         total_factor_instances = len(targets)
                 else:
-                    print("Computing total factor instances...")
+                    if verbose:
+                        print("Computing total factor instances...")
                     total_factor_instances = len(
                         factor_aggregator(self.pgframe._edges))
 
@@ -407,4 +416,4 @@ class CooccurrenceGenerator(object):
         return self._generate_cooccurrence(
             sources, None, factor_aggregator,
             total_factor_instances, reverse_edges, compute_statistics,
-            parallelize, cores, limit)
+            parallelize, cores, limit, verbose)
