@@ -2,3 +2,9 @@ set -ex
 
 # Install the cord19kg package
 pip install .[cord19kg]
+# Install Javascript dependencies
+npm install # or yarn
+# Build JupyterLab extension
+npm run build # or yarn build
+# Install JupyterLab extension
+jupyter labextension install .
