@@ -1,5 +1,9 @@
 set -ex
 
+
+pip install "jupyterlab>=1.0" jupyterlab-dash==0.1.0a3
+jupyter labextension install jupyterlab-dash@0.1.0-alpha.3
+
 # Install the cord19kg package
 pip install .[cord19kg]
 # Install graph-tool
@@ -7,10 +11,3 @@ pip install .[cord19kg]
 # !apt-key adv --keyserver keys.openpgp.org --recv-key 612DEFB798507F25
 # !apt-get update
 # !apt-get install python3-graph-tool python3-cairo python3-matplotlib
-# Install Javascript dependencies
-# npm install # or yarn
-# Build JupyterLab extension
-# npm run build # or yarn build
-# Install JupyterLab extension
-jupyter labextension list
-jupyter labextension install .
