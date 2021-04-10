@@ -193,7 +193,7 @@ class GTGraphProcessor(GraphProcessor):
         if not properties:
             return list(self.graph.vp["@id"])
         else:
-            props = self.graph.vp.keys()
+            props = list(self.graph.vp.keys())
             result = []
             for v in self.graph.iter_vertices(vprops=[
                     self.graph.vp[p] for p in props]):
