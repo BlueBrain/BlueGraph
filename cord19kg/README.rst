@@ -15,10 +15,6 @@ The co-occurence knowledge graph interactive building, analysis and exploration 
 4. Co-occurrence knowledge graph generation using `BlueBrain/BlueGraph <https://github.com/BlueBrain/BlueGraph>`_.
 5. Interactive Graph Exploration and Analysis using the `cord19kg package visualization and analysis app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/visualization_app.py>`_.
 
-.. image:: ./examples/figures/cord19Kg_bluegraph.png
-  :width: 800
-  :alt: Blue Brain Project CORD-19 co-occurrence knowledge graph generation, analysis and exploration pipeline 
-
 Two use cases using the aforementioned pipeline are provided in this repository:
 
 **A. Topic centered co-occurrence knowledge graph analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_ or you can |Glucose-COVID-19-Colab|):
