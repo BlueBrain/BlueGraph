@@ -331,10 +331,15 @@ class CooccurrenceGenerator(object):
                 all_edges += edges
                 if len(all_edges) == limit:
                     break
-
-        edge_frame = pd.DataFrame(all_edges)
-        edge_frame = edge_frame.set_index(
-            ["@source_id", "@target_id"])
+        if len(all_edges) > 0:
+            edge_frame = pd.DataFrame(all_edges)
+            edge_frame = edge_frame.set_index(
+                ["@source_id", "@target_id"])
+        else:
+            edge_frame = pd.DataFrame(
+                columns=[
+                    "@source_id", "@target_id", "common_factors"
+                ] + compute_statistics)
         return edge_frame
 
     def generate_from_nodes(self, node_property,

@@ -1086,8 +1086,12 @@ class PandasPGFrame(PGFrame):
     def from_json(cls, json_data):
         frame = cls()
         frame._nodes = pd.DataFrame(json_data["nodes"]).set_index("@id")
-        frame._edges = pd.DataFrame(json_data["edges"]).set_index(
-            ["@source_id", "@target_id"])
+        if len(json_data["edges"]) > 0:
+            frame._edges = pd.DataFrame(json_data["edges"]).set_index(
+                ["@source_id", "@target_id"])
+        else:
+            frame._edges = pd.DataFrame(columns=[
+                "@source_id", "@target_id"])
         frame._node_prop_types = json_data["node_property_types"]
         frame._edge_prop_types = json_data["edge_property_types"]
         return frame
