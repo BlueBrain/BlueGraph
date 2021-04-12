@@ -13,7 +13,15 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-"""Collection of StellarGraph machine learning utils."""
+"""Collection of StellarGraph machine learning utils.
+
+StellarGraph demos have been used to implement the set of embedding utils
+included in this module.
+
+See the demos:
+https://stellargraph.readthedocs.io/en/stable/demos/index.html#table-of-contents
+
+"""
 import pandas as pd
 
 from tensorflow.keras import regularizers
