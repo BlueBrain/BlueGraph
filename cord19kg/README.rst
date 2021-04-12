@@ -17,7 +17,7 @@ The co-occurence knowledge graph interactive building, analysis and exploration 
 
 Two use cases using the aforementioned pipeline are provided in this repository:
 
-**A. Topic centered co-occurrence knowledge graph analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_) that can be automatically ran on |Glucose-COVID-19-Binder|:
+**A. Topic centered co-occurrence knowledge graph analysis** consisting of the following steps (steps 3-5 can be reproduced using the jupyter notebook `Glucose is a risk facor for COVID-19 (3000 papers).ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb>`_ or you can |Glucose-COVID-19-Colab|):
 
 1. Semantic Search on the CORD-19 dataset: the 3000 most relevant papers resulting from the query *'Glucose as a risk factor in COVID-19'* are selected.
 
@@ -112,6 +112,6 @@ The `Topic-centered co-occurrence network analysis of CORD-19 <https://github.co
 
 The :code:`generate_10000_networks.py` `script <https://github.com/BlueBrain/BlueBrainGraph/blob/refactoring/cord19kg/examples/generate_10000_network.py>`_ allows the user to generate the co-occurrence graphs for 10'000 most frequent entities extracted from the entire CORD-19v47 database (based on paper- and paragraph- level entity co-occurrence). To run the script, simply execute :code:`python generate_10000_networks.py` from the examples folder. Note that the generated networks are highly dense (contain a large number of edges, for example, ~44M edges for the paper-based network), and the process of their generation, even if parallelized, is highly costly.
 
-.. |Glucose-COVID-19-Binder| image:: https://mybinder.org/badge_logo.svg
-    :alt: Binder
-    :target: https://mybinder.org/v2/gh/BlueBrain/BlueGraph/master?filepath=cord19kg%2Fexamples%2Fnotebooks
+.. |Glucose-COVID-19-Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
+  :alt: Google Colab
+  :target: https://colab.research.google.com/github/BlueBrain/BlueGraph/blob/colab_patch/cord19kg/examples/notebooks/colab/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb#scrollTo=UbEdKOdlt925
