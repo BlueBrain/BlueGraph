@@ -5,7 +5,7 @@ Literature exploration: in-memory analytics tutorial
 =====================================================
 
 In this example we illustrate how network analytics can be used for
-literature exploration. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`__.
+literature exploration. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Literature%20exploration%20(PGFrames%20%2B%20in-memory%20analytics%20tutorial).ipynb>`__.
 
 The input dataset contains occurrences of different terms in paragraphs
 of scientific articles previously extracted by means of a Named Entity

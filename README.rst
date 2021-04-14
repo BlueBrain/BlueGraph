@@ -8,7 +8,6 @@ Unifying Python framework for graph analytics and co-occurrence analysis.
 
 
 .. image:: examples/figures/BBP_Blue_Graph_banner.jpg
-  :width: 300
   :alt: BlueGraph banner
 
 
@@ -46,7 +45,6 @@ BlueGraph's API is built upon 4 main packages:
 Main components of BlueGraph's API are illustrated in the following diagram:
 
 .. image:: examples/figures/README_BlueGraph_components.png
-  :width: 300
   :alt: BlueGraph components
 
 
@@ -158,7 +156,7 @@ Finally, `Create and push embedding pipeline into Nexus.ipynb <https://github.co
 
 Getting started with cord19kg
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The :code:`cord19kg` packages provides `examples <https://github.com/BlueBrain/BlueGraph/tree/master/cord19kg/examples>`_ of CORD-19-specific co-occurrence analysis. Please, see more details on the CORD-19 analysis and exploration pipeline of the Blue Brain Project `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/README.rst>__.
+The :code:`cord19kg` packages provides `examples <https://github.com/BlueBrain/BlueGraph/tree/master/cord19kg/examples>`__ of CORD-19-specific co-occurrence analysis. Please, see more details on the CORD-19 analysis and exploration pipeline of the Blue Brain Project `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/README.rst>`__.
 
 We recommend starting from the `Co-occurrence analysis tutorial <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/Co-occurrence%20analysis%20tutorial.ipynb>`_ notebook providing a simple starting example.
 
