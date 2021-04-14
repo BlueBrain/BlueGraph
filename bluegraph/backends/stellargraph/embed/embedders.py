@@ -224,7 +224,6 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
         node_generator = _dispatch_generator(
             graph, self.model_name, self.params).flow(graph.nodes())
 
-        # for full batch models, squeeze out the batch dim (which is 1)
         node_embeddings = self._embedding_model.predict(node_generator)
         res = dict(zip(graph.nodes(), node_embeddings.tolist()))
         return res

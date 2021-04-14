@@ -5,7 +5,7 @@ Literature exploration: in-memory analytics tutorial
 =====================================================
 
 In this example we illustrate how network analytics can be used for
-literature exploration. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_.
+literature exploration. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`__.
 
 The input dataset contains occurrences of different terms in paragraphs
 of scientific articles previously extracted by means of a Named Entity
@@ -531,7 +531,7 @@ We will generate co-occurrence graphs for different occurrence factors
 (paper/paragraph), i.e. an edge between a pair of entities is added if
 they co-occur in the same paper or paragraph.
 
-**NB:** Read more about statistics computed during the co-occurrence analysis (positive pointwise mutual information (PPMI) and normalized pointwise mutual information (NPMI)) `here <https://en.wikipedia.org/wiki/Pointwise_mutual_information>`_.
+**NB:** Read more about statistics computed during the co-occurrence analysis (positive pointwise mutual information (PPMI) and normalized pointwise mutual information (NPMI)) `here <https://en.wikipedia.org/wiki/Pointwise_mutual_information>`__.
 
 Paper-based co-occurrence
 ~~~~~~~~~~~~~~~~~~~~~~~~~
