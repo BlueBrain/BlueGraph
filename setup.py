@@ -80,6 +80,7 @@ setup(
         ],
         "docs": [
             "sphinx", "sphinx-bluebrain-theme",
+            "dash",
             "jupyter_dash"  # a temporary solution, mocking this module fails
         ],
         "cord19kg": [
