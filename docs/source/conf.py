@@ -63,9 +63,8 @@ html_theme_options = {
 }
 
 autodoc_mock_imports = [
-    "dash"
     "jwt",
-    # "jupyter_dash",
+    "dash_bootstrap_components",
     "graph_tool",
     "neo4j",
     "faiss",

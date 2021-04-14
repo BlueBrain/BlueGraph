@@ -66,6 +66,7 @@ setup(
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
             "pytest-mock==3.3.1", "codecov",
+            "dash",
             "jupyter_dash",
             "dash_bootstrap_components",
             "dash_daq",
