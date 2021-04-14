@@ -78,6 +78,7 @@ def pretty_print_tripaths(a, b, c, n, a_b_paths, b_c_paths, as_repr=False):
 
 def graph_elements_from_paths(paths):
     """Create a graph from a set of paths.
+
     Resulting graph contains nodes and edges from the input
     set  of paths. If the source graph is provided, the attributes
     of the selected nodes and edges are copied from the source graph.

@@ -66,6 +66,7 @@ setup(
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
             "pytest-mock==3.3.1", "codecov",
+            "dash",
             "jupyter_dash",
             "dash_bootstrap_components",
             "dash_daq",
@@ -77,7 +78,11 @@ setup(
             "neo4j",
             "stellargraph"
         ],
-        "docs": ["sphinx", "sphinx-bluebrain-theme"],
+        "docs": [
+            "sphinx", "sphinx-bluebrain-theme",
+            "dash",
+            "jupyter_dash"  # a temporary solution, mocking this module fails
+        ],
         "cord19kg": [
             "jupyter_dash",
             "dash_bootstrap_components",

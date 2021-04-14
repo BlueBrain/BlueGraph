@@ -26,6 +26,9 @@ SENTINEL = "END"
 
 def mutual_information(co_freq, s_freq, t_freq, total_instances, mitype=None):
     """Compute mutual information on a pair of terms.
+
+    Parameters
+    ----------
     co_freq : int
         Co-occurrence frequency of s & t
     s_freq : int

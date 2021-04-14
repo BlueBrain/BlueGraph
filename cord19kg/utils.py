@@ -953,6 +953,7 @@ def build_cytoscape_data(graph_processor, positions=None):
 
 #     return elements
 
+
 def most_common(x):
     c = Counter(x)
     return c.most_common(1)[0][0]
@@ -972,9 +973,11 @@ CORD_ATTRS_RESOLVER = {
     "distance_npmi": min
 }
 
+
 def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
                 attrs_to_ignore=None):
     """Merge two attribute dictionaries into the target using the input resolver.
+
     Parameters
     ----------
     source_attrs : dict
@@ -1021,6 +1024,7 @@ def merge_attrs(source_attrs, collection_of_attrs, attr_resolver,
 def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
                 attr_resolver=None):
     """Merge the input set of nodes.
+
     Parameters
     ----------
     graph_processor : GraphProcessor
@@ -1033,6 +1037,7 @@ def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
         Dictionary containing attribute resolvers, its keys are attribute
         names and its values are functions applied to the set of attribute
         values in order to resolve this set to a single value
+
     Returns
     -------
     graph : nx.Graph
