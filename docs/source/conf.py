@@ -67,6 +67,8 @@ autodoc_mock_imports = [
     "dash_bootstrap_components",
     "dash_daq",
     "ipywidgets",
+    "dash_extensions",
+    "dash_cytoscape",
     "graph_tool",
     "neo4j",
     "faiss",
