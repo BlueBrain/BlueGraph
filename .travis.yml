@@ -59,10 +59,11 @@ deploy:
   user: bbp.opensource
   password:
     secure: nItO6zvjqabsDOVyqj4k4V7dJXKz5FN9mkzlunTpZjJDQKISyN+lfDbrpjKihZyToY4fP5XsPnDK6zInnVFmjLDDrAsNh4IaNdU10HSmvGpTxCr3ecAMnLrBHHQrs7LplsjorSFwGjpaGr+M0PD3axi+itiMtTnuwaVH4CS0ywKMqt5575Wn8hdgJ7x/OglbA16DjhyoupdKGBdSv7HhB7AujOjQOfbnTWjuMVcjF3FFoARZuKdlmyDybMsujwgaTUxSLBVE8FqRifcukCAAmTn1O3UYNOY53QK0NsPYNvjRWAK9S/uMzOTduX69zDl7ChBtrsaplfdpqGv4U4QagIr5YgdnxVAyvLWsBOf+vaZFT2NwseHQPGHp5ftlAwYj0xk/3bJVINa1cgnsK9p+GErrBCI42Bqg5N/O/dhqnuB2136gPW8Ph4Jd6yINO58NImQ6ofC2Jg35MdNb5G9ceBqn5j+77ze1eLPwlaOTDZ9g5c1GzzUx6RPrzxP8OUqLctxgXdOaIUGFyet4raeP/aeGeJGndfdCbhhjjbSeLGH2se/HFd1y57YtMfTmYSKcy2PHqe1g9kWqrBsbOLzsaDO6dme56J2HZWTv0Qwz7f2scs9Lx6OgT0g9JU02vieVrjfzPmhqoT4rQ+D5ssCW5Qv34ygJepKHD4AIWWciitc=
-  skip_cleanup: true
+  cleanup: false
 
 branches:
   only: 
     - master
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
 
 
