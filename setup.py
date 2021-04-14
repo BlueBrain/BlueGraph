@@ -77,7 +77,10 @@ setup(
             "neo4j",
             "stellargraph"
         ],
-        "docs": ["sphinx", "sphinx-bluebrain-theme"],
+        "docs": [
+            "sphinx", "sphinx-bluebrain-theme",
+            "jupyter_dash"  # a temporary solution, mocking this module fails
+        ],
         "cord19kg": [
             "jupyter_dash",
             "dash_bootstrap_components",

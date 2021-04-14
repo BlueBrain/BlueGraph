@@ -61,3 +61,13 @@ html_theme_options = {
     "repo_url": "https://github.com/BlueBrain/BlueGraph/",
     "repo_name": "BlueBrain/BlueGraph"
 }
+
+autodoc_mock_imports = [
+    "dash"
+    "jwt",
+    # "jupyter_dash",
+    "graph_tool",
+    "neo4j",
+    "faiss",
+    "stellargraph",
+]
