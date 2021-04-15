@@ -7,7 +7,7 @@ NASA dataset keywords analysis: Neo4j analytics tutorial
 In this notebook we use graph-based co-occurrence analysis on the
 publicly available Data catalog of NASA (https://data.nasa.gov/browse,
 and the API endpoint https://data.nasa.gov/data.json). This dataset
-consists of the meta-data for different NASA datasets. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_.
+consists of the meta-data for different NASA datasets. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/NASA%20keywords%20(PGFrames%20%2B%20Neo4j%20analytics%20tutorial).ipynb>`_.
 
 We will work on the sets of keywords attached to each dataset and build
 a keyword co-occurrence graph describing relations between different

@@ -4,7 +4,7 @@
 Intro to PGFrames and semantic encoding
 =============================================
 
-This tutorial will help you to get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_.
+This tutorial will help you to get started with property graph data structure `PGFrame` provided by BlueGraph, get an example of semantic property encoding. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_.
 
 .. code:: ipython3
 

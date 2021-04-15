@@ -4,7 +4,7 @@
 Embedding and downstream tasks tutorial
 =======================================
 
-This tutorial illustrates an example of a co-occurrence graph and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification, edge prediction and embedding pipeline building. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/examples/PGFrames%20and%20sematic%20encoding%20tutorial.ipynb>`_.
+This tutorial illustrates an example of a co-occurrence graph and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification, edge prediction and embedding pipeline building. The source notebook can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Embedding%20and%20downstream%20tasks%20tutorial.ipynb>`_.
 
 .. code:: ipython3
 

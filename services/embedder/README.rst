@@ -1,7 +1,7 @@
 BlueBrainEmbedder
 -----------------
 
-Mini-service for retrieving embedding vectors and similarity computation. An example can be found in the `<Embedding service API>`_ notebook. 
+Mini-service for retrieving embedding vectors and similarity computation. An example can be found in the `Embedding service API <https://github.com/BlueBrain/BlueGraph/blob/master/services/embedder/examples/notebooks/Embedding%20service%20API.ipynb>`_ notebook. 
 
 
 Running the service
