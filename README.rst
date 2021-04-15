@@ -2,7 +2,7 @@
 Blue Graph
 ==========
 
-|Travis_badge| |docs| |coverage|
+|Travis_badge| |docs|
 
 Unifying Python framework for graph analytics and co-occurrence analysis.
 
@@ -188,11 +188,7 @@ The development of this project was supported by funding to the Blue Brain Proje
     :scale: 100%
     :target: https://bluegraph.readthedocs.io/en/latest/
 
-.. |coverage| image:: 
-    .. image:: https://codecov.io/gh/BlueBrain/BlueGraph/branch/master/graph/badge.svg
-    :alt: Test coverage
-    :scale: 100%
-    :target: https://codecov.io/gh/BlueBrain/BlueGraph
+
 
 
 COPYRIGHT 2020–2021, Blue Brain Project/EPFL
