@@ -41,24 +41,23 @@ GraphProcessor
 Graph preprocessing with BlueGraph
 -----------------------------------
 
-The :code:`bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
+The :code:`bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph objects.
 
 
 Co-occurrence generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `CooccurrenceGenerator` interface allows the user to examine a provided provided property graph for co-occurrences (based on its nodes or edges), generate co-occurrence edges, and compute the following statistics:
+The :code:`CooccurrenceGenerator` interface allows the user to examine a provided provided property graph for co-occurrences (based on its nodes or edges), generate co-occurrence edges, and compute the following statistics:
 
 - co-occurrece factors,
 - co-occurrence frequency,
-- positive pointwise mutual information of the co-occurrence,
-- normalized pointwise mutual information of the co-occurrence.
+- positive/normalized pointwise mutual information of the co-occurrence [4].
 
 
 Semantic property encoding
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `SemanticPGEncoder` interface allows the user to convert properties of nodes and edges into numerical vectors. Currently, `ScikitLearnPGEncoder` is implemented in Blue Graph.
+The :code:`SemanticPGEncoder` interface allows the user to convert properties of nodes and edges into numerical vectors. Currently, `ScikitLearnPGEncoder` is implemented in Blue Graph.
 
 The encoder object can be instantiated as in the following example:
 
@@ -82,8 +81,8 @@ Where the following parameters can be specified:
 - :code:`encode_types` a flag indicating if node/edge types should be included in the generated features;
 - :code:`categorical_encoding` defines a strategy for encoding **categorical properties** (currently, `Multi Label Binarizer <https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MultiLabelBinarizer.html>`_ is available);
 - :code:`text_encoding` defines a strategy for encoding **text properties** (currently, `TfIdf <https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html>`_ and `Doc2Vec <https://radimrehurek.com/gensim/auto_examples/tutorials/run_doc2vec_lee.html>`_ encodings are available);
-- :code:`missing_numeric` a strategy for treating properties with missing **numeric property** values (dropping or imputing such values is possible);
-- :code:`imputation_strategy` a strategy for imputing properties with missing **numeric property** values (currently, only the mean imputation is available);
+- :code:`missing_numeric` a strategy for treating missing **numeric property** values (dropping or imputing such values is possible);
+- :code:`imputation_strategy` a strategy for imputing missing **numeric property** values (currently, only the mean imputation is available);
 - :code:`standardize_numeric` a flag indicating if **numerical property** values should be standardized.
 
 
@@ -110,13 +109,13 @@ Conversion between :code:`PGFrame` and NetworkX graph objects can be done using 
 Graph metrics
 ~~~~~~~~~~~~~
 
-The :code:`NXMetricsProcessor` interface supports the following graph metrics:
+The :code:`NXMetricsProcessor` interface supports the following graph metrics (all supporting unweighted and weighted graph edges):
 
-- graph density (unweighted and weighted),
-- degree centrality (unweighted and weighted),
-- PageRank centrality (unweighted and weighted),
-- betweenness centrality (unweighted and weighted),
-- closeness centrality (unweighted and weighted).
+- graph density,
+- degree centrality,
+- PageRank centrality,
+- betweenness centrality,
+- closeness centrality.
 
 Writing centrality measures as node properties is available.
 
@@ -131,7 +130,7 @@ The :code:`NXPathFinder` interface supports the following path search tasks:
 - single shortest path (unweighted and weighted, excluding direct edge is available),
 - all shortest paths (excluding direct edge is available),
 - top shortest paths (unweighted and weighted, excluding direct edge is available, Naive [1] and Yen [3] strategies are available)
-- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, Naive* and Yen strategies are available).
+- nested shortest paths [:ref:`2`] (unweighted and weighted, excluding direct edge is available, Naive and Yen strategies are available).
 
 
 Community detection
@@ -349,10 +348,12 @@ Such embedding pipelines can also be saved and loaded.
 Appendix
 --------
 
-**(1) Naive strategy for finding top shortest paths**: the strategy first finds the set of all shortest paths from the
+[1]_ **Naive strategy for finding top shortest paths**: the strategy first finds the set of all shortest paths from the
 source to the target node, it then ranks them by the cumulative distance score and returns n best paths. This naive strategy performs better for highly dense graphs (where every node is connected to almost every other node). Note, that if there are less than n unweighted shortest paths in the graph, the naive strategy may return less than n paths.
 
 **(2) Nested shortest paths**: nested paths are found iteratively for each level of depth. For example,
 if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth, then the function searches for paths between each consecutive pair of nodes (e1 and e2, e2 and e3, etc.).
 
 **(3) Yen's k-shortest paths search algorithm**: see Yen, Jin Y. "Finding the k shortest loopless paths in a network". Management Science 17.11 (1971): 712-716.
+
+**(4) Pointwise mutual information**: see Bouma, Gerlof. "Normalized (pointwise) mutual information in collocation extraction." Proceedings of GSCL (2009): 31-40.
