@@ -114,4 +114,4 @@ The :code:`generate_10000_networks.py` `script <https://github.com/BlueBrain/Blu
 
 .. |Glucose-COVID-19-Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
   :alt: Google Colab
-  :target: https://colab.research.google.com/github/BlueBrain/BlueGraph/blob/colab_patch/cord19kg/examples/notebooks/colab/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb#scrollTo=UbEdKOdlt925
+  :target: https://colab.research.google.com/github/BlueBrain/BlueGraph/blob/master/cord19kg/examples/notebooks/colab/Glucose%20is%20a%20risk%20facor%20for%20COVID-19%20(3000%20papers).ipynb#scrollTo=UbEdKOdlt925
