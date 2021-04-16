@@ -292,8 +292,7 @@ The classifier object can be instantiated as in the following example:
 
 .. code-block:: python
 	
-	classifier = NodeClassifier(model, feature_vector_prop,
-								feature_props, **kwargs)
+	classifier = NodeClassifier(model, feature_vector_prop, feature_props, **kwargs)
 
 Where the following parameters can be specified:
 
@@ -312,8 +311,7 @@ The classifier object can be instantiated as in the following example:
 
 .. code-block:: python
 	
-	classifier = EdgePredictor(model, feature_vector_prop,
-								feature_props, operator, directed)
+	classifier = EdgePredictor(model, feature_vector_prop, feature_props, operator, directed)
 
 Where the following parameters can be specified:
 
