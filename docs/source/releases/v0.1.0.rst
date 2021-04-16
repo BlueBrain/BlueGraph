@@ -38,6 +38,56 @@ GraphProcessor
 
 
 
+Graph preprocessing with BlueGraph
+-----------------------------------
+
+The `bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
+
+
+Co-occurrence generation
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `CooccurrenceGenerator` interface allows the user to examine a provided provided property graph for co-occurrences (based on its nodes or edges), generate co-occurrence edges, and compute the following statistics:
+
+- co-occurrece factors,
+- co-occurrence frequency,
+- positive pointwise mutual information of the co-occurrence,
+- normalized pointwise mutual information of the co-occurrence.
+
+
+Semantic property encoding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `SemanticPGEncoder` interface allows the user to convert properties of nodes and edges into numerical vectors. Currently, `ScikitLearnPGEncoder` is implemented in Blue Graph.
+
+The encoder object can be instantiated as in the following example:
+
+.. code-block:: python
+
+	encoder = ScikitLearnPGEncoder(node_properties, edge_properties,
+	                               heterogeneous, drop_types,
+	                               encode_types, edge_features,
+	                               categorical_encoding,
+	                               text_encoding,
+	                               text_encoding_max_dimension,
+	                               missing_numeric,
+	                               imputation_strategy,
+	                               standardize_numeric)
+
+Where the following parameters can be specified:
+
+- :code:`node_properties` a list of node property names to encode;
+- :code:`edge_properties` a list of edge property names to encode;
+- :code:`heterogeneous` a flag indicating if the feature space is heterogeneous accross different node/edge types;
+- :code:`encode_types` a flag indicating if node/edge types should be included in the generated features;
+- :code:`categorical_encoding` defines a strategy for encoding **categorical properties** (currently, `Multi Label Binarizer <https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MultiLabelBinarizer.html>`_ is available);
+- :code:`text_encoding` defines a strategy for encoding **text properties** (currently, `TfIdf <https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html>`_ and `Doc2Vec <https://radimrehurek.com/gensim/auto_examples/tutorials/run_doc2vec_lee.html>`_ encodings are available);
+- :code:`missing_numeric` a strategy for treating properties with missing **numeric property** values (dropping or imputing such values is possible);
+- :code:`imputation_strategy` a strategy for imputing properties with missing **numeric property** values (currently, only the mean imputation is available);
+- :code:`standardize_numeric` a flag indicating if **numerical property** values should be standardized.
+
+
+
 Backend support
 ----------------
 
@@ -57,7 +107,7 @@ The NetworkX-based graph analytics interfaces implemented in Blue Graph can be f
 Conversion between :code:`PGFrame` and NetworkX graph objects can be done using :code:`pgframe_to_networkx` and :code:`networkx_to_pgframe`, :code:`NXGraphProcessor` implements accessing and manipulating graph elements of NetworkX graphs (:code:`bluegraph.backends.networkx.io`).
 
 
-Graph Metrics
+Graph metrics
 ~~~~~~~~~~~~~
 
 The :code:`NXMetricsProcessor` interface supports the following graph metrics:
@@ -107,7 +157,7 @@ The graph-tool-based graph analytics interfaces implemented in Blue Graph can be
 Conversion between :code:`PGFrame` and graph-tool objects can be done using :code:`pgframe_to_graph_tool` and :code:`graph_tool_to_pgframe`, :code:`GTGraphProcessor` implements accessing and manipulating graph elements of graph-tool graphs (:code:`bluegraph.backends.graph_tool.io`).
 
 
-Graph Metrics
+Graph metrics
 ~~~~~~~~~~~~~
 
 The :code:`GTMetricsProcessor` interface supports the following graph metrics:
@@ -155,7 +205,7 @@ The Neo4j-based graph analytics interfaces implemented in Blue Graph can be foun
 Population of a Neo4j instance from a :code:`PGFrame` objects can be done using :code:`pgframe_to_neo4j` and reading a :code:`PGFrame` object from a Neo4j instance can be done using :code:`neo4j_to_pgframe`, :code:`Neo4jGraphProcessor` implements accessing and manipulating graph elements of Neo4j graphs (:code:`bluegraph.backends.neo4j.io`).
 
 
-Graph Metrics
+Graph metrics
 ~~~~~~~~~~~~~
 
 The :code:`Neo4jMetricsProcessor` interface supports the following graph metrics:
@@ -228,57 +278,74 @@ The :code:`StellarGraphNodeEmbedder` interface supports the following unsuperwis
 - Deep Graph Infomax GCN & GAT with Cluster-GCN training procedure (inductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/deep-graph-infomax-embeddings.html>`__).
 
 
-Graph preprocessing with BlueGraph
------------------------------------
+Downstream tasks with BlueGraph
+--------------------------------
 
-The `bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
+Node classification API
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-Co-occurrence generation
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The `CooccurrenceGenerator` interface allows the user to examine a provided provided property graph for co-occurrences (based on its nodes or edges), generate co-occurrence edges, and compute the following statistics:
-
-- co-occurrece factors,
-- co-occurrence frequency,
-- positive pointwise mutual information of the co-occurrence,
-- normalized pointwise mutual information of the co-occurrence.
+The :code:`NodeClassifier` interface provides a wrapper allowing for building classification models of PGFrame nodes.
 
 
-Semantic property encoding
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The classifier object can be instantiated as in the following example:
 
-The `SemanticPGEncoder` interface allows the user to convert properties of nodes and edges into numerical vectors. Currently, `ScikitLearnPGEncoder` is implemented in Blue Graph.
-
-The encoder object can be instantiated as in the following example:
 
 .. code-block:: python
-
-	encoder = ScikitLearnPGEncoder(node_properties=None, edge_properties=None,
-	                               heterogeneous=False, drop_types=False,
-	                               encode_types=False, edge_features=False,
-	                               categorical_encoding="multibin",
-	                               text_encoding="tfidf",
-	                               text_encoding_max_dimension=128,
-	                               missing_numeric="drop",
-	                               imputation_strategy="mean",
-	                               standardize_numeric=True)
+	
+	classifier = NodeClassifier(model, feature_vector_prop,
+								feature_props, **kwargs)
 
 Where the following parameters can be specified:
 
-- :code:`node_properties` a list of node property names to encode;
-- :code:`edge_properties` a list of edge property names to encode;
-- :code:`heterogeneous` a flag indicating if the feature space is heterogeneous accross different node/edge types;
-- :code:`encode_types` a flag indicating if node/edge types should be included in the generated features;
-- :code:`categorical_encoding` defines a strategy for encoding **categorical properties** (currently, `Multi Label Binarizer <https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MultiLabelBinarizer.html>`_ is available);
-- :code:`text_encoding` defines a strategy for encoding **text properties** (currently, `TfIdf <https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html>`_ and `Doc2Vec <https://radimrehurek.com/gensim/auto_examples/tutorials/run_doc2vec_lee.html>`_ encodings are available);
-- :code:`missing_numeric` a strategy for treating properties with missing **numeric property** values (dropping or imputing such values is possible);
-- :code:`imputation_strategy` a strategy for imputing properties with missing **numeric property** values (currently, only the mean imputation is available);
-- :code:`standardize_numeric` a flag indicating if **numerical property** values should be standardized.
+- :code:`model` a classification model object that supports two methods :code:`model.fit(data, labels)` and :code:`model.fit(data)` (for example, `LinearSVC <https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html>`_);
+- :code:`feature_vector_prop` name of the feature vector property to use;
+- :code:`feature_props` a list of property names (all must be numeric) to concatenate in order to obtain the node feature vectors.
 
 
-Downstream tasks with BlueGraph
---------------------------------
+Edge prediction API
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :code:`EdgePredictor` interface provides a wrapper allowing for building edge prediction models for PGFrame graphs. Such models allow the user to discriminate between 'true' and 'false' edges based on embedding vectors of their source and target nodes.
+
+The classifier object can be instantiated as in the following example:
+
+
+.. code-block:: python
+	
+	classifier = EdgePredictor(model, feature_vector_prop,
+								feature_props, operator, directed)
+
+Where the following parameters can be specified:
+
+- :code:`model` a classification model object that supports two methods :code:`model.fit(data, labels)` and :code:`model.fit(data)` (for example, `LinearSVC <https://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html>`_);
+- :code:`feature_vector_prop` name of the node feature vector property to use;
+- :code:`feature_props` a list of property names (all must be numeric) to concatenate in order to obtain the node feature vectors;
+- :code:`operator` binary operator to apply on the embedding vectors of source and target nodes (available operators, "hadamard", "l1", "l2" and "average").
+
+
+The :code:`generate_negative_edges` util allows the user to generate 'fake' edges given a graph (that can be used for training an :code:`EdgePredictor`).
+
+
+Similarity API
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `SimilarityProcessor` interface allows building vector similarity indices using the `Facebook Faiss Library <https://github.com/facebookresearch/faiss>`_. In wraps the indices (names or IDs) of the points, vector space and similarity measure configurations. It also allows to segment the search space into Voronoi cells (see `this example <https://github.com/facebookresearch/faiss/wiki/Faster-search>`_) allowing to speed up the search.
+
+
+The `NodeSimilarityProcessor` is another wrapper that provides a higher-level abstraction to `SimilarityProcessor` and allows building and querying **node** similarity indices using Faiss. It wraps the underlying graph object and the vector similarity processor and provides an interface for querying similar nodes.
+
+
+
+Building embedding pipelines
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`EmbeddingPipeline` allows chaining the following steps and respective components:
+
+- property encoding (optional),
+- embedding model training (and prediction),
+- similarity index training (and querying).
+
+Such embedding pipelines can also be saved and loaded.
 
 
 Appendix
