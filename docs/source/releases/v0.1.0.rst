@@ -5,44 +5,83 @@ vO.1.0 Release Notes
 Introducing Blue Graph
 -----------------------
 
-This is an initial release of Blue Graph and a first step towards our goal to ....
+This is an initial release of Blue Graph, a graph analytics framework for Python designed to unify different graph processing APIs. Its main goal is to provide a set of uniform APIs that would allow user to peform graph analytics abstracting away from the specificities of different graph processing tools, **backends**, and the graph data structures they provide. 
 
-Section 1
-=========
+Using the built-in `PGFrame` data structure for representing **property graphs with node/edge types and property data types** as a 'transport layer' between different analytics interfaces, it provides a backend-agnostic API supporting both in-memory (NetworkX, graph-tool and StellarGraph) and persistent graph backends (Neo4j).
+ 
 
-Subsection
-----------
+Blue Graph's core
+-----------------
 
-Text
-
-.. note::
-   Add here a note if relevant :
-
-   * Line 1.
-   * Line 2.
-
-Example python code block:
-
-.. code-block:: python
-
-   from kganalytics.metrics import compute_betweenness_centrality
-
-   betweenness_centrality = compute_betweenness_centrality(graph, weights, 20)
-
-Section 2
-=========
-
-Subsection
-----------
-
-* External Link example `link text <https://github.com/BlueBrain/BlueBrainGraph>`__
-* Link shortcut |Binder|
-
-Use the following to add an image:
-
-.. image:: ../assets/1_search.png
+The `bluegraph.core` package provides the exchange graph data structure that serves as the input to graph processors based on different backends (PGFrame), as well as basic interfaces for different graph analytics and embedding classes (MetricProcessor, PathFinder, CommunityDetector, GraphElementEmbedder, etc).
 
 
-.. |Binder| image:: https://mybinder.org/badge_logo.svg
-    :alt: Binder
-    :target: https://mybinder.org/v2/gh/BlueBrain/BlueBrainGraph/v0.1.0?filepath=kganalytics%2Fexamples%2Fnotebooks
+PGFrame
+^^^^^^^
+
+This data structure allows representing property graphs with node/edge types and property data types. It is based on two dataframes: one for nodes, their types and properties and one for edges and their types/properties. Moreover, it allows to set data types to node/edge properties. Currently, it supports three high-level data types: :code:`numeric` for numerical properties (for example, age), :code:`category` for properties representing categorical labels (for example, sex) and :code:`text` for representing textual properties (for example, description). 
+
+Currently, :code:`pandas`-based implementation (:code:`PandasPGFrame`) is available.
+
+
+GraphProcessor
+^^^^^^^^^^^^^^
+
+
+
+
+Backend support
+----------------
+
+
+NetworkX
+^^^^^^^^
+
+Graph Metrics
+~~~~~~~~~~~~~
+
+Path search
+~~~~~~~~~~~~~
+
+Community detection
+~~~~~~~~~~~~~~~~~~~~
+
+graph-tool
+^^^^^^^^^^
+
+Graph Metrics
+~~~~~~~~~~~~~
+
+Path search
+~~~~~~~~~~~~~
+
+Community detection
+~~~~~~~~~~~~~~~~~~~~
+
+Neo4j
+^^^^^
+
+Graph Metrics
+~~~~~~~~~~~~~
+
+Path search
+~~~~~~~~~~~~~
+
+Community detection
+~~~~~~~~~~~~~~~~~~~~
+
+Node representation learning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+StellarGraph
+^^^^^^^^^^^^
+
+Node representation learning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Graph preprocessing with BlueGraph
+-----------------------------------
+
+
+Downstream tasks with BlueGraph
+--------------------------------
