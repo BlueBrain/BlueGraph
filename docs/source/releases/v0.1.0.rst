@@ -26,7 +26,7 @@ The :code:`bluegraph.core` package provides the exchange graph data structure th
 PGFrame
 ^^^^^^^
 
-This data structure allows representing property graphs with node/edge types and property data types. It is based on two dataframes: one for nodes, their types and properties and one for edges and their types/properties. Moreover, it allows to set data types to node/edge properties. Currently, it supports three high-level data types: :code:`numeric` for numerical properties (for example, age), :code:`category` for properties representing categorical labels (for example, sex) and :code:`text` for representing textual properties (for example, description). 
+This data structure allows representing property graphs with node/edge types and property data types. It is based on two dataframes: one for nodes, their types and properties and one for edges and their types/properties. Moreover, it allows setting data types to node/edge properties. Currently, it supports three high-level data types: :code:`numeric` for numerical properties (for example, age), :code:`category` for properties representing categorical labels (for example, sex) and :code:`text` for representing textual properties (for example, description). 
 
 Currently, :code:`pandas`-based implementation (:code:`PandasPGFrame`) is available.
 
@@ -51,7 +51,7 @@ The :code:`CooccurrenceGenerator` interface allows the user to examine a provide
 
 - co-occurrece factors,
 - co-occurrence frequency,
-- positive/normalized pointwise mutual information of the co-occurrence [4].
+- positive/normalized pointwise mutual information of the co-occurrence [4]_.
 
 
 Semantic property encoding
@@ -103,7 +103,7 @@ NetworkX
 
 The NetworkX-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.networkx`.
 
-Conversion between :code:`PGFrame` and NetworkX graph objects can be done using :code:`pgframe_to_networkx` and :code:`networkx_to_pgframe`, :code:`NXGraphProcessor` implements accessing and manipulating graph elements of NetworkX graphs (:code:`bluegraph.backends.networkx.io`).
+Conversion between :code:`PGFrame` and NetworkX graph objects can be done using :code:`pgframe_to_networkx` and :code:`networkx_to_pgframe`, :code:`NXGraphProcessor` allows accessing and manipulating graph elements of NetworkX graphs (:code:`bluegraph.backends.networkx.io`).
 
 
 Graph metrics
@@ -129,8 +129,8 @@ The :code:`NXPathFinder` interface supports the following path search tasks:
 - top neighbors by edge weight,
 - single shortest path (unweighted and weighted, excluding direct edge is available),
 - all shortest paths (excluding direct edge is available),
-- top shortest paths (unweighted and weighted, excluding direct edge is available, Naive [1] and Yen [3] strategies are available)
-- nested shortest paths [:ref:`2`] (unweighted and weighted, excluding direct edge is available, Naive and Yen strategies are available).
+- top shortest paths (unweighted and weighted, excluding direct edge is available, Naive [1]_ and Yen [3]_ strategies are available)
+- nested shortest paths [2]_ (unweighted and weighted, excluding direct edge is available, Naive and Yen strategies are available).
 
 
 Community detection
@@ -138,10 +138,10 @@ Community detection
 
 The :code:`NXCommunityDetector` interface supports the following community detection methods (all supporting both weighted and unweighted graphs):
 
-- Louvain algorithm (`strategy="louvain"`)
-- Girvan–Newman algorithm (`strategy="girvan-newman"`)
-- Label propagation (`strategy="lpa"`)
-- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features)
+- Louvain algorithm (:code:`strategy="louvain"`)
+- Girvan–Newman algorithm (:code:`strategy="girvan-newman"`)
+- Label propagation (:code:`strategy="lpa"`)
+- Hierarchical clustering (:code:`strategy="hierarchical"`, only for nodes with numerical features)
 
 And supports the following partition quality metrics: modularity, performance, coverage.
 
@@ -153,19 +153,19 @@ graph-tool
 
 The graph-tool-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.graph_tool`.
 
-Conversion between :code:`PGFrame` and graph-tool objects can be done using :code:`pgframe_to_graph_tool` and :code:`graph_tool_to_pgframe`, :code:`GTGraphProcessor` implements accessing and manipulating graph elements of graph-tool graphs (:code:`bluegraph.backends.graph_tool.io`).
+Conversion between :code:`PGFrame` and graph-tool objects can be done using :code:`pgframe_to_graph_tool` and :code:`graph_tool_to_pgframe`, :code:`GTGraphProcessor` allows accessing and manipulating graph elements of graph-tool graphs (:code:`bluegraph.backends.graph_tool.io`).
 
 
 Graph metrics
 ~~~~~~~~~~~~~
 
-The :code:`GTMetricsProcessor` interface supports the following graph metrics:
+The :code:`GTMetricsProcessor` interface supports the following graph metrics (all supporting unweighted and weighted graph edges):
 
-- graph density (unweighted and weighted),
-- degree centrality (unweighted and weighted),
-- PageRank centrality (unweighted and weighted),
-- betweenness centrality (unweighted and weighted),
-- closeness centrality (unweighted and weighted).
+- graph density,
+- degree centrality,
+- PageRank centrality,
+- betweenness centrality,
+- closeness centrality.
 
 Writing centrality measures as node properties is available.
 
@@ -179,8 +179,8 @@ The :code:`GTPathFinder` interface supports the following path search tasks:
 - top neighbors by edge weight,
 - single shortest path (unweighted and weighted, excluding direct edge is available),
 - all shortest paths (excluding direct edge is available),
-- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Naive [1] strategy is available)
-- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, the Naive strategy is available).
+- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Naive [1]_ strategy is available)
+- nested shortest paths [2]_ (unweighted and weighted, excluding direct edge is available, the Naive strategy is available).
 
 
 Community detection
@@ -188,8 +188,8 @@ Community detection
 
 The :code:`GTCommunityDetector` interface supports the following community detection methods (supporting both weighted and unweighted graphs):
 
-- Statistical inference with Stochastic Block Models (`strategy="sbm"`),
-- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features).
+- Statistical inference with Stochastic Block Models (:code:`strategy="sbm"`) [5]_,
+- Hierarchical clustering (:code:`strategy="hierarchical"`, only for nodes with numerical features).
 
 And supports the following partition quality metrics: modularity, performance, coverage.
 
@@ -199,9 +199,9 @@ Writing community labels as node properties is available.
 Neo4j
 ^^^^^
 
-The Neo4j-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.neo4j` and is based on the `Neo4j Graph Data Science Library <https://neo4j.com/product/graph-data-science-library/>`_ (version :code:`>= 1.5`).
+The Neo4j-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.neo4j` and are based on the `Neo4j Graph Data Science Library <https://neo4j.com/product/graph-data-science-library/>`_ (version :code:`>= 1.5`).
 
-Population of a Neo4j instance from a :code:`PGFrame` objects can be done using :code:`pgframe_to_neo4j` and reading a :code:`PGFrame` object from a Neo4j instance can be done using :code:`neo4j_to_pgframe`, :code:`Neo4jGraphProcessor` implements accessing and manipulating graph elements of Neo4j graphs (:code:`bluegraph.backends.neo4j.io`).
+A Neo4j database instance can be populated from a :code:`PGFrame` object using :code:`pgframe_to_neo4j` and a :code:`PGFrame` object can be read from a Neo4j database using :code:`neo4j_to_pgframe`, :code:`Neo4jGraphProcessor` allows accessing and manipulating graph elements of Neo4j graphs (:code:`bluegraph.backends.neo4j.io`).
 
 
 Graph metrics
@@ -226,8 +226,8 @@ The :code:`Neo4jPathFinder` interface supports the following path search tasks:
 - top neighbors by edge weight,
 - single shortest path (unweighted and weighted, excluding direct edge is available),
 - all shortest paths (excluding direct edge is available),
-- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Yen [3] strategy is available)
-- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, only the Yen [3] strategy is available).
+- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Yen [3]_ strategy is available)
+- nested shortest paths [2]_ (unweighted and weighted, excluding direct edge is available, only the Yen [3]_ strategy is available).
 
 
 Community detection
@@ -235,10 +235,10 @@ Community detection
 
 The :code:`Neo4jCommunityDetector` interface supports the following community detection methods (all supporting both weighted and unweighted graphs):
 
-- Louvain algorithm (`strategy="louvain"`)
-- Girvan–Newman algorithm (`strategy="girvan-newman"`)
-- Label propagation (`strategy="lpa"`)
-- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features)
+- Louvain algorithm (:code:`strategy="louvain"`)
+- Girvan–Newman algorithm (:code:`strategy="girvan-newman"`)
+- Label propagation (:code:`strategy="lpa"`)
+- Hierarchical clustering (:code:`strategy="hierarchical"`, only for nodes with numerical features)
 
 And supports the following partition quality metrics: modularity, performance, coverage.
 
@@ -326,17 +326,17 @@ The :code:`generate_negative_edges` util allows the user to generate 'fake' edge
 Similarity API
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The `SimilarityProcessor` interface allows building vector similarity indices using the `Facebook Faiss Library <https://github.com/facebookresearch/faiss>`_. In wraps the indices (names or IDs) of the points, vector space and similarity measure configurations. It also allows to segment the search space into Voronoi cells (see `this example <https://github.com/facebookresearch/faiss/wiki/Faster-search>`_) allowing to speed up the search.
+The :code:`SimilarityProcessor` interface allows building vector similarity indices using the `Facebook Faiss Library <https://github.com/facebookresearch/faiss>`_. It wraps the indices (names or IDs) of the points, vector space and similarity measure configurations. It also allows segmenting the search space into Voronoi cells (see `this example <https://github.com/facebookresearch/faiss/wiki/Faster-search>`_) allowing to speed up the search.
 
 
-The `NodeSimilarityProcessor` is another wrapper that provides a higher-level abstraction to `SimilarityProcessor` and allows building and querying **node** similarity indices using Faiss. It wraps the underlying graph object and the vector similarity processor and provides an interface for querying similar nodes.
+The :code:`NodeSimilarityProcessor` is another wrapper that provides a higher-level abstraction to :code:`SimilarityProcessor` and allows building and querying **node** similarity indices using Faiss. It wraps the underlying graph object and the vector similarity processor and provides an interface for querying similar nodes.
 
 
 
 Building embedding pipelines
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`EmbeddingPipeline` allows chaining the following steps and respective components:
+:code:`EmbeddingPipeline` allows chaining the following steps and respective components:
 
 - property encoding (optional),
 - embedding model training (and prediction),
@@ -348,12 +348,12 @@ Such embedding pipelines can also be saved and loaded.
 Appendix
 --------
 
-[1]_ **Naive strategy for finding top shortest paths**: the strategy first finds the set of all shortest paths from the
-source to the target node, it then ranks them by the cumulative distance score and returns n best paths. This naive strategy performs better for highly dense graphs (where every node is connected to almost every other node). Note, that if there are less than n unweighted shortest paths in the graph, the naive strategy may return less than n paths.
+.. [1] **Naive strategy for finding top shortest paths**: the strategy first finds the set of all shortest paths from the source to the target node, it then ranks them by the cumulative distance score and returns n best paths. This naive strategy performs better for highly dense graphs (where every node is connected to almost every other node). Note, that if there are less than n unweighted shortest paths in the graph, the naive strategy may return less than n paths.
 
-**(2) Nested shortest paths**: nested paths are found iteratively for each level of depth. For example,
-if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth, then the function searches for paths between each consecutive pair of nodes (e1 and e2, e2 and e3, etc.).
+.. [2] **Nested shortest paths**: nested paths are found iteratively for each level of depth. For example, if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth, then the function searches for paths between each consecutive pair of nodes (e1 and 	e2, e2 and e3, etc.).
 
-**(3) Yen's k-shortest paths search algorithm**: see Yen, Jin Y. "Finding the k shortest loopless paths in a network". Management Science 17.11 (1971): 712-716.
+.. [3] **Yen's k-shortest paths search algorithm**: see Yen, Jin Y. "Finding the k shortest loopless paths in a network". Management Science 17.11 (1971): 712-716.
 
-**(4) Pointwise mutual information**: see Bouma, Gerlof. "Normalized (pointwise) mutual information in collocation extraction." Proceedings of GSCL (2009): 31-40.
+.. [4] **Pointwise mutual information**: see Bouma, Gerlof. "Normalized (pointwise) mutual information in collocation extraction." Proceedings of GSCL (2009): 31-40.
+
+.. [5] https://graph-tool.skewed.de/static/doc/demos/inference/inference.html
