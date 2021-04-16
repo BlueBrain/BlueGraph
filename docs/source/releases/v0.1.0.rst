@@ -231,6 +231,51 @@ The :code:`StellarGraphNodeEmbedder` interface supports the following unsuperwis
 Graph preprocessing with BlueGraph
 -----------------------------------
 
+The `bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
+
+
+Co-occurrence generation
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `CooccurrenceGenerator` interface allows the user to examine a provided provided property graph for co-occurrences (based on its nodes or edges), generate co-occurrence edges, and compute the following statistics:
+
+- co-occurrece factors,
+- co-occurrence frequency,
+- positive pointwise mutual information of the co-occurrence,
+- normalized pointwise mutual information of the co-occurrence.
+
+
+Semantic property encoding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `SemanticPGEncoder` interface allows the user to convert properties of nodes and edges into numerical vectors. Currently, `ScikitLearnPGEncoder` is implemented in Blue Graph.
+
+The encoder object can be instantiated as in the following example:
+
+.. code-block:: python
+
+	encoder = ScikitLearnPGEncoder(node_properties=None, edge_properties=None,
+	                               heterogeneous=False, drop_types=False,
+	                               encode_types=False, edge_features=False,
+	                               categorical_encoding="multibin",
+	                               text_encoding="tfidf",
+	                               text_encoding_max_dimension=128,
+	                               missing_numeric="drop",
+	                               imputation_strategy="mean",
+	                               standardize_numeric=True)
+
+Where the following parameters can be specified:
+
+- :code:`node_properties` a list of node property names to encode;
+- :code:`edge_properties` a list of edge property names to encode;
+- :code:`heterogeneous` a flag indicating if the feature space is heterogeneous accross different node/edge types;
+- :code:`encode_types` a flag indicating if node/edge types should be included in the generated features;
+- :code:`categorical_encoding` defines a strategy for encoding **categorical properties** (currently, `Multi Label Binarizer <https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MultiLabelBinarizer.html>`_ is available);
+- :code:`text_encoding` defines a strategy for encoding **text properties** (currently, `TfIdf <https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html>`_ and `Doc2Vec <https://radimrehurek.com/gensim/auto_examples/tutorials/run_doc2vec_lee.html>`_ encodings are available);
+- :code:`missing_numeric` a strategy for treating properties with missing **numeric property** values (dropping or imputing such values is possible);
+- :code:`imputation_strategy` a strategy for imputing properties with missing **numeric property** values (currently, only the mean imputation is available);
+- :code:`standardize_numeric` a flag indicating if **numerical property** values should be standardized.
+
 
 Downstream tasks with BlueGraph
 --------------------------------
