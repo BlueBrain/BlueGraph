@@ -41,7 +41,7 @@ GraphProcessor
 Graph preprocessing with BlueGraph
 -----------------------------------
 
-The `bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
+The :code:`bluegraph.preprocessing` package provides a set of utils for preprocessing `PGFrame` graph object.
 
 
 Co-occurrence generation
