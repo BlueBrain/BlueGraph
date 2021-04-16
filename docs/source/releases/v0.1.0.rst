@@ -7,13 +7,20 @@ Introducing Blue Graph
 
 This is an initial release of Blue Graph, a graph analytics framework for Python designed to unify different graph processing APIs. Its main goal is to provide a set of uniform APIs that would allow user to peform graph analytics abstracting away from the specificities of different graph processing tools, **backends**, and the graph data structures they provide. 
 
-Using the built-in `PGFrame` data structure for representing **property graphs with node/edge types and property data types** as a 'transport layer' between different analytics interfaces, it provides a backend-agnostic API supporting both in-memory (NetworkX, graph-tool and StellarGraph) and persistent graph backends (Neo4j).
+Using the built-in `PGFrame` data structure for representing **property graphs with node/edge types and property data types** as a 'transport layer' between different analytics interfaces, it provides a backend-agnostic API supporting both in-memory (`NetworkX <https://networkx.org/>`_, `graph-tool <https://graph-tool.skewed.de/>`_ and `StellarGraph <https://stellargraph.readthedocs.io/en/stable/>`_) and persistent graph backends (`Neo4j <https://neo4j.com/>`_).
  
+It provides the following set of interfaces:
+
+- preprocessing and co-occurrence analysis API providing semantic property encoders and co-occurrence graph generators;
+- graph analytics API providing interfaces for computing graph metrics, performing path search and community detection;
+- unsupervised representation learning API for applying various graph embedding techniques;
+- representation learning downstream tasks API allowing the user to perform node classification, similarity queries, link prediction.
+
 
 Blue Graph's core
 -----------------
 
-The `bluegraph.core` package provides the exchange graph data structure that serves as the input to graph processors based on different backends (PGFrame), as well as basic interfaces for different graph analytics and embedding classes (MetricProcessor, PathFinder, CommunityDetector, GraphElementEmbedder, etc).
+The :code:`bluegraph.core` package provides the exchange graph data structure that serves as the input to graph processors based on different backends (:code:`PGFrame`), as well as basic interfaces for different graph analytics and embedding classes (:code:`MetricProcessor`, :code:`PathFinder`, :code:`CommunityDetector`, :code:`GraphElementEmbedder`, etc).
 
 
 PGFrame
@@ -27,57 +34,199 @@ Currently, :code:`pandas`-based implementation (:code:`PandasPGFrame`) is availa
 GraphProcessor
 ^^^^^^^^^^^^^^
 
+:code:`GraphProcessor` is a basic interface for accessing and manipulating different graph elements (nodes/edges/properties) of backend-specific graph objects. 
 
 
 
 Backend support
 ----------------
 
+Blue Graph supports the following in-memory and persistent graph analytics tools (see :code:`bluegraph.backends`):
+
+- `NetworkX <https://networkx.org/>`_ (for the analytics API)
+- `graph-tool <https://graph-tool.skewed.de/>`_ (for the analytics API)
+- `Neo4j <https://neo4j.com/>`_ (for the analytics and representation learning API);
+- `StellarGraph <https://stellargraph.readthedocs.io/en/stable/>`_ (for the representation learning API).
+
 
 NetworkX
 ^^^^^^^^
 
+The NetworkX-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.networkx`.
+
+Conversion between :code:`PGFrame` and NetworkX graph objects can be done using :code:`pgframe_to_networkx` and :code:`networkx_to_pgframe`, :code:`NXGraphProcessor` implements accessing and manipulating graph elements of NetworkX graphs (:code:`bluegraph.backends.networkx.io`).
+
+
 Graph Metrics
 ~~~~~~~~~~~~~
+
+The :code:`NXMetricsProcessor` interface supports the following graph metrics:
+
+- graph density (unweighted and weighted),
+- degree centrality (unweighted and weighted),
+- PageRank centrality (unweighted and weighted),
+- betweenness centrality (unweighted and weighted),
+- closeness centrality (unweighted and weighted).
+
+Writing centrality measures as node properties is available.
+
 
 Path search
 ~~~~~~~~~~~~~
 
+The :code:`NXPathFinder` interface supports the following path search tasks:
+
+- minimum spanning tree (unweighted and weighted, in-place labeling of the tree edges is available),
+- top neighbors by edge weight,
+- single shortest path (unweighted and weighted, excluding direct edge is available),
+- all shortest paths (excluding direct edge is available),
+- top shortest paths (unweighted and weighted, excluding direct edge is available, Naive [1] and Yen [3] strategies are available)
+- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, Naive* and Yen strategies are available).
+
+
 Community detection
 ~~~~~~~~~~~~~~~~~~~~
+
+The :code:`NXCommunityDetector` interface supports the following community detection methods (all supporting both weighted and unweighted graphs):
+
+- Louvain algorithm (`strategy="louvain"`)
+- Girvan–Newman algorithm (`strategy="girvan-newman"`)
+- Label propagation (`strategy="lpa"`)
+- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features)
+
+And supports the following partition quality metrics: modularity, performance, coverage.
+
+Writing community labels as node properties is available.
+
 
 graph-tool
 ^^^^^^^^^^
 
+The graph-tool-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.graph_tool`.
+
+Conversion between :code:`PGFrame` and graph-tool objects can be done using :code:`pgframe_to_graph_tool` and :code:`graph_tool_to_pgframe`, :code:`GTGraphProcessor` implements accessing and manipulating graph elements of graph-tool graphs (:code:`bluegraph.backends.graph_tool.io`).
+
+
 Graph Metrics
 ~~~~~~~~~~~~~
+
+The :code:`GTMetricsProcessor` interface supports the following graph metrics:
+
+- graph density (unweighted and weighted),
+- degree centrality (unweighted and weighted),
+- PageRank centrality (unweighted and weighted),
+- betweenness centrality (unweighted and weighted),
+- closeness centrality (unweighted and weighted).
+
+Writing centrality measures as node properties is available.
+
 
 Path search
 ~~~~~~~~~~~~~
 
+The :code:`GTPathFinder` interface supports the following path search tasks:
+
+- minimum spanning tree (unweighted and weighted, in-place labeling of the tree edges is available),
+- top neighbors by edge weight,
+- single shortest path (unweighted and weighted, excluding direct edge is available),
+- all shortest paths (excluding direct edge is available),
+- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Naive [1] strategy is available)
+- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, the Naive strategy is available).
+
+
 Community detection
 ~~~~~~~~~~~~~~~~~~~~
+
+The :code:`GTCommunityDetector` interface supports the following community detection methods (supporting both weighted and unweighted graphs):
+
+- Statistical inference with Stochastic Block Models (`strategy="sbm"`),
+- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features).
+
+And supports the following partition quality metrics: modularity, performance, coverage.
+
+Writing community labels as node properties is available.
+
 
 Neo4j
 ^^^^^
 
+The Neo4j-based graph analytics interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.neo4j` and is based on the `Neo4j Graph Data Science Library <https://neo4j.com/product/graph-data-science-library/>`_ (version :code:`>= 1.5`).
+
+Population of a Neo4j instance from a :code:`PGFrame` objects can be done using :code:`pgframe_to_neo4j` and reading a :code:`PGFrame` object from a Neo4j instance can be done using :code:`neo4j_to_pgframe`, :code:`Neo4jGraphProcessor` implements accessing and manipulating graph elements of Neo4j graphs (:code:`bluegraph.backends.neo4j.io`).
+
+
 Graph Metrics
 ~~~~~~~~~~~~~
+
+The :code:`Neo4jMetricsProcessor` interface supports the following graph metrics:
+
+- graph density (unweighted and weighted),
+- degree centrality (unweighted and weighted),
+- PageRank centrality (unweighted and weighted),
+- betweenness centrality (only unweighted),
+- closeness centrality (only unweighted).
+
+Writing centrality measures as node properties is available.
 
 Path search
 ~~~~~~~~~~~~~
 
+The :code:`Neo4jPathFinder` interface supports the following path search tasks:
+
+- minimum spanning tree (unweighted and weighted, only in-place labeling of the tree edges is available),
+- top neighbors by edge weight,
+- single shortest path (unweighted and weighted, excluding direct edge is available),
+- all shortest paths (excluding direct edge is available),
+- top shortest paths (unweighted and weighted, excluding direct edge is available, only the Yen [3] strategy is available)
+- nested shortest paths [2] (unweighted and weighted, excluding direct edge is available, only the Yen [3] strategy is available).
+
+
 Community detection
 ~~~~~~~~~~~~~~~~~~~~
 
+The :code:`Neo4jCommunityDetector` interface supports the following community detection methods (all supporting both weighted and unweighted graphs):
+
+- Louvain algorithm (`strategy="louvain"`)
+- Girvan–Newman algorithm (`strategy="girvan-newman"`)
+- Label propagation (`strategy="lpa"`)
+- Hierarchical clustering (`strategy="hierarchical"`, only for nodes with numerical features)
+
+And supports the following partition quality metrics: modularity, performance, coverage.
+
+Writing community labels as node properties is available.
+
+
 Node representation learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :code:`Neo4jNodeEmbedder` interface supports the following unsuperwised node representation models:
+
+- node2vec (transductive, only unweighted version),
+- FastRP (transductive),
+- GraphSAGE (inductive, model is saved in a model catalog of the current Neo4j instance).
+
 
 StellarGraph
 ^^^^^^^^^^^^
 
+The StellarGraph-based graph representation learning interfaces implemented in Blue Graph can be found in :code:`bluegraph.backends.stellargraph`.
+
+Conversion between :code:`PGFrame` and StellarGraph objects can be done using :code:`pgframe_to_stellargraph` and :code:`stellargraph_to_pgframe` (:code:`bluegraph.backends.stellargraph.io`).
+
+
 Node representation learning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :code:`StellarGraphNodeEmbedder` interface supports the following unsuperwised node representation models:
+
+- node2vec (transductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/keras-node2vec-embeddings.html>`__),
+- Watch Your Step (transductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/watch-your-step-embeddings.html>`__),
+- Deep Graph Infomax GCN, GAT, GraphSAGE (transductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/deep-graph-infomax-embeddings.html>`__),
+- attri2vec (inductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/deep-graph-infomax-embeddings.html>`__),
+- attri2vec (inductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/attri2vec-embeddings.html>`__),
+- GraphSAGE (inductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/graphsage-unsupervised-sampler-embeddings.html>`__),
+- Deep Graph Infomax GCN & GAT with Cluster-GCN training procedure (inductive, based on `this demo <https://stellargraph.readthedocs.io/en/stable/demos/embeddings/deep-graph-infomax-embeddings.html>`__).
+
 
 Graph preprocessing with BlueGraph
 -----------------------------------
@@ -85,3 +234,15 @@ Graph preprocessing with BlueGraph
 
 Downstream tasks with BlueGraph
 --------------------------------
+
+
+Appendix
+--------
+
+**(1) Naive strategy for finding top shortest paths**: the strategy first finds the set of all shortest paths from the
+source to the target node, it then ranks them by the cumulative distance score and returns n best paths. This naive strategy performs better for highly dense graphs (where every node is connected to almost every other node). Note, that if there are less than n unweighted shortest paths in the graph, the naive strategy may return less than n paths.
+
+**(2) Nested shortest paths**: nested paths are found iteratively for each level of depth. For example,
+if `e1 <-> e2 <-> ... <-> eN` is a path on the current level of depth, then the function searches for paths between each consecutive pair of nodes (e1 and e2, e2 and e3, etc.).
+
+**(3) Yen's k-shortest paths search algorithm**: see Yen, Jin Y. "Finding the k shortest loopless paths in a network". Management Science 17.11 (1971): 712-716.
