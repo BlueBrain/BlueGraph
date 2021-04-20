@@ -24,8 +24,7 @@
 
 This script generates two co-occurrence networks: for paper- and
 paragraph-based entity co-occurence. The input data for the
-generation process is a table (the compressed table is provided in
-`./data/CORD_19_v47_occurrence_top_10000.json.zip`) whose rows
+generation process is a table whose rows
 correspond to unique entities (linked to NCIT ontology terms when possible).
 Its columns contain:
 
@@ -61,23 +60,29 @@ import zipfile
 
 from pathlib import Path
 
-from cord19kg.utils import generate_cooccurrence_analysis
-
+from cord19kg.utils import generate_cooccurrence_analysis, download_from_nexus
 
 if __name__ == '__main__':
     # Load the input data
     start = time.time()
     print("Loading the input data...")
-    print("\tDecompressing the occurrence data file...")
-    with zipfile.ZipFile(
-            "data/CORD_19_v47_occurrence_top_10000.json.zip", 'r') as zip_ref:
-        zip_ref.extractall("data/")
+    nexus_bucket = "covid19-kg/data"
+    nexus_endpoint = "https://bbp.epfl.ch/nexus/v1"
+    download_from_nexus(id=f"{nexus_endpoint}/{nexus_bucket}/_/2a3c1698-3881-4022-8439-3a474635ec86",
+                        path="data",
+                        nexus_endpoint=nexus_endpoint,
+                        nexus_bucket=nexus_bucket, unzip=True)
     print("\tLoading the occurrence data file...")
     data = pd.read_json("data/CORD_19_v47_occurrence_top_10000.json")
     print("\tPreprocessing the occurrence data file...")
     data["paper"] = data["paper"].apply(set)
     data["paragraph"] = data["paragraph"].apply(set)
-    with open("data/CORD_19_v47_factor_counts.json", "r") as f:
+    factor_counts_metadata = download_from_nexus(
+        id=f"{nexus_endpoint}/{nexus_bucket}/_/52471b18-5761-4884-867c-1afc81787d4b",
+        path="data",
+        nexus_endpoint=nexus_endpoint,
+        nexus_bucket=nexus_bucket)
+    with open(f"data/{factor_counts_metadata.distribution.name}", "r") as f:
         factor_counts = json.load(f)
     print("Done in {:.2f}s.".format(time.time() - start))
 
