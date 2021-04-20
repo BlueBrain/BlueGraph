@@ -48,7 +48,7 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        "nexusforge",
+        "nexusforge @ git+https://github.com/BlueBrain/nexus-forge.git#nexusforge",
         "gensim==3.8.3",
         "tensorflow",
         "networkx>=2",
@@ -89,7 +89,7 @@ setup(
             "dash_daq",
             "dash_extensions",
             "dash_cytoscape",
-            "nexusforge",
+            "nexusforge @ git+https://github.com/BlueBrain/nexus-forge.git#nexusforge",
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"

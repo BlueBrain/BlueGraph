@@ -19,12 +19,14 @@ import ast
 import math
 import operator
 import pickle
+import zipfile
 
 import pandas as pd
 import networkx as nx
 
 from collections import Counter
 
+from kgforge.core import KnowledgeGraphForge
 from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from bluegraph.core.io import PandasPGFrame
@@ -1104,3 +1106,15 @@ def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
         graph_processor.remove_node(n)
 
     return graph_processor.graph
+
+
+def download_from_nexus(uri, config_file_path, output_path, nexus_endpoint, nexus_bucket, unzip=False):
+    forge = KnowledgeGraphForge(config_file_path, endpoint=nexus_endpoint, bucket=nexus_bucket)
+    dataset = forge.retrieve(id=uri)
+    print(f"Downloading the file to {output_path}/{dataset.distribution.name}")
+    forge.download(dataset, path=output_path, overwrite=True, follow="distribution.contentUrl")
+    if unzip:
+        print(f"Decompressing ...")
+        with zipfile.ZipFile(f"{output_path}/{dataset.distribution.name}", 'r') as zip_ref:
+            zip_ref.extractall(output_path)
+    return dataset
