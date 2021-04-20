@@ -68,8 +68,9 @@ if __name__ == '__main__':
     print("Loading the input data...")
     nexus_bucket = "covid19-kg/data"
     nexus_endpoint = "https://bbp.epfl.ch/nexus/v1"
-    download_from_nexus(id=f"{nexus_endpoint}/{nexus_bucket}/_/2a3c1698-3881-4022-8439-3a474635ec86",
-                        path="data",
+    download_from_nexus(uri=f"{nexus_endpoint}/resources/{nexus_bucket}/_/2a3c1698-3881-4022-8439-3a474635ec86",
+                        output_path="data",
+                        config_file_path="./config/data-download-nexus.yml",
                         nexus_endpoint=nexus_endpoint,
                         nexus_bucket=nexus_bucket, unzip=True)
     print("\tLoading the occurrence data file...")
@@ -78,8 +79,8 @@ if __name__ == '__main__':
     data["paper"] = data["paper"].apply(set)
     data["paragraph"] = data["paragraph"].apply(set)
     factor_counts_metadata = download_from_nexus(
-        id=f"{nexus_endpoint}/{nexus_bucket}/_/52471b18-5761-4884-867c-1afc81787d4b",
-        path="data",
+        uri=f"{nexus_endpoint}/resources/{nexus_bucket}/_/52471b18-5761-4884-867c-1afc81787d4b",
+        output_path="data",
         nexus_endpoint=nexus_endpoint,
         nexus_bucket=nexus_bucket)
     with open(f"data/{factor_counts_metadata.distribution.name}", "r") as f:
