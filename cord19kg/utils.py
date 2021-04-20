@@ -1107,13 +1107,14 @@ def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
 
     return graph_processor.graph
 
-def download_from_nexus(id, path, nexus_endpoint, nexus_bucket, unzip=False):
-    forge = KnowledgeGraphForge("../config/data-download-nexus.yml", endpoint=nexus_endpoint, bucket=nexus_bucket)
-    dataset = forge.retrieve(id=id)
-    print(f"Downloading the file to {path}/{dataset.distribution.name}")
-    forge.download(dataset, path=path, overwrite=True, follow="distribution.contentUrl")
+
+def download_from_nexus(uri, config_file_path, output_path, nexus_endpoint, nexus_bucket, unzip=False):
+    forge = KnowledgeGraphForge(config_file_path, endpoint=nexus_endpoint, bucket=nexus_bucket)
+    dataset = forge.retrieve(id=uri)
+    print(f"Downloading the file to {output_path}/{dataset.distribution.name}")
+    forge.download(dataset, path=output_path, overwrite=True, follow="distribution.contentUrl")
     if unzip:
         print(f"Decompressing ...")
-        with zipfile.ZipFile(f"{path}/{dataset.distribution.name}", 'r') as zip_ref:
-            zip_ref.extractall(path)
+        with zipfile.ZipFile(f"{output_path}/{dataset.distribution.name}", 'r') as zip_ref:
+            zip_ref.extractall(output_path)
     return dataset
