@@ -2,6 +2,8 @@
 CORD-19 co-occurrence knowledge graph generation, analysis and exploration
 ===============================================================================
 
+|Glucose-COVID-19-Colab|
+
 About
 -----
 
