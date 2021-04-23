@@ -186,7 +186,6 @@ The development of this project was supported by funding to the Blue Brain Proje
 
 .. |docs| image:: https://readthedocs.org/projects/bluegraph/badge/?version=latest
     :alt: Documentation Status
-    :scale: 100%
     :target: https://bluegraph.readthedocs.io/en/latest/
 
 
