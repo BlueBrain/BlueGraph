@@ -68,7 +68,7 @@ def _generate_property_repr(properties, prop_types=None):
     for k, v in properties.items():
         if k not in ["@id", "@type"]:
             quote = "'"
-            if prop_types[k] == "numeric":
+            if prop_types[k] == "numeric" and not math.isnan(v):
                 quote = ""
             props.append("{}: {}{}{}".format(
                 k, quote, preprocess_value(v), quote))

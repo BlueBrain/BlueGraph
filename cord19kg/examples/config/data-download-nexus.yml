@@ -1,0 +1,18 @@
+Model:
+  name: RdfModel
+  origin: store
+  source: BlueBrainNexus
+  context:
+    iri: "https://bbp.epfl.ch/nexus/v1/resources/covid19-kg/data/jsonldcontext"
+    bucket: "covid19-kg/data"
+
+Store:
+  name: BlueBrainNexus
+  searchendpoints:
+    sparql:
+      endpoint: "https://bluebrain.github.io/nexus/vocabulary/defaultSparqlIndex"
+  versioned_id_template: "{x.id}?rev={x._store_metadata._rev}"
+  file_resource_mapping: https://raw.githubusercontent.com/BlueBrain/nexus-forge/master/examples/configurations/nexus-store/file-to-resource-mapping.hjson
+
+Formatters:
+  identifier: https://bbp.epfl.ch/nexus/v1/resources/covid19-kg/data/{}/{}
