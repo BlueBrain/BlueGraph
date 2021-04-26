@@ -23,21 +23,21 @@ Two use cases using the aforementioned pipeline are provided in this repository:
 
 1. Semantic Search on the CORD-19 dataset: the 3000 most relevant papers resulting from the query *'Glucose as a risk factor in COVID-19'* are selected.
 
-   - The meta-data for the selected 3000 papers can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/Glucose_risk_3000_paper_meta_data.csv>`__.
+   - The meta-data for the selected 3000 papers can be found `here <https://bbp.epfl.ch/nexus/web/covid19-kg/data/resources/data:_%2F8fc1e60c-1ebe-4173-82c0-9775a4917041>`__.
    - The semantic search can be reproduced using `this external notebook <https://github.com/BlueBrain/Search-Graph-Examples>`__.
 
 
 2. Named Entity Recognition from the 3000 papers: named entities of the following 9 types are extracted: "Cell Compartment", "Cell Type", "Chemical", "Symptom / Disease", "Drug", "Organ / System", "Organism", "Biological Process / Pathway" and "Protein".
 
-   - The dataset with extracted named entities can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/Glucose_risk_3000_papers.csv.zip>`__.
+   - The dataset with extracted named entities can be found `here <https://bbp.epfl.ch/nexus/web/covid19-kg/data/resources/data:_%2F1e01e1a2-133f-4833-9fe0-93230384b95f>`__.
    - The entity extraction can be reproduced using `this external notebook <https://github.com/BlueBrain/Search-Graph-Examples>`_.
 
 
 3. Entity Linking and Curation: extracted entities are linked to concepts from the `NCIt ontology <https://ncithesaurus.nci.nih.gov/ncitbrowser/>`_. The resulting linked entities can be further curated using an interactive plotly-dash based `curation app <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/apps/curation_app.py>`_.
 
-   - The ontology linked entities dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/ontology_linking_3000_papers.csv.zip>`__.
+   - The ontology linked entities dataset can be found `here <https://bbp.epfl.ch/nexus/web/covid19-kg/data/resources/data:_%2F4fde1f8f-ee7f-435e-95a8-abb79139db93>`__.
    
-   - The ontology linking is yielding very fine grained types that get normalised and mapped to the 9 entity types of interest. The corresponding type mappings are available `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/NCIT_type_mapping.json>`__.
+   - The ontology linking is yielding very fine grained types that get normalised and mapped to the 9 entity types of interest. The corresponding type mappings are available `here <https://bbp.epfl.ch/nexus/web/covid19-kg/data/resources/data:_%2F92bc2a04-6003-4f4d-85e1-dcc5f2352df2>`__.
         
 4. Co-occurrence Knowledge Graph Generation: paper- and paragraph-based co-occurrences of the top 1500 most frequent entities are used to build a knowledge graph whose nodes represent linked entities and whose edges represent entity co-occurrences. The edges are weighted using raw co-occurrence frequencies and mutual-information-based scores: positive pointwise mutual information (PPMI) and normalized point-wise mutual information (NPMI).
 
@@ -46,7 +46,7 @@ Two use cases using the aforementioned pipeline are provided in this repository:
 
 **B. Co-occurrence analysis of the entire CORD-19v47 dataset** consists of the previously described steps 2-5 (i.e. no prior semantic search is performed) and can be reproduced using the provided `generate_10000_network.py <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/generate_10000_network.py>`_ script. In this usecase, 10'000 most frequent entities are used to build the co-occurrence graphs (note that the generated networks are highly dense and contain a large number of edges, for example, ~44M edges for the paper-based network, and the process of their generation, even if parallelized, is highly costly).
 
-1. The dataset containing extracted and linked entities for the entire CORD-19v47 dataset can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/cord19kg/examples/data/CORD_19_v47_occurrence_top_10000.json.zip>`__.
+1. The dataset containing extracted and linked entities for the entire CORD-19v47 dataset can be found `here <https://bbp.epfl.ch/nexus/web/covid19-kg/data/resources/data:_%2F2a3c1698-3881-4022-8439-3a474635ec86>`__.
 2. The script outputs generated co-occurrence graphs based on paper-/paragraph-level co-occurrence and their minimum spanning trees (based on the NPMI distance score) and stores them as JSON. In addition, it computes centrality measures and community partition and stores them as node attributes. 
 
 
