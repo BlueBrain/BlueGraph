@@ -652,8 +652,15 @@ class PandasPGFrame(PGFrame):
         prop_name = prop_column.columns[0]
 
         if prop_name in self._nodes.columns:
-            self._nodes.loc[prop_column.index, prop_name] = prop_column[
-                prop_name]
+            if prop_name == "@type" or prop_type == "category":
+                def augment_property(x):
+                    return _aggregate_values(
+                        [x["@type"], prop_column.loc[x.name, prop_name]])
+                self._nodes[prop_name] = self._nodes[[prop_name]].apply(
+                    augment_property, axis=1)
+            else:
+                self._nodes.loc[prop_column.index, prop_name] = prop_column[
+                    prop_name]
         else:
             if self.number_of_nodes() == 0:
                 self._nodes = prop_column
@@ -709,8 +716,16 @@ class PandasPGFrame(PGFrame):
         prop_name = prop_column.columns[0]
 
         if prop_name in self._edges.columns:
-            self._edges.loc[prop_column.index, prop_name] = prop_column[
-                prop_name]
+            if prop_name == "@type" or prop_type == "category":
+                def augment_property(x):
+                    return _aggregate_values(
+                        [x["@type"], prop_column.loc[x.name, prop_name]])
+
+                self._edges[prop_name] = self._edges[[prop_name]].apply(
+                    augment_property, axis=1)
+            else:
+                self._edges.loc[prop_column.index, prop_name] = prop_column[
+                    prop_name]
         else:
             if self.number_of_edges() == 0:
                 self._edges = prop_column
