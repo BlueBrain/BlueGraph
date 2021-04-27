@@ -13,6 +13,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+from collections.abc import Iterable
 import math
 import numpy as np
 import numbers
@@ -67,18 +68,50 @@ def _generate_property_repr(properties, prop_types=None):
     props = []
     for k, v in properties.items():
         if k not in ["@id", "@type"]:
-            quote = "'"
-            if prop_types[k] == "numeric" and not math.isnan(v):
-                quote = ""
-            props.append("{}: {}{}{}".format(
-                k, quote, preprocess_value(v), quote))
+            if isinstance(v, str):
+                # create a string property
+                quote = "'"
+                props.append("{}: {}{}{}".format(
+                    k, quote, preprocess_value(v), quote))
+            elif isinstance(v, Iterable):
+                # create a list property
+                for vv in v:
+                    values = []
+                    if isinstance(vv, float) and math.isnan(vv):
+                        pass
+                    else:
+                        values.append("'{}'".format(preprocess_value(vv)))
+                if len(values) > 0:
+                    props.append("{}: [{}]".format(k, ", ".join(values)))
+            elif prop_types[k] == "numeric" and not math.isnan(v):
+                # create a numerical property
+                props.append("{}: {}".format(k, preprocess_value(v)))
     return props
+
+
+def labels_from_types(properties):
+    if "@type" in properties:
+        type_set = normalize_to_set(properties["@type"])
+        return list(type_set)
 
 
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                      driver=None, node_label=None, edge_label=None,
-                     directed=True, batch_size=10000):
+                     directed=True, types_as_labels=False, batch_size=10000):
     """Write the property graph to the Neo4j databse."""
+    if node_label is None:
+        if types_as_labels is False or not pgframe.has_node_types():
+            raise BlueGraphException(
+                "Cannot create a Neo4j graph without node labels: "
+                "node label is not provided "
+                "and 'types_as_labels' is either set to False "
+                "or the nodes do not have types")
+
+    if edge_label is None:
+        raise BlueGraphException(
+            "Cannot create a Neo4j graph without edge labels: edge "
+            "label must be provided")
+
     driver = generate_neo4j_driver(uri, username, password, driver)
 
     if pgframe is None:
@@ -95,19 +128,33 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         node_repr = []
         for index, properties in node_batch.to_dict("index").items():
             node_id = safe_node_id(index)
-            node_dict = ["id: '{}'".format(node_id)]
+            node_dict = [
+                "id: '{}'".format(node_id)
+            ]
             node_dict += _generate_property_repr(
                 properties, pgframe._node_prop_types)
             node_repr.append("{" + ", ".join(node_dict) + "}")
+
+        node_label_repr = f":{node_label}" if node_label else ""
 
         query = (
         f"""
         WITH [{", ".join(node_repr)}] AS batch
         UNWIND batch as individual
-        CREATE (n:{node_label})
+        CREATE (n{node_label_repr})
         SET n += individual
         """)
         execute(driver, query)
+
+    if types_as_labels:
+        with driver.session() as session:
+            for index, properties in pgframe._nodes.to_dict("index").items():
+                labels = labels_from_types(properties)
+                if len(labels) > 0:
+                    result = session.run(
+                        "MATCH (n {{id: '{}'}})\n".format(index) +
+                        "SET n:{}".format(":".join(labels))
+                    )
 
     # Create edges
     # Split edges into batches
@@ -123,19 +170,24 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
             ]
             edge_props = []
             for k, v in properties.items():
-                quote = "'"
-                if pgframe._edge_prop_types[k] == "numeric":
-                    quote = ""
-                edge_props.append(f"{k}: {quote}{preprocess_value(v)}{quote}")
+                if k != "@type":
+                    quote = "'"
+                    if pgframe._edge_prop_types[k] == "numeric":
+                        quote = ""
+                    edge_props.append(
+                        f"{k}: {quote}{preprocess_value(v)}{quote}")
             edge_dict.append("props: {{{}}}".format(
                 ', '.join(_generate_property_repr(
                     properties, pgframe._edge_prop_types))))
             edge_repr.append("{" + ", ".join(edge_dict) + "}")
+
         query = (
         f"""
         WITH [{", ".join(edge_repr)}] AS batch
         UNWIND batch as individual
-        MATCH (n:{node_label} {{id: individual["source"]}}), (m:{node_label} {{id: individual["target"]}})
+        MATCH (n {{id: individual["source"]}})
+        WITH individual, n
+        OPTIONAL MATCH (m {{id: individual["target"]}})
         CREATE (n)-[r:{edge_label}]->(m)
         SET r += individual["props"]
         """)
