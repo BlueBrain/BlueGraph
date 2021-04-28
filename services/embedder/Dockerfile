@@ -46,8 +46,7 @@ RUN /venv/bin/conda-unpack
 # configures / exposes the Flask app
 
 # What is the best base image? 
-FROM python:3.6
-# FROM python:3.6.5-alpine
+FROM python:3.7
 
 # copy the python packages from the intermediate image
 COPY --from=intermediate /venv /venv
@@ -67,5 +66,6 @@ COPY ./requirements.txt .
 EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
-RUN source /venv/bin/activate && pip install -r requirements.txt && pip install --no-cache-dir .[stellargraph]
+RUN source /venv/bin/activate && pip install --upgrade pip wheel setuptools && \
+	pip install -r requirements.txt && pip install --no-cache-dir .[stellargraph]
 ENTRYPOINT source /venv/bin/activate && flask run --host=0.0.0.0

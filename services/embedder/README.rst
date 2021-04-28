@@ -30,7 +30,7 @@ First, build the docker image:
 
 ::
 
-	docker build . -f service/embedder/Dockerfile
+	docker build . -f services/embedder/Dockerfile
 
 Then, run the container by passing your nexus token env variable using the :code:`--env` parameter.
 
