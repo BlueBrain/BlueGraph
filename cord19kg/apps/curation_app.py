@@ -229,7 +229,7 @@ class CurationApp(object):
                 daq.NumericInput(
                     id="topnentityslider",
                     max=2000,
-                    value=500,
+                    value=200,
                     className="mr-1"
                 )
             ],
