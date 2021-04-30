@@ -22,6 +22,7 @@ import pandas as pd
 from neo4j import GraphDatabase
 
 from bluegraph.core.io import GraphProcessor, PandasPGFrame
+from bluegraph.core.utils import normalize_to_set
 
 
 def execute(driver, query):
