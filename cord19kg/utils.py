@@ -18,6 +18,7 @@
 import ast
 import math
 import operator
+import os
 import pickle
 import zipfile
 
@@ -1108,13 +1109,18 @@ def merge_nodes(graph_processor, nodes_to_merge, new_name=None,
     return graph_processor.graph
 
 
-def download_from_nexus(uri, config_file_path, output_path, nexus_endpoint, nexus_bucket, unzip=False):
-    forge = KnowledgeGraphForge(config_file_path, endpoint=nexus_endpoint, bucket=nexus_bucket)
+def download_from_nexus(uri, config_file_path, output_path, nexus_endpoint,
+                        nexus_bucket, unzip=False):
+    forge = KnowledgeGraphForge(
+        config_file_path, endpoint=nexus_endpoint, bucket=nexus_bucket)
     dataset = forge.retrieve(id=uri)
-    print(f"Downloading the file to {output_path}/{dataset.distribution.name}")
-    forge.download(dataset, path=output_path, overwrite=True, follow="distribution.contentUrl")
+    filepath = os.path.join(output_path, dataset.distribution.name)
+    print("Downloading the file to '{}'".format(filepath))
+    forge.download(
+        dataset, path=output_path, overwrite=True,
+        follow="distribution.contentUrl")
     if unzip:
         print(f"Decompressing ...")
-        with zipfile.ZipFile(f"{output_path}/{dataset.distribution.name}", 'r') as zip_ref:
+        with zipfile.ZipFile(f"{filepath}", 'r') as zip_ref:
             zip_ref.extractall(output_path)
     return dataset

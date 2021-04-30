@@ -206,7 +206,7 @@ class GTGraphProcessor(GraphProcessor):
     def get_node(self, node):
         v = _get_vertex_obj(self.graph, node)
         props = {}
-        for k in self.graph.vertex_properties.keys():
+        for k in list(self.graph.vertex_properties.keys()):
             if k not in ["@id", "@type"]:
                 value = self.graph.vertex_properties[k][v]
                 if isinstance(value, float):
@@ -228,14 +228,14 @@ class GTGraphProcessor(GraphProcessor):
     def set_node_properties(self, node, properties):
         vertex = _get_vertex_obj(self.graph, node)
         for k, v in properties.items():
-            if k not in self.graph.vertex_properties.keys():
+            if k not in list(self.graph.vertex_properties.keys()):
                 vp = self.graph.new_vertex_property(_infer_type(v))
                 self.graph.vertex_properties[k] = vp
             if v is not None:
                 self.graph.vertex_properties[k][vertex] = v
             else:
                 self.graph.vertex_properties[k][vertex] = 'nan'
-        for k in self.graph.vertex_properties.keys():
+        for k in list(self.graph.vertex_properties.keys()):
             if k not in properties and k != "@id":
                 self.graph.vertex_properties[k][vertex] = 'nan'
 

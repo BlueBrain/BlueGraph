@@ -23,6 +23,7 @@ cord19kg/examples/data/_MACOSX/*
 cord19kg/examples/config/forge-config.yml
 cord19kg/examples/models/neuroshapes/
 cord19kg/examples/data/output_graphs/*
+cord19kg/examples/data/Glucose_risk_3000_paper_meta_data.csv
 __MACOSX/
 *.zip
 .tox/
