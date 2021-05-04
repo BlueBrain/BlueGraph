@@ -28,6 +28,7 @@ setup(
     name="bluegraph",
     author="Blue Brain Project, EPFL",
     use_scm_version={
+        "relative_to": __file__,
         "write_to": "bluegraph/version.py",
         "write_to_template": "__version__ = '{version}'\n",
     },

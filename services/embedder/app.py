@@ -93,33 +93,33 @@ def _retrieve_models(local=True):
             except:
                 shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
     else:
-        for (_, _, filenames) in os.walk(app.config["DOWNLOAD_DIR"]):
-            for file in filenames:
-                if file[0] != ".":
-                    match = re.match(r"(.*)\.zip", file)
+        for (_, dirs, _) in os.walk(app.config["DOWNLOAD_DIR"]):
+            for directory in dirs:
+                if directory[0] != ".":
+                    match = re.match(r"(.*)\.zip", directory)
                     if match:
                         model_name = match.groups()[0]
                     else:
-                        model_name = file
+                        model_name = directory
                     app.models[model_name] = {
                         "data": {
                             "id": model_name,
                             "name": model_name,
                             "description": model_name,
                             "filename": os.path.join(
-                                app.config["DOWNLOAD_DIR"], file),
+                                app.config["DOWNLOAD_DIR"], directory),
                             "created": time.ctime(os.path.getctime(
                                 os.path.join(
                                     app.config["DOWNLOAD_DIR"],
-                                    file))),
+                                    directory))),
                             "modified": time.ctime(os.path.getmtime(
                                 os.path.join(
                                     app.config["DOWNLOAD_DIR"],
-                                    file)))
+                                    directory)))
                         }
                     }
                     pipeline_path = os.path.join(
-                        app.config["DOWNLOAD_DIR"], file)
+                        app.config["DOWNLOAD_DIR"], directory)
                     app.models[model_name]["object"] = EmbeddingPipeline.load(
                         pipeline_path,
                         embedder_interface=GraphElementEmbedder,

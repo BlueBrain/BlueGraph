@@ -17,6 +17,18 @@
 name: embedder
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.7
   - flask
+  - numpy>=1.20.1
+  - pandas
+  - scikit-learn
+  - scipy
+  - matplotlib
+  - nltk
+  - gensim==3.8.3
+  - pyjwt==1.7.1
+  - tensorflow
+  - conda-pack
+  - faiss-cpu
