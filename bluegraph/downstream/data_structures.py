@@ -22,7 +22,9 @@ import os
 import re
 import pickle
 import shutil
+import warnings
 
+from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 from .similarity import SimilarityProcessor
 
 
@@ -87,6 +89,16 @@ class ElementClassifier(ABC):
         return self.model.predict(data)
 
 
+def get_embedding_table(similarity_processor):
+    """Get embedding table from similarity index."""
+    index = similarity_processor.index
+    pairs = [
+        (ind, similarity_processor._model.reconstruct(i))
+        for i, ind in enumerate(index)
+    ]
+    return pd.DataFrame(pairs, columns=["@id", "embedding"]).set_index("@id")
+
+
 class Preprocessor(ABC):
     """Preprocessor inferface for EmbeddingPipeline."""
 
@@ -138,8 +150,12 @@ class EmbeddingPipeline(object):
             train_data = self.preprocessor.transform(data)
         else:
             train_data = data
-        # Train the embedder
-        self.embedding_table = self.embedder.fit_model(train_data)
+        if not self.embedder:
+            raise EmbeddingPipelineException(
+                "Embedder object is not specified: cannot run fitting")
+        else:
+            # Train the embedder
+            self.embedding_table = self.embedder.fit_model(train_data)
         # Create a similarity processor
         vectors =\
             self.embedding_table["embedding"].tolist()
@@ -191,16 +207,18 @@ class EmbeddingPipeline(object):
                 embedder = embedder_interface.load(
                     os.path.join(path, "embedder.zip"))
 
-        # Load the embedding table
-        embedding_table = None
-        if os.path.isfile(os.path.join(path, "vectors.pkl")):
-            embedding_table = pd.read_pickle(
-                os.path.join(path, "vectors.pkl"))
+        # # Load the embedding table
+        # embedding_table = None
+        # if os.path.isfile(os.path.join(path, "vectors.pkl")):
+        #     embedding_table = pd.read_pickle(
+        #         os.path.join(path, "vectors.pkl"))
 
         # Load the similarity processor
         similarity_processor = SimilarityProcessor.load(
             os.path.join(path, "similarity.pkl"),
             os.path.join(path, "index.faiss"))
+
+        embedding_table = get_embedding_table(similarity_processor)
 
         pipeline = cls(
             preprocessor=encoder,
@@ -214,7 +232,6 @@ class EmbeddingPipeline(object):
         return pipeline
 
     def save(self, path, compress=False):
-
         if not os.path.isdir(path):
             os.mkdir(path)
 
@@ -223,12 +240,16 @@ class EmbeddingPipeline(object):
             pickle.dump(self.preprocessor, f)
 
         # Save the embedding model
-        self.embedder.save(
-            os.path.join(path, "embedder"), compress=True)
+        if self.embedder:
+            self.embedder.save(
+                os.path.join(path, "embedder"), compress=True)
+        else:
+            with open(os.path.join(path, "embedder.pkl"), "wb") as f:
+                pickle.dump(self.preprocessor, f)
 
-        # Save the embedding table
-        self.embedding_table.to_pickle(
-            os.path.join(path, "vectors.pkl"))
+        # # Save the embedding table
+        # self.embedding_table.to_pickle(
+        #     os.path.join(path, "vectors.pkl"))
 
         # Save the similarity processor
         if self.similarity_processor is not None:
@@ -239,3 +260,9 @@ class EmbeddingPipeline(object):
         if compress:
             shutil.make_archive(path, 'zip', path)
             shutil.rmtree(path)
+
+    class EmbeddingPipelineException(BlueGraphException):
+        pass
+
+    class EmbeddingPipelineWarning(BlueGraphWarning):
+        pass
