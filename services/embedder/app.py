@@ -18,6 +18,8 @@
 import json
 import os
 import shutil
+import re
+import time
 
 # import jwt
 
@@ -60,43 +62,83 @@ def digest_model_data(model_resource):
     return model_data
 
 
-def _retrieve_models():
+def _retrieve_models(local=True):
     """Retrieve all models from the catalog."""
-    resources = app.forge.search({"type": "EmbeddingModel"})
     # Check if the download folder exists
     if not os.path.exists(app.config["DOWNLOAD_DIR"]):
         os.makedirs(app.config["DOWNLOAD_DIR"])
 
-    for resource in resources:
-        app.models[resource.name] = {
-            "data": digest_model_data(resource),
-        }
-        app.forge.download(
-            resource, "distribution.contentUrl", app.config["DOWNLOAD_DIR"])
+    if not local:
+        resources = app.forge.search({"type": "EmbeddingModel"})
+        for resource in resources:
+            app.models[resource.name] = {
+                "data": digest_model_data(resource),
+            }
+            app.forge.download(
+                resource, "distribution.contentUrl",
+                app.config["DOWNLOAD_DIR"])
 
-        pipeline_path = os.path.join(
-            app.config["DOWNLOAD_DIR"],
-            resource.distribution.name)
-        app.models[resource.name]["object"] = EmbeddingPipeline.load(
-            pipeline_path,
-            embedder_interface=GraphElementEmbedder,
-            embedder_ext="zip")
+            pipeline_path = os.path.join(
+                app.config["DOWNLOAD_DIR"],
+                resource.distribution.name)
+            app.models[resource.name]["object"] = EmbeddingPipeline.load(
+                pipeline_path,
+                embedder_interface=GraphElementEmbedder,
+                embedder_ext="zip")
 
-    # Clear the downloads dir
-    for f in os.listdir(app.config["DOWNLOAD_DIR"]):
-        try:
-            os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
-        except:
-            shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
+        # Clear the downloads dir
+        for f in os.listdir(app.config["DOWNLOAD_DIR"]):
+            try:
+                os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
+            except:
+                shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
+    else:
+        for (_, dirs, _) in os.walk(app.config["DOWNLOAD_DIR"]):
+            for directory in dirs:
+                if directory[0] != ".":
+                    match = re.match(r"(.*)\.zip", directory)
+                    if match:
+                        model_name = match.groups()[0]
+                    else:
+                        model_name = directory
+                    app.models[model_name] = {
+                        "data": {
+                            "id": model_name,
+                            "name": model_name,
+                            "description": model_name,
+                            "filename": os.path.join(
+                                app.config["DOWNLOAD_DIR"], directory),
+                            "created": time.ctime(os.path.getctime(
+                                os.path.join(
+                                    app.config["DOWNLOAD_DIR"],
+                                    directory))),
+                            "modified": time.ctime(os.path.getmtime(
+                                os.path.join(
+                                    app.config["DOWNLOAD_DIR"],
+                                    directory)))
+                        }
+                    }
+                    pipeline_path = os.path.join(
+                        app.config["DOWNLOAD_DIR"], directory)
+                    app.models[model_name]["object"] = EmbeddingPipeline.load(
+                        pipeline_path,
+                        embedder_interface=GraphElementEmbedder,
+                        embedder_ext="zip")
+            break
 
 
 app = Flask(__name__)
 
 app.config.from_pyfile('configs/app_config.py')
 
-app.forge = KnowledgeGraphForge(
-    app.config["FORGE_CONFIG"],
-    token=os.environ["NEXUS_TOKEN"])
+
+try:
+    TOKEN = os.environ["NEXUS_TOKEN"]
+    app.forge = KnowledgeGraphForge(
+        app.config["FORGE_CONFIG"],
+        token=TOKEN)
+except KeyError:
+    app.forge = None
 
 app.models = {}
 _retrieve_models()

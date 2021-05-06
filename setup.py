@@ -28,6 +28,7 @@ setup(
     name="bluegraph",
     author="Blue Brain Project, EPFL",
     use_scm_version={
+        "relative_to": __file__,
         "write_to": "bluegraph/version.py",
         "write_to_template": "__version__ = '{version}'\n",
     },
@@ -48,7 +49,7 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        "nexusforge @ git+https://github.com/BlueBrain/nexus-forge.git#nexusforge",
+        "nexusforge",
         "gensim==3.8.3",
         "tensorflow",
         "networkx>=2",
@@ -89,7 +90,7 @@ setup(
             "dash_daq",
             "dash_extensions",
             "dash_cytoscape",
-            "nexusforge @ git+https://github.com/BlueBrain/nexus-forge.git#nexusforge",
+            "nexusforge",
             "nexus-sdk",
             "pyjwt==1.7.1",
             "ipywidgets"

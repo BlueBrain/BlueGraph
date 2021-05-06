@@ -3,7 +3,6 @@ build/
 dist/
 .pytest_cache
 __pycache__
-kganalytics/notebooks/data/gephi*
 *.ipynb_checkpoints/
 docs/_build/
 *.DS_Store
@@ -16,6 +15,7 @@ examples/data/attri2vec_test_model.zip
 examples/data/nasa.json
 examples/data/nasa_comention.json
 cord19kg/examples/data/Glucose_risk_3000_papers.csv
+cord19kg/examples/data/Glucose_risk_3000_paper_meta_data.csv
 cord19kg/examples/data/NCIT_ontology_linking.csv
 cord19kg/examples/data/NCIT_ontology_linking_3000_papers.csv
 cord19kg/examples/data/CORD_19_v47_occurrence_top_10000.json
@@ -23,9 +23,12 @@ cord19kg/examples/data/_MACOSX/*
 cord19kg/examples/config/forge-config.yml
 cord19kg/examples/models/neuroshapes/
 cord19kg/examples/data/output_graphs/*
-cord19kg/examples/data/Glucose_risk_3000_paper_meta_data.csv
+cord19kg/examples/data/*.zip
+attri2vec_test_model.zip
+neo4j_sage_emedder.zip
+stellar_sage_emedder.zip
 __MACOSX/
-*.zip
+# *.zip
 .tox/
 .eggs
 bluegraph/version.py
