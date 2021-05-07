@@ -16,15 +16,17 @@
 """Collection of utils."""
 import string
 import collections
-import math
 
+import numpy as np
 import nltk
 from nltk.corpus import stopwords
 
 from scipy import sparse
 
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
-from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+from bluegraph.downstream.data_structures import Preprocessor
 
 
 def _get_encoder_type(pgframe, prop, is_edge=False):
@@ -70,8 +72,30 @@ def tokenize_text(text):
     return words
 
 
-class Word2VecModel(object):
-    """Wrapper around word2vec providing scikit-learn like interface."""
+class TfIdfEncoder(Preprocessor):
+    """Wrapper around tf-idf providing Preprocessor interface."""
+
+    def __init__(self, params=None):
+        """Initialize TfIdfTermEncoder."""
+        if params is None:
+            params = {}
+        self.model = TfidfVectorizer(**params)
+
+    def info(self):
+        """Get model info."""
+        return self.model.get_params()
+
+    def fit(self, data):
+        """Fit the model."""
+        self.model.fit(data)
+
+    def transform(self, data):
+        """Transform the input data."""
+        return np.array(self.model.transform(data).todense())
+
+
+class Doc2VecEncoder(Preprocessor):
+    """Wrapper around doc2vec providing Preprocessor interface."""
 
     def __init__(self, size=64, window=6, min_count=1, workers=4):
         """Initialize a model."""
@@ -80,6 +104,26 @@ class Word2VecModel(object):
         self.window = window
         self.min_count = min_count
         self.workers = workers
+
+    def info(self):
+        """Get model info."""
+        return {
+            "dm": self.model.dm,
+            "vector_size": self.model.vector_size,
+            "window": self.model.window,
+            "alpha": self.model.alpha,
+            "min_alpha": self.model.min_alpha,
+            "min_count": self.model.vocabulary.min_count,
+            "max_vocab_size": self.model.vocabulary.max_vocab_size,
+            "sample": self.model.vocabulary.sample,
+            "epochs": self.model.epochs,
+            "hs": self.model.hs,
+            "negative": self.model.negative,
+            "ns_exponent": self.model.ns_exponent,
+            "dm_concat": self.model.dm_concat,
+            "dm_tag_count": self.model.dm_tag_count,
+            "dbow_words": self.model.dbow_words
+        }
 
     def fit(self, corpus):
         """Fit a word2vec model."""
@@ -101,7 +145,3 @@ class Word2VecModel(object):
         for s in tokenized_input:
             result.append(self._model.infer_vector(s))
         return sparse.csc_matrix(result)
-
-    def fit_transform(self, input):
-        """Fit and transform the text."""
-        pass

@@ -37,8 +37,10 @@ class ElementClassifier(ABC):
     hide the details on converting element (node or edge) properties
     into data tables that can be provided to the predictive model.
     """
+
     def __init__(self, model, feature_vector_prop=None, feature_props=None,
                  **kwargs):
+        """Initialize the classifier."""
         self.model = model
         self.feature_vector_prop = feature_vector_prop
         self.feature_props = feature_props
@@ -75,6 +77,7 @@ class ElementClassifier(ABC):
 
     def fit(self, pgframe, train_elements=None, labels=None, label_prop=None,
             **kwargs):
+        """Fit the classifier."""
         train_elements = self._generate_train_elements(
             pgframe, train_elements, **kwargs)
         labels = self._generate_train_labels(
@@ -83,11 +86,11 @@ class ElementClassifier(ABC):
         self.model.fit(data, labels)
 
     def predict(self, pgframe, predict_elements=None):
+        """Run prediction on the input graph."""
         predict_elements = self._generate_predict_elements(
             pgframe, predict_elements)
         data = self._generate_data_table(pgframe, predict_elements)
         return self.model.predict(data)
-
 
 
 class Preprocessor(ABC):
@@ -95,14 +98,17 @@ class Preprocessor(ABC):
 
     @abstractmethod
     def info(self):
+        """Get dictionary with the info."""
         pass
 
     @abstractmethod
-    def fit(self):
+    def fit(self, data, **kwargs):
+        """Fit the preprocessor."""
         pass
 
     @abstractmethod
-    def transform(self):
+    def transform(self, data, **kwargs):
+        """Tranform the input data."""
         pass
 
 
@@ -111,49 +117,118 @@ class Embedder(ABC):
 
     @abstractmethod
     def info(self):
+        """Get dictionary with the info."""
         pass
 
     @abstractmethod
-    def fit_model(self):
+    def fit_model(self, data, **kwargs):
+        """Train specified model on the provided data."""
+        pass
+
+    @abstractmethod
+    def predict_embeddings(self, data=None, **kwargs):
+        """Predict embeddings of out-sample elements."""
         pass
 
 
 class EmbeddingPipeline(object):
+    """Data structure for stacking embedding pipelines.
+
+    In this context, an embedding pipeline consists of the
+    following steps:
+
+    1) preprocess
+    2) embedd
+    3) build a similarity index
+    """
 
     def __init__(self, preprocessor=None, embedder=None,
                  similarity_processor=None):
+        """Initilize the pipeline."""
         self.preprocessor = preprocessor
         self.embedder = embedder
         self.similarity_processor = similarity_processor
 
     def is_transductive(self):
-        return self.embedder is None or self.embedder._embedding_model is None
+        """Return flag indicating if the embedder is transductive."""
+        if self.embedder is None:
+            return self.preprocessor is None
+        else:
+            return (
+                self.embedder._embedding_model is None
+            )
 
     def is_inductive(self):
-        return self.embedder is not None and self.embedder._embedding_model is not None
+        """Return flag indicating if the embedder is inductive."""
+        if self.embedder is None:
+            return self.preprocessor is not None
+        else:
+            return self.embedder._embedding_model is not None
 
-    def run_fitting(self, data):
-        # Encode
+    def run_fitting(self, data, index=None, preprocessor_kwargs=None,
+                    embedder_kwargs=None):
+        """Run fitting of the pipeline components."""
+        if preprocessor_kwargs is None:
+            preprocessor_kwargs = {}
+        if embedder_kwargs is None:
+            embedder_kwargs = {}
+
+        # Train the encoder
         if self.preprocessor is not None:
             self.preprocessor.fit(data)
-            train_data = self.preprocessor.transform(data)
+            train_data = self.preprocessor.transform(
+                data, **preprocessor_kwargs)
         else:
             train_data = data
-        if not self.embedder:
-            raise EmbeddingPipelineException(
-                "Embedder object is not specified: cannot run fitting")
-        else:
-            # Train the embedder
-            embedding_table = self.embedder.fit_model(train_data)
-        # Create a similarity processor
-        vectors =\
-            embedding_table["embedding"].tolist()
-        self.similarity_processor._initialize_model(vectors)
-        self.similarity_processor.add(vectors, embedding_table.index)
-        self.similarity_processor.index = embedding_table.index
 
-    def run_prediction(self, data):
-        pass
+        # Train the embedder
+        if not self.embedder:
+            vectors = train_data
+            if index is not None:
+                index = pd.Index(index)
+        else:
+            embedding_table = self.embedder.fit_model(
+                train_data, **embedder_kwargs)
+            vectors = embedding_table["embedding"].tolist()
+            index = embedding_table.index
+
+        # Build the similarity processor from obtained vectors
+        self.similarity_processor.add(vectors, index)
+        self.similarity_processor.index = index
+
+    def run_prediction(self, data, preprocessor_kwargs=None,
+                       embedder_kwargs=None, data_indices=None,
+                       add_to_index=False):
+        """Run prediction using the pipeline components."""
+        if preprocessor_kwargs is None:
+            preprocessor_kwargs = {}
+        if embedder_kwargs is None:
+            embedder_kwargs = {}
+
+        # Encode the data
+        if self.preprocessor is not None:
+            transformed_data = self.preprocessor.transform(
+                data, **preprocessor_kwargs)
+        else:
+            transformed_data = data
+
+        # Embed
+        if not self.embedder:
+            vectors = transformed_data
+        else:
+            embedding_table = self.embedder.predict_embeddings(
+                transformed_data, **embedder_kwargs)
+            vectors = embedding_table["embedding"].tolist()
+
+        # Add to index if specified
+        if add_to_index is True:
+            if data_indices is None:
+                raise SimilarityProcessor.SimilarityException(
+                    "Parameter 'add_to_index' is set to True, "
+                    "'data_indices' must be specified")
+            self.similarity_processor.add(vectors, data_indices)
+
+        return vectors
 
     def generate_embedding_table(self):
         """Generate embedding table from similarity index."""
@@ -165,21 +240,31 @@ class EmbeddingPipeline(object):
         return pd.DataFrame(
             pairs, columns=["@id", "embedding"]).set_index("@id")
 
+    def get_index(self):
+        """Get index of existing points."""
+        return self.similarity_processor.index
 
     def retrieve_embeddings(self, indices):
+        """Get embedding vectors for the input indices."""
         if self.similarity_processor is None:
             raise EmbeddingPipelineException(
                 "Similarity processor object is None, cannot "
                 "retrieve embedding vectors")
         else:
+
             return [
-                el.tolist()
+                el.tolist() if el is not None else None
                 for el in self.similarity_processor.get_vectors(indices)
             ]
 
-    def get_similar_points(self, indices, k=10):
+    def get_similar_points(self, vectors=None,
+                           existing_indices=None, k=10,
+                           preprocessor_kwargs=None,
+                           embedder_kwargs=None):
+        """Get top most similar points for the input indices."""
         return self.similarity_processor.get_similar_points(
-            existing_indices=indices, k=k)
+            vectors=vectors,
+            existing_indices=existing_indices, k=k)
 
     @classmethod
     def load(cls, path, embedder_interface=None, embedder_ext="pkl"):
@@ -225,6 +310,7 @@ class EmbeddingPipeline(object):
         return pipeline
 
     def save(self, path, compress=False):
+        """Save the pipeline."""
         if not os.path.isdir(path):
             os.mkdir(path)
 
@@ -251,7 +337,11 @@ class EmbeddingPipeline(object):
             shutil.rmtree(path)
 
     class EmbeddingPipelineException(BlueGraphException):
+        """Pipeline exception class."""
+
         pass
 
     class EmbeddingPipelineWarning(BlueGraphWarning):
+        """Pipeline warning class."""
+
         pass
