@@ -1,4 +1,4 @@
-from bluegraph.preprocess.utils import Word2VecModel
+from bluegraph.preprocess.utils import Doc2VecEncoder
 import pandas as pd
 import random
 
@@ -14,6 +14,6 @@ def test_word2vec():
         columns=["@id", "desc"]
     )
     # size=64, window=6, min_count=1, workers=4
-    encoder = Word2VecModel(size=10, window=5)
+    encoder = Doc2VecEncoder(size=10, window=5)
     encoder.fit(corpus)
     encoder.transform(corpus)

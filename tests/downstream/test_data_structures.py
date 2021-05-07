@@ -64,4 +64,4 @@ def test_embedding_pipeline(random_pgframe):
         embedder_ext="zip")
 
     pipeline.retrieve_embeddings(["0", "1"])
-    pipeline.get_similar_points(["0", "1"], k=5)
+    pipeline.get_similar_points(existing_indices=["0", "1"], k=5)

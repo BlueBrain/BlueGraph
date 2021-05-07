@@ -22,3 +22,4 @@ __pycache__
 attri2vec_test_model.zip
 neo4j_sage_embedder.zip
 stellar_sage_embedder.zip
+services/embedder/examples/*

@@ -65,6 +65,25 @@ def digest_model_data(model_resource):
 def _retrieve_models(local=True):
     """Retrieve all models from the catalog."""
     # Check if the download folder exists
+    def _get_meta_data(model_name, file):
+        return {
+            "data": {
+                "id": model_name,
+                "name": model_name,
+                "description": model_name,
+                "filename": os.path.join(
+                    app.config["DOWNLOAD_DIR"], file),
+                "created": time.ctime(os.path.getctime(
+                    os.path.join(
+                        app.config["DOWNLOAD_DIR"],
+                        file))),
+                "modified": time.ctime(os.path.getmtime(
+                    os.path.join(
+                        app.config["DOWNLOAD_DIR"],
+                        file)))
+            }
+        }
+
     if not os.path.exists(app.config["DOWNLOAD_DIR"]):
         os.makedirs(app.config["DOWNLOAD_DIR"])
 
@@ -93,33 +112,17 @@ def _retrieve_models(local=True):
             except:
                 shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
     else:
-        for (_, dirs, _) in os.walk(app.config["DOWNLOAD_DIR"]):
-            for directory in dirs:
-                if directory[0] != ".":
-                    match = re.match(r"(.*)\.zip", directory)
+        for (_, dirs, files) in os.walk(app.config["DOWNLOAD_DIR"]):
+            for path in dirs + files:
+                if path[0] != ".":
+                    match = re.match(r"(.*)\.zip", path)
                     if match:
                         model_name = match.groups()[0]
                     else:
-                        model_name = directory
-                    app.models[model_name] = {
-                        "data": {
-                            "id": model_name,
-                            "name": model_name,
-                            "description": model_name,
-                            "filename": os.path.join(
-                                app.config["DOWNLOAD_DIR"], directory),
-                            "created": time.ctime(os.path.getctime(
-                                os.path.join(
-                                    app.config["DOWNLOAD_DIR"],
-                                    directory))),
-                            "modified": time.ctime(os.path.getmtime(
-                                os.path.join(
-                                    app.config["DOWNLOAD_DIR"],
-                                    directory)))
-                        }
-                    }
+                        model_name = path
+                    app.models[model_name] = _get_meta_data(model_name, path)
                     pipeline_path = os.path.join(
-                        app.config["DOWNLOAD_DIR"], directory)
+                        app.config["DOWNLOAD_DIR"], path)
                     app.models[model_name]["object"] = EmbeddingPipeline.load(
                         pipeline_path,
                         embedder_interface=GraphElementEmbedder,
@@ -369,12 +372,12 @@ def handle_similar_points_request(model_name):
             result = {
                 indices[i]: {
                     p: float(dist[i][j]) for j, p in enumerate(points)
-                }
+                } if points is not None else None
                 for i, points in enumerate(similar_points)
             }
         else:
             result = {
-                indices[i]: list(points)
+                indices[i]: list(points) if points is not None else None
                 for i, points in enumerate(similar_points)
             }
         return (
@@ -386,7 +389,7 @@ def handle_similar_points_request(model_name):
 
 
 @app.route("/model/<model_name>/details/<component_name>/")
-def handle_preprocessor_info_request(model_name, component_name):
+def handle_info_request(model_name, component_name):
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
@@ -404,13 +407,26 @@ def handle_preprocessor_info_request(model_name, component_name):
         pipeline = app.models[model_name]["object"]
         info = None
         if component_name == "preprocessor":
-            info = pipeline.preprocessor.info()
-            info["interface"] = pipeline.preprocessor.__class__.__name__
+            if pipeline.preprocessor is not None:
+                info = pipeline.preprocessor.info()
+                info["interface"] = pipeline.preprocessor.__class__.__name__
+            else:
+                return _respond_not_found(
+                    "Model does not contain a preprocessor")
         elif component_name == "embedder":
-            info = pipeline.embedder.info()
+            if pipeline.embedder is not None:
+                info = pipeline.embedder.info()
+            else:
+                return _respond_not_found(
+                    "Model does not contain an embedder")
         elif component_name == "similarity-processor":
             info = pipeline.similarity_processor.info()
             info["interface"] = pipeline.similarity_processor.__class__.__name__
+
+        # Convert all the values to str
+        for k in info.keys():
+            info[k] = str(info[k])
+
         return (
             json.dumps(info), 200,
             {'ContentType': 'application/json'}
