@@ -2,9 +2,8 @@ import pandas as pd
 import random
 from nltk.corpus import words
 
-from bluegraph.core import PandasPGFrame
-
 from bluegraph.preprocess.encoders import ScikitLearnPGEncoder
+from bluegraph.preprocess.utils import TfIdfEncoder
 from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
 from bluegraph.downstream.similarity import SimilarityProcessor
 from bluegraph.downstream import EmbeddingPipeline
@@ -65,3 +64,35 @@ def test_embedding_pipeline(random_pgframe):
 
     pipeline.retrieve_embeddings(["0", "1"])
     pipeline.get_similar_points(existing_indices=["0", "1"], k=5)
+
+
+def test_embedding_pipeline_with_prediction(random_words):
+    pipeline = EmbeddingPipeline(
+        preprocessor=TfIdfEncoder({
+            "max_features": 400,
+            "analyzer": "char",
+            "ngram_range": (3, 3),
+        }),
+        embedder=None,
+        similarity_processor=SimilarityProcessor(
+            similarity="euclidean", dimension=400, n_segments=10))
+    pipeline.run_fitting(random_words, index=random_words)
+    assert(pipeline.is_inductive() and not pipeline.is_transductive())
+
+    res = pipeline.retrieve_embeddings(
+        random_words[:2] + ["hello i am not there"])
+    assert(res[2] is None)
+    table = pipeline.generate_embedding_table()
+    assert(table.shape[0] == len(random_words))
+
+    vectors = pipeline.run_prediction(["hello world"])
+    ind, dist = pipeline.get_similar_points(vectors=vectors, k=10)
+    assert(ind[0].shape[0] > 0)
+
+    vectors = pipeline.run_prediction(
+        ["hello world"], data_indices=["hello world"],
+        add_to_index=True)
+    assert("hello world" in pipeline.get_index())
+
+    new_ind, dist = pipeline.get_similar_points(
+        existing_indices=["hello world"])

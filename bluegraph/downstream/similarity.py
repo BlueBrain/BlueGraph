@@ -116,13 +116,16 @@ class SimilarityProcessor(object):
 
     def get_vectors(self, existing_indices):
         if self.index is not None:
-            int_idices = self.index.get_indexer(existing_indices)
+            int_indices = self.index.get_indexer(existing_indices)
         x = []
-        for i in int_idices:
-            try:
-                x.append(self._model.reconstruct(int(i)))
-            except RuntimeError:
+        for i in int_indices:
+            if i == -1:
                 x.append(None)
+            else:
+                try:
+                    x.append(self._model.reconstruct(int(i)))
+                except RuntimeError:
+                    x.append(None)
         return x
 
     def query_existing(self, existing_indices, k=10):
@@ -170,6 +173,8 @@ class SimilarityProcessor(object):
 
             self._model.train(vectors)
             self._model.make_direct_map()
+            if vector_indices is not None:
+                self.index = self.index.append(pd.Index(vector_indices))
         else:
             if vector_indices is not None:
                 # Normalize to pandas index
@@ -195,10 +200,11 @@ class SimilarityProcessor(object):
 
     def get_similar_points(self, vectors=None, vector_indices=None,
                            existing_indices=None, k=10,
-                           add_to_index=False, new_point_index=None):
+                           add_to_index=False):
         if existing_indices is not None:
             distance, int_index = self.query_existing(existing_indices, k)
-        else:
+        elif vectors is not None:
+            vectors = self._preprocess_vectors(vectors)
             if vectors.shape[1] != self.dimension:
                 raise SimilarityProcessor.QueryException(
                     "Provided vector does not have a "
@@ -213,9 +219,12 @@ class SimilarityProcessor(object):
 
         # Get indices
         if self.index is not None:
-            indices = list(map(
-                lambda x: self.index[x] if x is not None else None,
-                int_index))
+            indices = [
+                (self.index[[x for x in el if x != -1]]
+                 if el is not None
+                 else None)
+                for el in int_index
+            ]
         else:
             indices = int_index
         return indices, distance

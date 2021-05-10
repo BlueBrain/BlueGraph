@@ -99,7 +99,7 @@ class Doc2VecEncoder(Preprocessor):
 
     def __init__(self, size=64, window=6, min_count=1, workers=4):
         """Initialize a model."""
-        self._model = None
+        self.model = None
         self.size = size
         self.window = window
         self.min_count = min_count
@@ -131,7 +131,7 @@ class Doc2VecEncoder(Preprocessor):
             TaggedDocument(tokenize_text(text), [i])
             for i, text in enumerate(corpus)
         ]
-        self._model = Doc2Vec(
+        self.model = Doc2Vec(
             tokenized_corpus, vector_size=self.size, window=self.window,
             min_count=self.min_count, workers=self.workers)
 
@@ -143,5 +143,5 @@ class Doc2VecEncoder(Preprocessor):
         ]
         result = []
         for s in tokenized_input:
-            result.append(self._model.infer_vector(s))
+            result.append(self.model.infer_vector(s))
         return sparse.csc_matrix(result)
