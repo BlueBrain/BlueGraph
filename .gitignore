@@ -33,3 +33,6 @@ __MACOSX/
 .eggs
 bluegraph/version.py
 tests/data/*
+test_sim_proc.faiss
+test_sim_proc.pkl
+.coverage
