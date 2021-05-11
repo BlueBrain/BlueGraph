@@ -88,6 +88,7 @@ def _retrieve_models(local=True):
         os.makedirs(app.config["DOWNLOAD_DIR"])
 
     if not local:
+        # Fetch from a Nexus-hosted catalog
         resources = app.forge.search({"type": "EmbeddingModel"})
         for resource in resources:
             app.models[resource.name] = {
@@ -112,6 +113,7 @@ def _retrieve_models(local=True):
             except:
                 shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
     else:
+        # Fetch from a local dir
         for (_, dirs, files) in os.walk(app.config["DOWNLOAD_DIR"]):
             for path in dirs + files:
                 if path[0] != ".":
@@ -259,8 +261,34 @@ def _respond_not_found(message=None):
     )
 
 
+def _respond_not_allowed(message=None):
+    if message is None:
+        message = "Request method is not allowed"
+    return (
+        json.dumps({
+            'success': False,
+            'message': message
+        }), 405,
+        {'ContentType': 'application/json'}
+    )
+
+
+def _preprocess_data(data, data_type):
+    if data_type == "raw":
+        # Use passed data as is
+        return data
+    else:
+        # Here possoble data types are
+        # - "raw_labeled" of a form ["label", "raw_data"]
+        # - resource PG id to download from Nexus
+        # - collection of Nexus resources to build a PG from
+        # - (then i guess we need a bucket/org/project/token)
+        pass
+
+
 @app.route("/model/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
 def handle_model_request(model_name):
+    """Handle request of model data."""
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
@@ -309,6 +337,7 @@ def handle_model_request(model_name):
 
 @app.route("/models/", methods=["GET"])  # , "DELETE"])
 def handle_models_request():
+    """Handle request of all existing models."""
     # TODO: add sort and filter by creation/modification date
     # if request.method == "GET":
     return (
@@ -324,6 +353,7 @@ def handle_models_request():
 
 @app.route("/model/<model_name>/embeddings/")
 def handle_embeddings_request(model_name):
+    """Handle request of embedding vectors for provided resources."""
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)
@@ -343,31 +373,23 @@ def handle_embeddings_request(model_name):
         return _respond_not_found()
 
 
-@app.route("/model/<model_name>/similar-points/")
+@app.route("/model/<model_name>/similar-points/", methods=["GET", "POST"])
 def handle_similar_points_request(model_name):
-    # token = _retrieve_token(request)
-    # forge = KnowledgeGraphForge(
-    #     app.config["FORGE_CONFIG"], token=token)
+    """Handle request of similar points to provided resources."""
+    if model_name not in app.models:
+        return _respond_not_found()
 
+    pipeline = app.models[model_name]["object"]
     params = request.args.to_dict(flat=False)
-    indices = params["resource_ids"]
     k = int(params["k"][0])
     values = (
         params["values"][0] == "True" if "values" in params else False
     )
-    # model_resource = retrieve_model_resource(
-    #     forge, model_name, download=True)
-    if model_name in app.models:
-        # pipeline_path = os.path.join(
-        #     app.config["DOWNLOAD_DIR"],
-        #     model_resource.distribution.name)
-        # pipeline = EmbeddingPipeline.load(
-        #     pipeline_path,
-        #     embedder_interface=GraphElementEmbedder,
-        #     embedder_ext="zip")
-        similar_points, dist = app.models[
-            model_name]["object"].get_similar_points(
-                indices, k)
+
+    if request.method == 'GET':
+        indices = params["resource_ids"]
+        similar_points, dist = pipeline.get_similar_points(
+            existing_indices=indices, k=k)
         if values:
             result = {
                 indices[i]: {
@@ -380,16 +402,62 @@ def handle_similar_points_request(model_name):
                 indices[i]: list(points) if points is not None else None
                 for i, points in enumerate(similar_points)
             }
-        return (
-            json.dumps({"similar_points": result}), 200,
-            {'ContentType': 'application/json'}
-        )
     else:
-        return _respond_not_found()
+        content = request.get_json()
+        vectors = content["vectors"]
+        similar_points, dist = pipeline.get_similar_points(
+            vectors=vectors, k=k)
+        if values:
+            result = [
+                {point: dist[i].tolist()[j] for j, point in enumerate(el)}
+                for i, el in enumerate(similar_points)
+            ]
+        else:
+            result = [
+                el.tolist() for el in similar_points
+            ]
+    return (
+        json.dumps({"similar_points": result}), 200,
+        {'ContentType': 'application/json'}
+    )
+
+
+@app.route("/model/<model_name>/predict-embedding/")
+def handle_predict_embedding(model_name):
+    """Perform prediction of the embedding."""
+    if model_name in app.models:
+        pipeline = app.models[model_name]["object"]
+        if pipeline.is_inductive():
+            params = request.args.to_dict(flat=False)
+            data = params["data"]
+            data_type = (
+                params["data_type"]
+                if "data_type" in params else "raw"
+            )
+            preprocessor_kwargs = (
+                params["preprocessor_kwargs"]
+                if "preprocessor_kwargs" in params else None
+            )
+            embedder_kwargs = (
+                params["embedder_kwargs"]
+                if "embedder_kwargs" in params else None
+            )
+            _preprocess_data(data, data_type)
+            vectors = pipeline.run_prediction(
+                data, preprocessor_kwargs, embedder_kwargs)
+            return (
+                json.dumps({"vectors": vectors.tolist()}), 200,
+                {'ContentType': 'application/json'}
+            )
+        else:
+            _respond_not_allowed(
+                "Model is transductive, prediction of "
+                "embedding for unseen data is not supported")
 
 
 @app.route("/model/<model_name>/details/<component_name>/")
 def handle_info_request(model_name, component_name):
+    """Handle request of details on different model components."""
     # token = _retrieve_token(request)
     # forge = KnowledgeGraphForge(
     #     app.config["FORGE_CONFIG"], token=token)

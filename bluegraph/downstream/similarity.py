@@ -115,6 +115,7 @@ class SimilarityProcessor(object):
         self._model = model
 
     def get_vectors(self, existing_indices):
+        """Get vectors for passed point indices."""
         if self.index is not None:
             int_indices = self.index.get_indexer(existing_indices)
         x = []
@@ -129,9 +130,11 @@ class SimilarityProcessor(object):
         return x
 
     def query_existing(self, existing_indices, k=10):
+        """Query existing points."""
         return self.query_new(self.get_vectors(existing_indices), k)
 
     def query_new(self, vectors, k=10):
+        """Query input vectors."""
         # Filter None vectors (for points that were not found
         # in the index)
         non_empty_flag = [
@@ -201,6 +204,7 @@ class SimilarityProcessor(object):
     def get_similar_points(self, vectors=None, vector_indices=None,
                            existing_indices=None, k=10,
                            add_to_index=False):
+        """Get top N similar points."""
         if existing_indices is not None:
             distance, int_index = self.query_existing(existing_indices, k)
         elif vectors is not None:
