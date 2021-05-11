@@ -289,10 +289,6 @@ def _preprocess_data(data, data_type):
 @app.route("/model/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
 def handle_model_request(model_name):
     """Handle request of model data."""
-    # token = _retrieve_token(request)
-    # forge = KnowledgeGraphForge(
-    #     app.config["FORGE_CONFIG"], token=token)
-
     if model_name in app.models:
         return (
             json.dumps(app.models[model_name]["data"]), 200,
@@ -300,75 +296,61 @@ def handle_model_request(model_name):
         )
     else:
         return _respond_not_found()
-    # elif request.method == "POST":
-    #     # Create an agent resource
-    #     agent_data = jwt.decode(token, verify=False)
-    #     agent = forge.reshape(
-    #         forge.from_json(agent_data), keep=[
-    #             "name", "email", "sub", "preferred_username"])
-    #     agent.id = agent.sub
-    #     agent.type = "Person"
-
-    #     model_desc = request.args.get("description")
-    #     # Handle uploaded distribution if available
-    #     dist = None
-    #     # check if the post request has the file part
-    #     if 'distribution' in request.files:
-    #         file = request.files['distribution']
-    #         # If the user does not select a file, the browser submits an
-    #         # empty file without a filename.
-    #         if file.filename != '' and file:
-    #             path_to_file = os.path.join(
-    #                 app.config['DOWNLOAD_DIR'], file.filename)
-    #             file.save(path_to_file)
-    #             dist = path_to_file
-
-    #     return post_model(
-    #         forge, agent, model_name, model_desc, dist)
-
-    # elif request.method == "DELETE":
-    #     model_resource = retrieve_model_resource(forge, model_name)
-    #     if model_resource:
-    #         deprecate_resource(forge, model_resource)
-    #         return _respond_success()
-    #     else:
-    #         return _respond_not_found()
 
 
 @app.route("/models/", methods=["GET"])  # , "DELETE"])
 def handle_models_request():
     """Handle request of all existing models."""
     # TODO: add sort and filter by creation/modification date
-    # if request.method == "GET":
     return (
         json.dumps({"models": {
             k: d["data"] for k, d in app.models.items()
         }}), 200,
         {'ContentType': 'application/json'}
     )
-    # elif request.method == "DELETE":
-    #     clear_catalogue(forge)
-    #     return _respond_success()
 
 
-@app.route("/model/<model_name>/embeddings/")
+@app.route("/model/<model_name>/embedding/", methods=["GET", "POST"])
 def handle_embeddings_request(model_name):
     """Handle request of embedding vectors for provided resources."""
-    # token = _retrieve_token(request)
-    # forge = KnowledgeGraphForge(
-    #     app.config["FORGE_CONFIG"], token=token)
-
-    params = request.args.to_dict(flat=False)
-    indices = params["resource_ids"]
-    # model_resource = retrieve_model_resource(
-    #     forge, model_name, download=True)
     if model_name in app.models:
-        embeddings = app.models[
-            model_name]["object"].retrieve_embeddings(indices)
-        return (
-            json.dumps({"embeddings": dict(zip(indices, embeddings))}), 200,
-            {'ContentType': 'application/json'}
-        )
+        pipeline = app.models[model_name]["object"]
+        if request.method == "GET":
+            params = request.args.to_dict(flat=False)
+            indices = params["resource_ids"]
+            embeddings = pipeline.retrieve_embeddings(indices)
+            return (
+                json.dumps({"embeddings": dict(zip(indices, embeddings))}), 200,
+                {'ContentType': 'application/json'}
+            )
+        else:
+            if pipeline.is_inductive():
+                content = request.get_json()
+                data = content["data"]
+                data_type = (
+                    content["data_type"]
+                    if "data_type" in content else "raw"
+                )
+                preprocessor_kwargs = (
+                    content["preprocessor_kwargs"]
+                    if "preprocessor_kwargs" in content else None
+                )
+                embedder_kwargs = (
+                    content["embedder_kwargs"]
+                    if "embedder_kwargs" in content else None
+                )
+                _preprocess_data(data, data_type)
+                vectors = pipeline.run_prediction(
+                    data, preprocessor_kwargs, embedder_kwargs)
+                return (
+                    json.dumps({"vectors": vectors.tolist()}), 200,
+                    {'ContentType': 'application/json'}
+                )
+            else:
+                _respond_not_allowed(
+                    "Model is transductive, prediction of "
+                    "embedding for unseen data is not supported")
+
     else:
         return _respond_not_found()
 
@@ -422,56 +404,10 @@ def handle_similar_points_request(model_name):
     )
 
 
-@app.route("/model/<model_name>/predict-embedding/")
-def handle_predict_embedding(model_name):
-    """Perform prediction of the embedding."""
-    if model_name in app.models:
-        pipeline = app.models[model_name]["object"]
-        if pipeline.is_inductive():
-            params = request.args.to_dict(flat=False)
-            data = params["data"]
-            data_type = (
-                params["data_type"]
-                if "data_type" in params else "raw"
-            )
-            preprocessor_kwargs = (
-                params["preprocessor_kwargs"]
-                if "preprocessor_kwargs" in params else None
-            )
-            embedder_kwargs = (
-                params["embedder_kwargs"]
-                if "embedder_kwargs" in params else None
-            )
-            _preprocess_data(data, data_type)
-            vectors = pipeline.run_prediction(
-                data, preprocessor_kwargs, embedder_kwargs)
-            return (
-                json.dumps({"vectors": vectors.tolist()}), 200,
-                {'ContentType': 'application/json'}
-            )
-        else:
-            _respond_not_allowed(
-                "Model is transductive, prediction of "
-                "embedding for unseen data is not supported")
-
-
 @app.route("/model/<model_name>/details/<component_name>/")
 def handle_info_request(model_name, component_name):
     """Handle request of details on different model components."""
-    # token = _retrieve_token(request)
-    # forge = KnowledgeGraphForge(
-    #     app.config["FORGE_CONFIG"], token=token)
-
-    # model_resource = retrieve_model_resource(
-    #     forge, model_name, download=True)
     if model_name in app.models:
-        # pipeline_path = os.path.join(
-        #     app.config["DOWNLOAD_DIR"],
-        #     model_resource.distribution.name)
-        # pipeline = EmbeddingPipeline.load(
-        #     pipeline_path,
-        #     embedder_interface=GraphElementEmbedder,
-        #     embedder_ext="zip")
         pipeline = app.models[model_name]["object"]
         info = None
         if component_name == "preprocessor":

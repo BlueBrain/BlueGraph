@@ -74,9 +74,9 @@ paths:
         '404':
           description: Returned when the requested model does not exist.
 
-  /model/{model_name}/embeddings:
+  /model/{model_name}/embedding:
     get:
-      summary: Retrieve the embedding vectors of the specified resources.
+      summary: Retrieve embedding vectors of the specified ids of existing resources.
       parameters:
         - in: query
           name: resource_ids
@@ -100,9 +100,29 @@ paths:
         '404':
           description: Returned when the embeddings of the requested resources do not exist
             (typically when the embedding model does not exist).
+    post:
+      summary: Predict embedding vectors for the input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                description: Input data in json representation
+              data_type:
+                type: string
+                description: Type of the input data
+              preprocessor_kwargs:
+                type: object
+                description: Keyword arguments to pass to the preprocessor
+              embedder_kwargs:
+                type: object
+                description: Keyword arguments to pass to the encoder
 
   /model/{model_name}/similar-points:
     get:
+      summary: Get similar points to the resources with the provided ids
       parameters:
         - in: query
           name: resource_ids
@@ -134,8 +154,17 @@ paths:
                 properties:
                   similar_points:
                     type: object
-
-
+    post:
+      summary: Get embedding vectors for the input vectors
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              vectors:
+                description: Input vectors
+                type: array
+                items: array
 
 
   
