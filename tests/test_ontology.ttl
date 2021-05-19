@@ -125,8 +125,8 @@
                                                                            owl:onProperty <http://webprotege.stanford.edu/RCBDjcvdwtuj3lS81jAmPoX> ;
                                                                            owl:someValuesFrom <http://webprotege.stanford.edu/R9HPX2vAdqKXR44NJktgfd>
                                                                          ] ;
-                                                         <http://webprotege.stanford.edu/R7kGimIWyQsFeKP03Jp7BBY> "\"Lblb\""^^xsd:string ;
-                                                         <http://webprotege.stanford.edu/RCjUgC0IBElvukbHuHnbDKH> "\"Lala\""^^xsd:string ;
+                                                         <http://webprotege.stanford.edu/R7kGimIWyQsFeKP03Jp7BBY> "Lblb"^^xsd:string ;
+                                                         <http://webprotege.stanford.edu/RCjUgC0IBElvukbHuHnbDKH> "Lala"^^xsd:string ;
                                                          rdfs:label "Action"@en .
 
 

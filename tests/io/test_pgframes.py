@@ -183,12 +183,14 @@ def test_neo4j_io(random_pgframe, neo4j_driver):
     view._clear()
     pgframe_to_neo4j(
         random_pgframe, driver=neo4j_driver,
+        node_label="TestIONode",
         node_types_as_labels=True,
         edge_types_as_labels=True)
 
     view._clear()
     pgframe_to_neo4j(
         random_pgframe, driver=neo4j_driver,
+        node_label="TestIONode",
         node_types_as_labels=True,
         edge_types_as_labels=True)
 
@@ -196,8 +198,16 @@ def test_neo4j_io(random_pgframe, neo4j_driver):
 def test_from_ontology():
     frame = PandasPGFrame.from_ontology(
         "tests/test_ontology.ttl")
-    print(frame)
-
+    assert(frame.number_of_nodes() == 10)
+    assert(frame.number_of_edges() == 14)
+    assert(
+        frame.get_node_property_values("a").loc["Agent"] == "hello")
+    assert(
+        frame.get_node_property_values("a").loc["Action"] == "Lala")
+    assert(
+        frame.get_node_property_values("b").loc["Agent"] == "bye")
+    assert(
+        frame.get_node_property_values("b").loc["Action"] == "Lblb")
 
 def test_stellargraph_io(random_pgframe):
     sg_object = pgframe_to_stellargraph(random_pgframe)

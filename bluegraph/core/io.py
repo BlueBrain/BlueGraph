@@ -1238,8 +1238,11 @@ class PandasPGFrame(PGFrame):
                 targets[s].add(o)
             elif p not in predicates_to_ignore:
                 # Extract other props as is
-                prop_name = str(p)
-                props[prop_name][label_mapping[s]] = str(o)
+                if p in label_mapping:
+                    props[label_mapping[p]][label_mapping[s]] = str(o)
+                else:
+                    prop_name = str(p)
+                    props[prop_name][label_mapping[s]] = str(o)
 
         # Combine sources and targets to extract relationships
         for k, v in sources.items():
