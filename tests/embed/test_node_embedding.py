@@ -146,10 +146,10 @@ def test_stellar_node_embedder(node_embedding_test_graph,
         batch_size=4, embedding_dimension=5, clusters=4, clusters_q=2)
     embeddings = embedder.fit_model(
         node_embedding_test_graph)
-    assert(len(embedding["embedding"].iloc[0]) == 5)
+    assert(len(embeddings["embedding"].iloc[0]) == 5)
     assert(
         set(node_embedding_test_graph.nodes()) ==
-        set(embedding.index))
+        set(embeddings.index))
     embeddings = embedder.predict_embeddings(
         node_embedding_prediction_test_graph)
     assert(len(embeddings) == 4)

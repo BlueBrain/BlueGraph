@@ -21,32 +21,24 @@ import shutil
 import re
 import time
 
-# import jwt
-
 from flask import Flask, request
 
 from kgforge.core import KnowledgeGraphForge
-# from kgforge.specializations.resources import Dataset
 
+from bluegraph import PandasPGFrame
 from bluegraph.downstream import EmbeddingPipeline
 from bluegraph.core import GraphElementEmbedder
 
 
-# def _retrieve_token(request):
-#     """Retrieve token from the request header."""
-#     auth_string = request.headers.get('Authorization')
-#     try:
-#         match = re.match("Bearer (.+)", auth_string)
-#     except TypeError:
-#         raise ValueError("Invalid token or empty")
-#     if not match:
-#         return (
-#             json.dumps({'success': False}),
-#             403,
-#             {'ContentType': 'application/json'}
-#         )
-
-#     return match.groups()[0]
+def _retrieve_token(request):
+    """Retrieve NEXUS token from the request header."""
+    auth_string = request.headers.get('Authorization')
+    try:
+        match = re.match("Bearer (.+)", auth_string)
+    except TypeError:
+        match = None
+    if match:
+        return match.groups()[0]
 
 
 def digest_model_data(model_resource):
@@ -148,99 +140,7 @@ except KeyError:
 app.models = {}
 _retrieve_models()
 
-
-# def retrieve_model_resource(forge, model_name, download=False):
-#     """Retrieve model resource by its name."""
-#     query = f"""
-#         SELECT ?id
-#         WHERE {{
-#             ?id a EmbeddingModel;
-#                 name "{model_name}";
-#                 <https://bluebrain.github.io/nexus/vocabulary/deprecated> false.
-#         }}
-#     """
-#     resources = forge.sparql(query, limit=1)
-#     if resources and len(resources) > 0:
-#         resource = forge.retrieve(resources[0].id)
-#         if download:
-#             forge.download(resource, "contentUrl", app.config["DOWNLOAD_DIR"])
-
-
-# def retrieve_all_model_resources(forge):
-#     """Retrieve all models from the catalog."""
-#     query = """
-#         SELECT ?id
-#         WHERE {
-#             ?id a EmbeddingModel;
-#                 <https://bluebrain.github.io/nexus/vocabulary/deprecated> false.
-#         }
-#     """
-#     resources = forge.sparql(query, limit=1000)
-#     return [
-#         forge.retrieve(r.id) for r in resources
-#     ]
-
-
-# def get_existing_models(forge):
-#     """Get all the existing models."""
-#     model_resources = retrieve_all_model_resources(forge)
-#     models = [
-#         digest_model_data(resource)
-#         for resource in model_resources
-#     ]
-#     return models
-
-
-# def deprecate_resource(forge, resource):
-#     """Deprecate the resource together with its distribution."""
-#     base = resource.id.rsplit('/', 1)[0]
-#     file_id = resource.distribution.contentUrl.rsplit('/', 1)[1]
-#     file = forge.retrieve(f"{base}/{file_id}")
-
-#     forge.deprecate(resource)
-#     forge.deprecate(file)
-
-
-# def clear_catalogue(forge):
-#     """Remove all the existing models."""
-#     model_resources = retrieve_all_model_resources(forge)
-#     for resource in model_resources:
-#         deprecate_resource(forge, resource)
-
-
-# def post_model(forge, agent, name, description, distribution):
-#     # Try retreiving model resource
-#     model_resource = retrieve_model_resource(forge, name)
-#     if model_resource:
-#         # Update an existing model
-#         if description:
-#             model_resource.description = description
-#         if distribution:
-#             model_resource.distribution = forge.attach(
-#                 distribution, content_type="application/octet-stream")
-#         forge.update(model_resource)
-#     else:
-#         # Create a new model resource
-#         model_resource = Dataset(
-#             forge,
-#             name=name,
-#             description=description)
-#         model_resource.type = ["Dataset", "EmbeddingModel"]
-#         # Add distrubution
-#         model_resource.add_distribution(
-#             distribution, content_type="application/octet-stream")
-#         # Add contribution
-#         model_resource.add_contribution(agent, versioned=False)
-#         model_resource.contribution.hadRole = "Engineer"
-
-#         forge.register(model_resource)
-#     return (
-#         json.dumps({
-#             "success": True
-#         }), 200,
-#         {'ContentType': 'application/json'}
-#     )
-
+# --------------- Handlers ----------------
 
 def _respond_success():
     return (
@@ -273,17 +173,43 @@ def _respond_not_allowed(message=None):
     )
 
 
-def _preprocess_data(data, data_type):
+def _preprocess_data(data, data_type, auth=None):
+    """Preprocess input data according to the specified type.
+
+    Possoble data types are:
+
+    - "raw" use data as is provided in the request
+    - "json_pgframe" create a PandasPGFrame from the provided JSON repr
+    - "nexus_dataset" download a JSON dataset from Nexus and
+      create a PandasPGFrame from this representation
+    # - collection of Nexus resources to build a PG from
+    # - (then i guess we need a bucket/org/project/token)
+    """
     if data_type == "raw":
         # Use passed data as is
         return data
+    elif data_type == "json_pgframe":
+        return PandasPGFrame.from_json(data)
+    elif data_type == "nexus_dataset":
+        if auth is None:
+            raise ValueError(
+                "To use Nexus-hosted property graph as the dataset "
+                "authentication token should be provided in the "
+                "request header")
+        forge = KnowledgeGraphForge(
+            app.config["FORGE_CONFIG"], endpoint=data["endpoint"],
+            bucket=data["bucket"], token=auth)
+        resource = forge.retrieve(data["resource_id"])
+        forge.download(
+            resource, "distribution.contentUrl",
+            app.config["DOWNLOAD_DIR"])
+        downloaded_file = os.path.join(
+            app.config["DOWNLOAD_DIR"], resource.distribution.name)
+        graph = PandasPGFrame.load_json(downloaded_file)
+        os.remove(downloaded_file)
+        return graph
     else:
-        # Here possoble data types are
-        # - "raw_labeled" of a form ["label", "raw_data"]
-        # - resource PG id to download from Nexus
-        # - collection of Nexus resources to build a PG from
-        # - (then i guess we need a bucket/org/project/token)
-        pass
+        raise ValueError("Unknown data type")
 
 
 @app.route("/model/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
@@ -320,11 +246,14 @@ def handle_embeddings_request(model_name):
             indices = params["resource_ids"]
             embeddings = pipeline.retrieve_embeddings(indices)
             return (
-                json.dumps({"embeddings": dict(zip(indices, embeddings))}), 200,
+                json.dumps({
+                    "embeddings": dict(zip(indices, embeddings))
+                }), 200,
                 {'ContentType': 'application/json'}
             )
         else:
             if pipeline.is_inductive():
+                auth_token = _retrieve_token(request)
                 content = request.get_json()
                 data = content["data"]
                 data_type = (
@@ -339,11 +268,15 @@ def handle_embeddings_request(model_name):
                     content["embedder_kwargs"]
                     if "embedder_kwargs" in content else None
                 )
-                _preprocess_data(data, data_type)
+                data = _preprocess_data(data, data_type, auth_token)
                 vectors = pipeline.run_prediction(
                     data, preprocessor_kwargs, embedder_kwargs)
+
+                if not isinstance(vectors, list):
+                    vectors = vectors.tolist()
+
                 return (
-                    json.dumps({"vectors": vectors.tolist()}), 200,
+                    json.dumps({"embeddings": vectors}), 200,
                     {'ContentType': 'application/json'}
                 )
             else:
