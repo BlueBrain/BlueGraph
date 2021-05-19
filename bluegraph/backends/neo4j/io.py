@@ -487,6 +487,8 @@ class Neo4jGraphProcessor(GraphProcessor):
         """Get a node/edge induced subgraph."""
         return Neo4jGraphView(
             self.driver, self.node_label, self.edge_label,
+            nodes_to_include=nodes_to_include,
+            edges_to_include=edges_to_include,
             nodes_to_exclude=nodes_to_exclude,
             edges_to_exclude=edges_to_exclude,
             directed=self.directed)
@@ -507,11 +509,16 @@ class Neo4jGraphView(object):
     TODO: make methods public
     """
     def __init__(self, driver, node_label,
-                 edge_label, nodes_to_exclude=None,
-                 edges_to_exclude=None, directed=True):
+                 edge_label,
+                 nodes_to_include=None, edges_to_include=None,
+                 nodes_to_exclude=None, edges_to_exclude=None,
+                 directed=True):
+        """Initialize an instance of Neo4jGraphView."""
         self.driver = driver
         self.node_label = node_label
         self.edge_label = edge_label
+        self.nodes_to_include = nodes_to_include
+        self.edges_to_include = edges_to_include
         self.nodes_to_exclude = nodes_to_exclude if nodes_to_exclude else []
         self.edges_to_exclude = edges_to_exclude if edges_to_exclude else []
         self.directed = directed

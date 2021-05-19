@@ -220,12 +220,14 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
         embedding_model = Model(inputs=x_inp_src, outputs=x_out_src)
         return embedding_model
 
-    def _predict_embeddings(self, graph):
+    def _predict_embeddings(self, graph, nodes=None):
+        if nodes is None:
+            nodes = graph.nodes()
         node_generator = _dispatch_generator(
-            graph, self.model_name, self.params).flow(graph.nodes())
+            graph, self.model_name, self.params).flow(nodes)
 
         node_embeddings = self._embedding_model.predict(node_generator)
-        res = dict(zip(graph.nodes(), node_embeddings.tolist()))
+        res = dict(zip(nodes, node_embeddings.tolist()))
         return res
 
     @staticmethod

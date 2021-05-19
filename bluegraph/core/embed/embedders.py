@@ -61,7 +61,7 @@ class GraphElementEmbedder(ABC):
         pass
 
     @abstractmethod
-    def _predict_embeddings(self, graph):
+    def _predict_embeddings(self, graph, nodes=None):
         pass
 
     @staticmethod
@@ -159,16 +159,17 @@ class GraphElementEmbedder(ABC):
             embeddings = embeddings.set_index("@id")
         return embeddings
 
-    def predict_embeddings(self, pgframe):
+    def predict_embeddings(self, pgframe, nodes=None):
         """Predict embeddings of out-sample elements."""
+        if nodes is None:
+            nodes = pgframe.nodes()
         if self._embedding_model is None:
             raise ElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
-        input_graph = self._generate_graph(
-            pgframe, self.graph_configs)
+        input_graph = self._generate_graph(pgframe, self.graph_configs)
 
-        node_embeddings = self._predict_embeddings(input_graph)
+        node_embeddings = self._predict_embeddings(input_graph, nodes=nodes)
         node_embeddings = pd.DataFrame(
             node_embeddings.items(), columns=["@id", "embedding"])
         node_embeddings = node_embeddings.set_index("@id")

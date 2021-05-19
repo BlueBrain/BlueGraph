@@ -206,7 +206,7 @@ class Neo4jNodeEmbedder(GraphElementEmbedder):
         train_graph.execute(train_query)
         return model_id
 
-    def _predict_embeddings(self, graph,
+    def _predict_embeddings(self, graph, nodes=None,
                             write=False, write_property=None):
         node_edge_selector = graph.get_projection_query(
             self.graph_configs["edge_weight"],
