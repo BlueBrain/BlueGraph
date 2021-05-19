@@ -20,6 +20,9 @@ import pickle
 import faiss
 import os
 
+from bluegraph.exceptions import BlueGraphException
+
+
 # This is to avoid a wierd Faiss segmentation fault (TODO: investigate)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -113,8 +116,14 @@ class SimilarityProcessor(object):
 
     def get_vectors(self, existing_indices):
         if self.index is not None:
-            existing_indices = self.index.get_indexer(existing_indices)
-        x = [self._model.reconstruct(int(i)) for i in existing_indices]
+            int_idices = self.index.get_indexer(existing_indices)
+        try:
+            x = [self._model.reconstruct(int(i)) for i in int_idices]
+        except RuntimeError:
+            raise SimilarityProcessor.SimilarityException(
+                "Cannot retrieve vectors for provided elements {} ".format(
+                    existing_indices) +
+                "make sure all the elements are in the index.")
         return x
 
     def query_existing(self, existing_indices, k=10):
@@ -161,16 +170,16 @@ class SimilarityProcessor(object):
             indices = int_index
         return indices, distance
 
-    class TrainException(Exception):
+    class TrainException(BlueGraphException):
         pass
 
-    class SimilarityException(Exception):
+    class SimilarityException(BlueGraphException):
         pass
 
-    class IndexException(Exception):
+    class IndexException(BlueGraphException):
         pass
 
-    class QueryException(Exception):
+    class QueryException(BlueGraphException):
         pass
 
 
