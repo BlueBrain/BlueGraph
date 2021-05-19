@@ -15,6 +15,7 @@
 #    limitations under the License.
 """Collection of data structures for representing property graphs as data frames."""
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
 import json
 import numpy as np
@@ -22,10 +23,34 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
+import rdflib
+from rdflib.term import URIRef
+
+
 from bluegraph.core.utils import (_aggregate_values,
                                   element_has_type,
                                   str_to_set)
 from bluegraph.exceptions import BlueGraphException
+
+
+# Default maps of ontology predicates (for `from_ontology`)
+DEFAULT_PREDICATE_MAP = {
+    "label": "http://www.w3.org/2000/01/rdf-schema#label",
+    "subclass": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
+    "on_property": "http://www.w3.org/2002/07/owl#onProperty",
+    "values_from": "http://www.w3.org/2002/07/owl#someValuesFrom",
+    "definition": "http://www.w3.org/2004/02/skos/core#definition",
+    "is_defined_by": "http://www.w3.org/2000/01/rdf-schema#isDefinedBy",
+}
+
+IGNORE = [
+    URIRef(uri) for uri in [
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        "http://www.w3.org/2000/01/rdf-schema#range",
+        "http://www.w3.org/2000/01/rdf-schema#domain",
+        "http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
+    ]
+]
 
 
 class PGFrame(ABC):
@@ -226,6 +251,16 @@ class PGFrame(ABC):
     @abstractmethod
     def copy(self):
         """Copy the PGFrame."""
+        pass
+
+    @abstractmethod
+    def rename_node_properties(self, mapping):
+        """Rename node properties."""
+        pass
+
+    @abstractmethod
+    def rename_edge_properties(self, mapping):
+        """Rename edge properties."""
         pass
 
     # -------------------- Concrete methods --------------------
@@ -751,6 +786,7 @@ class PandasPGFrame(PGFrame):
         self._edges = self._edges.drop(columns=[prop_column])
 
     def remove_nodes(self, nodes_to_remove):
+        """Remove nodes from the graph."""
         # Remove nodes
         self._nodes = self._nodes.loc[
             ~self._nodes.index.isin(nodes_to_remove)]
@@ -760,6 +796,7 @@ class PandasPGFrame(PGFrame):
                 lambda x: x[0] in nodes_to_remove or x[1] in nodes_to_remove)])
 
     def remove_edges(self, edges_to_remove):
+        """Remove edges from the graph."""
         self._edges = self._edges.loc[
             ~self._edges.index.isin(edges_to_remove)]
 
@@ -779,9 +816,11 @@ class PandasPGFrame(PGFrame):
         return is_string_dtype(frame[prop])
 
     def has_node_types(self):
+        """Return flag indicating if nodes are typed."""
         return "@type" in self._nodes.columns
 
     def has_edge_types(self):
+        """Return flag indicating if edges are typed."""
         return "@type" in self._edges.columns
 
     def node_types(self, flatten=False):
@@ -845,7 +884,7 @@ class PandasPGFrame(PGFrame):
             if filter_props:
                 df = df.filter(
                     items=[c for c in df.columns if filter_props(c)],
-                    axis=1) 
+                    axis=1)
             if include_index:
                 df = df.reset_index()
             if rename_cols:
@@ -984,6 +1023,7 @@ class PandasPGFrame(PGFrame):
 
     def to_triples(self, predicate_prop="@type", include_type=True,
                    include_literals=True):
+        """Generate triples from the PGframe."""
         triple_sets = []
 
         # create triples from edges
@@ -1002,12 +1042,15 @@ class PandasPGFrame(PGFrame):
         return np.concatenate(triple_sets)
 
     def filter_nodes(self, nodes):
+        """Get nodes included in the input list."""
         return self._nodes[self._nodes.index.isin(nodes)]
 
     def filter_edges(self, edges):
+        """Get edges included in the input list."""
         return self._edges[self._edges.index.isin(edges)]
 
     def subgraph(self, nodes=None, edges=None, remove_isolated_nodes=False):
+        """Get a subgraph induced by input nodes and edges."""
         if nodes is not None:
             # construct the node-induced subgraph
             if edges is None:
@@ -1049,6 +1092,7 @@ class PandasPGFrame(PGFrame):
     @classmethod
     def from_frames(cls, nodes, edges,
                     node_prop_types=None, edge_prop_types=None):
+        """Initialize from node/edge dataframes."""
         graph = cls()
         graph._nodes = nodes.copy()
         graph._edges = edges.copy()
@@ -1071,6 +1115,7 @@ class PandasPGFrame(PGFrame):
         return self._edges.index.get_level_values(1).unique()
 
     def isolated_nodes(self):
+        """Get nodes without any incident edges."""
         nodes = self.nodes()
         sources = self._edge_sources()
         targets = self._edge_targets()
@@ -1081,11 +1126,13 @@ class PandasPGFrame(PGFrame):
         return isolates
 
     def remove_isolated_nodes(self):
+        """Remove nodes without any incident edges."""
         isolates = self.isolated_nodes()
         # Remove nodes
         self._nodes = self._nodes.loc[~self._nodes.index.isin(isolates)]
 
     def to_json(self):
+        """Covert to a JSON dictionary."""
         nodes_json = self._nodes.reset_index().to_dict(
             orient="records")
         edges_json = self._edges.reset_index().to_dict(
@@ -1099,6 +1146,7 @@ class PandasPGFrame(PGFrame):
 
     @classmethod
     def from_json(cls, json_data):
+        """Load from a JSON dictionary."""
         frame = cls()
         frame._nodes = pd.DataFrame(json_data["nodes"]).set_index("@id")
         if len(json_data["edges"]) > 0:
@@ -1112,15 +1160,111 @@ class PandasPGFrame(PGFrame):
         return frame
 
     def export_json(self, path):
+        """Export to a JSON file."""
         data = self.to_json()
         with open(path, "w") as f:
             json.dump(data, f)
 
     @classmethod
     def load_json(cls, path):
+        """Load from a JSON file."""
         with open(path, "r") as f:
             data = json.load(f)
             return PandasPGFrame.from_json(data)
+
+    def rename_node_properties(self, mapping):
+        """Rename node properties."""
+        self._nodes = self._nodes.rename(columns=mapping)
+        new_typing = {
+            v: self._node_prop_types[k]
+            for k, v in mapping.items()
+            if k in self._node_prop_types
+        }
+        for k in mapping:
+            if k in self._node_prop_types:
+                del self._node_prop_types[k]
+        self._node_prop_types.update(new_typing)
+
+    def rename_edge_properties(self, mapping):
+        """Rename edge properties."""
+        self._edges = self._edges.rename(columns=mapping)
+        new_typing = {
+            v: self._edge_prop_types[k]
+            for k, v in mapping.items()
+            if k in self._edge_prop_types
+        }
+        for k in mapping:
+            if k in self._edge_prop_types:
+                del self._edge_prop_types[k]
+        self._edge_prop_types.update(new_typing)
+
+    @classmethod
+    def from_ontology(cls, filepath, format="turtle",
+                      predicate_map=DEFAULT_PREDICATE_MAP,
+                      predicates_to_ignore=IGNORE):
+        """Create a PandasPGFrame from ontology."""
+        predicates_to_ignore = [
+            URIRef(uri) for uri in predicates_to_ignore + [
+                predicate_map["label"]]
+        ]
+
+        g = rdflib.Graph()
+        g.parse(filepath, format=format)
+
+        # Extract class labels
+        label_mapping = {}
+        for (s, p, o) in g.triples(
+                (None, URIRef(predicate_map["label"]), None)):
+            label_mapping[s] = str(o)
+
+        nodes = set()
+        edges = {}
+        props = defaultdict(dict)
+
+        sources = defaultdict(set)
+        relationship_labels = {}
+        targets = defaultdict(set)
+        for (s, p, o) in g.triples((None, None, None)):
+            if p.eq(URIRef(predicate_map["subclass"])):
+                nodes.add(label_mapping[s])
+                if o in label_mapping:
+                    edges[(label_mapping[s], label_mapping[o])] = {"IS_A"}
+                    nodes.add(label_mapping[o])
+                else:
+                    sources[s].add(o)
+            elif p.eq(URIRef(predicate_map["on_property"])):
+                relationship_labels[s] = o
+            elif p.eq(URIRef(predicate_map["values_from"])):
+                targets[s].add(o)
+            elif p not in predicates_to_ignore:
+                # Extract other props as is
+                prop_name = str(p)
+                props[prop_name][label_mapping[s]] = str(o)
+
+        # Combine sources and targets to extract relationships
+        for k, v in sources.items():
+            for vv in v:
+                source = label_mapping[k]
+                for t in targets[vv]:
+                    target = label_mapping[t]
+                    if (source, target) in edges:
+                        edges[(source, target)].add(
+                            label_mapping[relationship_labels[vv]])
+                    else:
+                        edges[(source, target)] = {
+                            label_mapping[relationship_labels[vv]]
+                        }
+
+        # Create a PGFrame
+        graph = cls(nodes=list(nodes), edges=list(edges.keys()))
+        graph.add_edge_types(edges)
+
+        # Add node props
+        for k, v in props.items():
+            graph.add_node_properties(
+                pd.DataFrame(v.items(), columns=["@id", k])
+            )
+        return graph
 
 
 class SparkPGFrame(PGFrame):

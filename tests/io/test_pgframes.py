@@ -81,7 +81,9 @@ def test_pandas_modification():
         {"@id": "a", "name": "C"}
     ], prop_type="category")
     assert(set(frame.node_properties()) == {"name"})
-    frame.remove_node_properties("name")
+    frame.rename_node_properties({"name": "naame"})
+    assert(set(frame.node_properties()) == {"naame"})
+    frame.remove_node_properties("naame")
     assert(set(frame.node_properties()) == set())
 
     frame.add_edge_properties([
@@ -90,7 +92,9 @@ def test_pandas_modification():
         {"@source_id": "c", "@target_id": "a", "name": "Z"},
     ], prop_type="category")
     assert(set(frame.edge_properties()) == {"name"})
-    frame.remove_edge_properties("name")
+    frame.rename_edge_properties({"name": "naame"})
+    assert(set(frame.edge_properties()) == {"naame"})
+    frame.remove_edge_properties("naame")
     assert(set(frame.edge_properties()) == set())
 
     assert(frame.has_node_types() is False)
@@ -153,7 +157,21 @@ def test_pandas_getters(random_pgframe):
 
 
 def test_neo4j_io(random_pgframe, neo4j_driver):
-    pgframe_to_neo4j(
+    # Add random node and edge types
+    types = ["Apple", "Orange", "Carrot"]
+    node_types = {
+        n: np.random.choice(types, p=[0.5, 0.4, 0.1])
+        for n in random_pgframe.nodes()
+    }
+    random_pgframe.add_node_types(node_types)
+    edge_types = ["isFriend", "isEnemy", {"isFriend", "isEnemy"}]
+    edge_types = {
+        e: np.random.choice(edge_types, p=[0.3, 0.3, 0.4])
+        for e in random_pgframe.edges()
+    }
+    random_pgframe.add_edge_types(edge_types)
+
+    view = pgframe_to_neo4j(
         random_pgframe, driver=neo4j_driver,
         node_label="TestIONode", edge_label="TestIOEdge")
     frame = neo4j_to_pgframe(
@@ -161,6 +179,24 @@ def test_neo4j_io(random_pgframe, neo4j_driver):
         node_label="TestIONode", edge_label="TestIOEdge")
     assert(frame.number_of_nodes() == random_pgframe.number_of_nodes())
     assert(frame.number_of_edges() == random_pgframe.number_of_edges())
+
+    view._clear()
+    pgframe_to_neo4j(
+        random_pgframe, driver=neo4j_driver,
+        node_types_as_labels=True,
+        edge_types_as_labels=True)
+
+    view._clear()
+    pgframe_to_neo4j(
+        random_pgframe, driver=neo4j_driver,
+        node_types_as_labels=True,
+        edge_types_as_labels=True)
+
+
+def test_from_ontology():
+    frame = PandasPGFrame.from_ontology(
+        "tests/test_ontology.ttl")
+    print(frame)
 
 
 def test_stellargraph_io(random_pgframe):
