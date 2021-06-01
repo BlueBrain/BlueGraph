@@ -25,6 +25,8 @@ import pandas as pd
 import pytest
 
 import nltk
+import random
+from nltk.corpus import words
 
 
 # Download nltk corpora used in tests
@@ -230,3 +232,20 @@ def community_test_graph():
     frame.add_edge_properties(edge_weight, prop_type="numeric")
 
     return frame
+
+
+@pytest.fixture(scope="session")
+def random_text_corpus():
+    corpus = pd.DataFrame(
+        [
+            (i, ' '.join(random.sample(words.words(), 20)))
+            for i in range(100)
+        ],
+        columns=["@id", "desc"]
+    )
+    return corpus
+
+@pytest.fixture(scope="session")
+def random_words():
+    corpus = list(random.sample(words.words(), 700))
+    return corpus

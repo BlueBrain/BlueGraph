@@ -1,19 +1,16 @@
-from bluegraph.preprocess.utils import Word2VecModel
+from bluegraph.preprocess.utils import Doc2VecEncoder, TfIdfEncoder
 import pandas as pd
-import random
-
-from nltk.corpus import words
 
 
-def test_word2vec():
-    corpus = pd.DataFrame(
-        [
-            (i, ' '.join(random.sample(words.words(), 20)))
-            for i in range(100)
-        ],
-        columns=["@id", "desc"]
-    )
-    # size=64, window=6, min_count=1, workers=4
-    encoder = Word2VecModel(size=10, window=5)
-    encoder.fit(corpus)
-    encoder.transform(corpus)
+def test_tfidf(random_text_corpus):
+    encoder = TfIdfEncoder({"max_features": 100})
+    encoder.fit(random_text_corpus)
+    encoder.transform(random_text_corpus)
+    encoder.info()
+
+
+def test_word2vec(random_text_corpus):
+    encoder = Doc2VecEncoder(size=10, window=5)
+    encoder.fit(random_text_corpus)
+    encoder.transform(random_text_corpus)
+    encoder.info()

@@ -14,58 +14,42 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# 1. Build an intermediate image which fetches BlueGraph from its private repo
+# ----------------------------------------------------------------------
+# 1. Build an intermediate image which installs dependencies using conda
 FROM continuumio/miniconda3 as intermediate
 
-# Here we need to install BlueGraph from the private repo, so we
-# need to safely copy our private key to the image
-
-# Copy
-
 COPY ./services/embedder/environment.yml .
+COPY ./requirements.txt .
 
-
-# Install the package as normal:
 RUN conda env create -f environment.yml
 SHELL ["conda", "run", "-n", "embedder", "/bin/bash", "-c"]
-RUN conda install -c conda-forge conda-pack && conda install -c pytorch faiss-gpu
-
-
-# Use conda-pack to create a standalone enviornment
-# in /venv:
 RUN conda-pack -n embedder -o /tmp/env.tar && \
-  mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
-  rm /tmp/env.tar
+    mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
+    rm /tmp/env.tar
 
-# We've put venv in same path it'll be in final image,
-# so now fix up paths:
 RUN /venv/bin/conda-unpack
 
-# ----------------------------------------------------------------
-# 2. Build the final image which installs all the requirements and
+# ----------------------------------------------------------------------
+# 2. Build the final image which installs all the remaining requirements and
 # configures / exposes the Flask app
 
 # What is the best base image? 
-FROM python:3.6
-# FROM python:3.6.5-alpine
+FROM python:3.7
 
-# copy the python packages from the intermediate image
-COPY --from=intermediate /venv /venv
-
-# Sets the working directory for following COPY and CMD instructions
-# Notice we haven’t created a directory by this name - this instruction 
-# creates a directory with this name if it doesn’t exist
 WORKDIR /app
 
-COPY ./services/embedder /app
-ADD ./bluegraph ./bluegraph
-COPY ./setup.py .
-COPY ./requirements.txt .
+COPY --from=intermediate /venv /venv
+ADD . /app
+# RUN chgrp root /app
+# RUN chown -R embedder_user:root /app && usermod -d /app embedder_user
+RUN chmod -R 777 services/embedder/downloads/
+
 # The EXPOSE instruction indicates the ports on which a container 
 # will listen for connections
 # Since Flask apps listen to port 5000  by default, we expose it
 EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
-RUN source /venv/bin/activate && pip install -r requirements.txt && pip install --no-cache-dir .[stellargraph]
-ENTRYPOINT source /venv/bin/activate && flask run --host=0.0.0.0
+RUN source /venv/bin/activate && \
+ 	pip install --no-cache-dir .[stellargraph]
+ENTRYPOINT source /venv/bin/activate && cd services/embedder && flask run --host=0.0.0.0

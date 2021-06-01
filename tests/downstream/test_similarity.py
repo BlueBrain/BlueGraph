@@ -13,7 +13,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-
+import pytest
 import numpy as np
 
 from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
@@ -21,7 +21,8 @@ from bluegraph.downstream.similarity import (SimilarityProcessor,
                                              NodeSimilarityProcessor)
 
 
-def test_faiss_similarity():
+
+def test_faiss_similarity_values():
     a = [5, 0]
     b = [0, 5]
     c = [3, 2]
@@ -70,20 +71,105 @@ def test_faiss_similarity():
     assert(list(ind[1]) == ["b", "c", "d", "a"])
     assert(dist[1][0] == 25.0)
 
-    # N = 10000
-    # n_segments = 100
-    # vectors = np.random.rand(N, 2)
-    # vectors = np.array(vectors).astype(np.float32)
 
-    # sim = SimilarityProcessor(
-    #     dimension=2,
-    #     similarity="euclidean",
-    #     initial_vectors=vectors,
-    #     initial_index=[
-    #         f"element{ n + 1 }" for n in range(N)],
-    #     n_segments=n_segments)
-    # ind, dist = sim.get_similar_points(
-    #     existing_indices=["element4", "element5"], k=4)
+def test_plain_faiss_similarity():
+    a = [5, 0]
+    b = [0, 5]
+    c = [3, 2]
+    d = [5, 0.5]
+
+    initial_vectors = np.array([a, b, c, d])
+
+    initial_index = ["a", "b", "c", "d"]
+
+    sim = SimilarityProcessor(
+        dimension=2,
+        similarity="euclidean",
+        initial_vectors=initial_vectors,
+        initial_index=initial_index)
+
+    # Test the interface
+    sim.info()
+    vectors = sim.get_vectors(["a", "b"])
+    assert(len(vectors) == 2)
+    sim.query_existing(existing_indices=["a", "b"])
+    sim.query_new(vectors=[[0, 0], [1, 1]])
+    sim.add(vectors=[[0, 0], [1, 1]], vector_indices=["e", "f"])
+    assert("e" in sim.index and "f" in sim.index)
+
+    with pytest.raises(SimilarityProcessor.SimilarityException):
+        sim.get_similar_points(
+            vectors=[[0.1, 1], [0.7, 0.25]],
+            # vector_indices=None,
+            k=10, add_to_index=True)
+
+    sim.get_similar_points(
+        vectors=[[0.1, 1], [0.7, 0.25]],
+        vector_indices=["g", "h"],
+        k=10, add_to_index=True)
+    assert("g" in sim.index and "h" in sim.index)
+
+    assert("not found" not in sim.index)
+    ind, dist = sim.get_similar_points(
+        existing_indices=["g", "not found", "h", "not found"])
+    assert(ind[1] is None)
+    assert(ind[3] is None)
+
+
+def test_segmented_faiss_similarity():
+    N = 10000
+    n_segments = 10
+    vectors = np.random.rand(N, 2)
+    vectors = np.array(vectors).astype(np.float32)
+
+    # Initial vectors specified
+    sim = SimilarityProcessor(
+        dimension=2,
+        similarity="euclidean",
+        initial_vectors=vectors,
+        initial_index=[
+            f"element{ n + 1 }" for n in range(N)],
+        n_segments=n_segments)
+    ind, dist = sim.get_similar_points(
+        existing_indices=["element4", "element5"], k=4)
+
+    # Initial vectors not specified
+    sim = SimilarityProcessor(
+        dimension=2,
+        similarity="euclidean",
+        # initial_vectors=vectors,
+        # initial_index=[
+        #     f"element{ n + 1 }" for n in range(N)],
+        n_segments=n_segments)
+    sim.add(
+        vectors=vectors,
+        vector_indices=[f"element{ n + 1 }" for n in range(N)])
+
+    # Test the interface
+    sim.info()
+    vectors = sim.get_vectors(["element1", "element2"])
+    assert(len(vectors) == 2)
+    sim.query_existing(existing_indices=["element1", "element2"])
+    sim.query_new(vectors=[[0, 0], [1, 1]])
+
+    sim.add(vectors=[[0, 0], [1, 1]], vector_indices=["new1", "new2"])
+    assert("new1" in sim.index and "new2" in sim.index)
+
+    with pytest.raises(SimilarityProcessor.SimilarityException):
+        sim.get_similar_points(
+            vectors=[[0.1, 1], [0.7, 0.25]],
+            # vector_indices=None,
+            k=10, add_to_index=True)
+
+    sim.get_similar_points(
+        vectors=[[0.1, 1], [0.7, 0.25]],
+        vector_indices=["g", "h"],
+        k=10, add_to_index=True)
+    assert("g" in sim.index and "h" in sim.index)
+    sim.export("test_sim_proc.pkl", "test_sim_proc.faiss")
+    el = SimilarityProcessor.load(
+        "test_sim_proc.pkl", "test_sim_proc.faiss")
+
 
 def test_node_similarity(random_pgframe):
     random_pgframe.rename_nodes({

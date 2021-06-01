@@ -20,13 +20,13 @@ import math
 import numpy as np
 import pandas as pd
 
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
 
-from .utils import (Word2VecModel,
+from .utils import (TfIdfEncoder,
+                    Doc2VecEncoder,
                     _get_encoder_type,
                     _generate_type_repr)
 from bluegraph.core.utils import normalize_to_set
@@ -364,7 +364,7 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         elif encoder_type == "text":
             column = frame[prop].copy()
             column[column.isna()] = " "
-            vectors = encoder.transform(column).todense()
+            vectors = encoder.transform(column)
         elif encoder_type == "numeric" and encoder is not None:
             vectors = encoder.transform(
                 np.reshape(frame[prop].to_list(), (frame[prop].shape[0], 1)))
@@ -398,8 +398,8 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         if encoder:
             if isinstance(encoder, MultiLabelBinarizer):
                 return "category"
-            elif isinstance(encoder, TfidfVectorizer) or\
-                    isinstance(encoder, Word2VecModel):
+            elif isinstance(encoder, TfIdfEncoder) or\
+                    isinstance(encoder, Doc2VecEncoder):
                 return "text"
             elif isinstance(encoder, StandardScaler) or\
                     isinstance(encoder, Pipeline):
@@ -416,18 +416,19 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
     @staticmethod
     def _fit_tfidf(series, transform=False, max_dim=None):
         corpus = series[series.apply(lambda x: isinstance(x, str))]
-        encoder = TfidfVectorizer(
-            sublinear_tf=True,
-            analyzer='word',
-            stop_words='english',
-            max_features=max_dim)
+        encoder = TfIdfEncoder({
+            "sublinear_tf": True,
+            "analyzer": 'word',
+            "stop_words": 'english',
+            "max_features": max_dim
+        })
         encoder.fit(corpus)
         return encoder
 
     @staticmethod
     def _fit_word2vec(series, transform=False):
         corpus = series[series.apply(lambda x: isinstance(x, str))]
-        encoder = Word2VecModel()
+        encoder = Doc2VecEncoder()
         encoder.fit(corpus)
         return encoder
 

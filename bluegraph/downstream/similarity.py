@@ -19,6 +19,10 @@ import pickle
 
 import faiss
 import os
+import warnings
+
+from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
+
 
 from bluegraph.exceptions import BlueGraphException
 
@@ -51,7 +55,7 @@ class SimilarityProcessor(object):
 
         self.index = pd.Index([])
 
-        self._model = self._initialize_model(initial_vectors)
+        self._initialize_model(initial_vectors)
 
         if initial_vectors is not None:
             self.add(initial_vectors, initial_index)
@@ -80,9 +84,13 @@ class SimilarityProcessor(object):
             return processor
 
     def _preprocess_vectors(self, vectors):
+        not_empty_flag = [
+            True if el is not None else False
+            for i, el in enumerate(vectors)
+        ]
         if isinstance(vectors, pd.Series):
             vectors = np.array(vectors.to_list())
-        elif not isinstance(vectors, np.ndarray):
+        else:
             vectors = np.array(vectors)
         vectors = vectors.astype(np.float32)
         if self.similarity == "cosine":
@@ -101,71 +109,129 @@ class SimilarityProcessor(object):
             model = faiss.IndexIVFFlat(
                 index, self.dimension, self.n_segments, metric)
 
-            if initial_vectors is None:
-                SimilarityProcessor.TrainException(
-                    "Initial vectors should be specified for "
-                    "Faiss segmented indexer "
-                )
-
-            initial_vectors = self._preprocess_vectors(initial_vectors)
-            model.train(initial_vectors)
-            model.make_direct_map()
+            if initial_vectors is not None:
+                initial_vectors = self._preprocess_vectors(initial_vectors)
+                model.train(initial_vectors)
+                model.make_direct_map()
         else:
             model = index
-        return model
+        self._model = model
 
     def get_vectors(self, existing_indices):
+        """Get vectors for passed point indices."""
         if self.index is not None:
-            int_idices = self.index.get_indexer(existing_indices)
-        try:
-            x = [self._model.reconstruct(int(i)) for i in int_idices]
-        except RuntimeError:
-            raise SimilarityProcessor.SimilarityException(
-                "Cannot retrieve vectors for provided elements {} ".format(
-                    existing_indices) +
-                "make sure all the elements are in the index.")
+            int_indices = self.index.get_indexer(existing_indices)
+        x = []
+        for i in int_indices:
+            if i == -1:
+                x.append(None)
+            else:
+                try:
+                    x.append(self._model.reconstruct(int(i)))
+                except RuntimeError:
+                    x.append(None)
         return x
 
     def query_existing(self, existing_indices, k=10):
+        """Query existing points."""
         return self.query_new(self.get_vectors(existing_indices), k)
 
     def query_new(self, vectors, k=10):
-        vectors = self._preprocess_vectors(vectors)
-        distance, int_index = self._model.search(vectors, k)
-        return distance, int_index
+        """Query input vectors."""
+        # Filter None vectors (for points that were not found
+        # in the index)
+        non_empty_flag = [
+            True if el is not None else False
+            for i, el in enumerate(vectors)
+        ]
+        non_empty_vectors = [
+            v for i, v in enumerate(vectors)
+            if non_empty_flag[i] is True
+        ]
+        if len(non_empty_vectors) > 0:
+            vectors = self._preprocess_vectors(non_empty_vectors)
+            distance, int_index = self._model.search(vectors, k)
+        else:
+            distance = []
+            int_index = []
+        # Bring back None vectors
+        all_distances = []
+        all_indices = []
+        non_empty_index = 0
+        for flag in non_empty_flag:
+            if flag is True:
+                all_distances.append(distance[non_empty_index])
+                all_indices.append(int_index[non_empty_index])
+                non_empty_index += 1
+            else:
+                all_distances.append(None)
+                all_indices.append(None)
+        return all_distances, all_indices
 
     def add(self, vectors, vector_indices=None):
+        """Add new points to the index."""
         vectors = self._preprocess_vectors(vectors)
-        if vector_indices is not None:
-            for i in vector_indices:
-                if i in self.index:
-                    raise SimilarityProcessor.IndexException(
-                        "Index '{}' already exists".format(i))
-            self.index = self.index.append(pd.Index(vector_indices))
+        if not self._model.is_trained:
+            warnings.warn(
+                "Similarity index is not trained, training on "
+                "the provided vectors",
+                SimilarityProcessor.SimilarityWarning)
 
+            self._model.train(vectors)
+            self._model.make_direct_map()
+            if vector_indices is not None:
+                self.index = self.index.append(pd.Index(vector_indices))
+        else:
+            if vector_indices is not None:
+                # Normalize to pandas index
+                vector_indices = pd.Index(vector_indices)
+                new_flag = [
+                    i not in self.index
+                    for i in vector_indices
+                ]
+                existing_indices = vector_indices[[
+                    not f for f in new_flag]]
+                if len(existing_indices) > 0:
+                    warnings.warn(
+                        "Points {} already exist in the index, ".format(
+                            existing_indices) +
+                        "ignoring...",
+                        SimilarityProcessor.SimilarityWarning)
+
+                # Add non-existing vectors
+                vectors = vectors[new_flag]
+                new_indices = vector_indices[new_flag]
+                self.index = self.index.append(pd.Index(new_indices))
         self._model.add(vectors)
 
     def get_similar_points(self, vectors=None, vector_indices=None,
                            existing_indices=None, k=10,
-                           add_to_index=False, new_point_index=None):
+                           add_to_index=False):
+        """Get top N similar points."""
         if existing_indices is not None:
             distance, int_index = self.query_existing(existing_indices, k)
-        else:
+        elif vectors is not None:
+            vectors = self._preprocess_vectors(vectors)
             if vectors.shape[1] != self.dimension:
                 raise SimilarityProcessor.QueryException(
                     "Provided vector does not have a "
                     f"right dimension ({self.dimension})")
             if add_to_index is True:
-                if new_point_index is None:
-                    raise ValueError(
+                if vector_indices is None:
+                    raise SimilarityProcessor.SimilarityException(
                         "Parameter 'add_to_index' is set to True, "
-                        "'new_point_index' must be specified")
+                        "'vector_indices' must be specified")
                 self.add(vectors, vector_indices)
             distance, int_index = self.query_new(vectors, k)
 
         # Get indices
         if self.index is not None:
-            indices = list(map(lambda x: self.index[x], int_index))
+            indices = [
+                (self.index[[x for x in el if x != -1]]
+                 if el is not None
+                 else None)
+                for el in int_index
+            ]
         else:
             indices = int_index
         return indices, distance
@@ -174,6 +240,9 @@ class SimilarityProcessor(object):
         pass
 
     class SimilarityException(BlueGraphException):
+        pass
+
+    class SimilarityWarning(BlueGraphWarning):
         pass
 
     class IndexException(BlueGraphException):
