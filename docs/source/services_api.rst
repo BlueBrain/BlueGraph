@@ -4,8 +4,8 @@ Services API
 This package contains a set of services distributed as a part of BlueGraph.
 
 
-Embedder
---------
+BlueBrainEmbedder
+-----------------
 
 Mini-service for retrieving embedding vectors and similarity computation. A detailed description of the API can be found `here <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/services/embedder/api.yaml>`_. An example can be found in the `Embedding service API <https://github.com/BlueBrain/BlueGraph/blob/bluegraph_design/services/embedder/examples/notebooks/Embedding%20service%20API.ipynb>`_ notebook. 
 
