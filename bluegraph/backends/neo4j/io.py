@@ -23,6 +23,7 @@ from neo4j import GraphDatabase
 
 from bluegraph.core.io import GraphProcessor, PandasPGFrame
 from bluegraph.core.utils import normalize_to_set
+from bluegraph.exceptions import (BlueGraphException, BlueGraphWarning)
 
 
 def execute(driver, query):
@@ -73,7 +74,8 @@ def _generate_property_repr(properties, prop_types=None):
                 # create a string property
                 quote = "'"
                 props.append("{}: {}{}{}".format(
-                    k, quote, preprocess_value(v), quote))
+                    k, quote,
+                    str(preprocess_value(v)).replace("'", "\\'"), quote))
             elif isinstance(v, Iterable):
                 # create a list property
                 for vv in v:
@@ -97,21 +99,32 @@ def labels_from_types(properties):
 
 
 def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
-                     driver=None, node_label=None, edge_label=None,
-                     directed=True, types_as_labels=False, batch_size=10000):
+                     driver=None, node_label=None, edge_label=None, directed=True,
+                     node_types_as_labels=False,
+                     edge_types_as_labels=False,
+                     batch_size=10000):
     """Write the property graph to the Neo4j databse."""
     if node_label is None:
-        if types_as_labels is False or not pgframe.has_node_types():
+        if node_types_as_labels is False or not pgframe.has_node_types():
             raise BlueGraphException(
                 "Cannot create a Neo4j graph without node labels: "
                 "node label is not provided "
-                "and 'types_as_labels' is either set to False "
+                "and 'node_types_as_labels' is either set to False "
                 "or the nodes do not have types")
 
     if edge_label is None:
-        raise BlueGraphException(
-            "Cannot create a Neo4j graph without edge labels: edge "
-            "label must be provided")
+        if edge_types_as_labels is False or not pgframe.has_edge_types():
+            raise BlueGraphException(
+                "Cannot create a Neo4j graph without edge labels: "
+                "edge label is not provided "
+                "and 'edge_types_as_labels' is either set to False "
+                "or the edges do not have types")
+    else:
+        if edge_types_as_labels is True and pgframe.has_edge_types():
+            warnings.warn(
+                "Edge types are used as Neo4j relationship types, "
+                "provided edge label will be ignored",
+                BlueGraphWarning)
 
     driver = generate_neo4j_driver(uri, username, password, driver)
 
@@ -120,6 +133,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
             driver, node_label, edge_label, directed=directed)
 
     # Create nodes
+
     # Split nodes into batches
     batches = np.array_split(
         pgframe._nodes.index, math.ceil(pgframe.number_of_nodes() / batch_size))
@@ -147,7 +161,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         """)
         execute(driver, query)
 
-    if types_as_labels:
+    # Add node types to the Neo4j node labels
+    if node_types_as_labels:
         with driver.session() as session:
             for index, properties in pgframe._nodes.to_dict("index").items():
                 labels = labels_from_types(properties)
@@ -158,41 +173,53 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                     )
 
     # Create edges
-    # Split edges into batches
-    batches = np.array_split(
-        pgframe._edges.index, math.ceil(pgframe.number_of_edges() / batch_size))
-    for batch in batches:
-        edge_batch = pgframe._edges.loc[batch]
-        edge_repr = []
-        for (s, t), properties in edge_batch.to_dict("index").items():
-            edge_dict = [
-                "source: '{}'".format(safe_node_id(s)),
-                "target: '{}'".format(safe_node_id(t))
-            ]
-            edge_props = []
-            for k, v in properties.items():
-                if k != "@type":
-                    quote = "'"
-                    if pgframe._edge_prop_types[k] == "numeric":
-                        quote = ""
-                    edge_props.append(
-                        f"{k}: {quote}{preprocess_value(v)}{quote}")
-            edge_dict.append("props: {{{}}}".format(
-                ', '.join(_generate_property_repr(
-                    properties, pgframe._edge_prop_types))))
-            edge_repr.append("{" + ", ".join(edge_dict) + "}")
+    custom_rel_types = edge_types_as_labels and pgframe.has_edge_types()
+    if custom_rel_types:
+        edge_labels = pgframe.edge_types(flatten=True)
+    else:
+        edge_labels = [edge_label]
 
-        query = (
-        f"""
-        WITH [{", ".join(edge_repr)}] AS batch
-        UNWIND batch as individual
-        MATCH (n {{id: individual["source"]}})
-        WITH individual, n
-        OPTIONAL MATCH (m {{id: individual["target"]}})
-        CREATE (n)-[r:{edge_label}]->(m)
-        SET r += individual["props"]
-        """)
-        execute(driver, query)
+    for edge_label in edge_labels:
+        # Select edges of a given type, if applicable
+        edges = pgframe.edges(
+            raw_frame=True,
+            typed_by=edge_label if custom_rel_types else None)
+
+        # Split edges into batches
+        batches = np.array_split(
+            edges.index, math.ceil(edges.index.shape[0] / batch_size))
+        for batch in batches:
+            edge_batch = edges.loc[batch]
+            edge_repr = []
+            for (s, t), properties in edge_batch.to_dict("index").items():
+                edge_dict = [
+                    "source: '{}'".format(safe_node_id(s)),
+                    "target: '{}'".format(safe_node_id(t))
+                ]
+                edge_props = []
+                for k, v in properties.items():
+                    if k != "@type":
+                        quote = "'"
+                        if pgframe._edge_prop_types[k] == "numeric":
+                            quote = ""
+                        edge_props.append(
+                            f"{k}: {quote}{preprocess_value(v)}{quote}")
+                edge_dict.append("props: {{{}}}".format(
+                    ', '.join(_generate_property_repr(
+                        properties, pgframe._edge_prop_types))))
+                edge_repr.append("{" + ", ".join(edge_dict) + "}")
+
+            query = (
+            f"""
+            WITH [{", ".join(edge_repr)}] AS batch
+            UNWIND batch as individual
+            MATCH (n {{id: individual["source"]}})
+            WITH individual, n
+            OPTIONAL MATCH (m {{id: individual["target"]}})
+            CREATE (n)-[r:{edge_label}]->(m)
+            SET r += individual["props"]
+            """)
+            execute(driver, query)
 
     return Neo4jGraphView(driver, node_label, edge_label, directed=directed)
 
