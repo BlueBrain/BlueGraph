@@ -129,16 +129,16 @@ app = Flask(__name__)
 app.config.from_pyfile('configs/app_config.py')
 
 
-try:
+if app.config["LOCAL"] is False:
     TOKEN = os.environ["NEXUS_TOKEN"]
     app.forge = KnowledgeGraphForge(
         app.config["FORGE_CONFIG"],
         token=TOKEN)
-except KeyError:
+else:
     app.forge = None
 
 app.models = {}
-_retrieve_models()
+_retrieve_models(app.config["LOCAL"])
 
 # --------------- Handlers ----------------
 
