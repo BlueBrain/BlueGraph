@@ -13,7 +13,9 @@ PGFrame
 
 Updates to the :code:`PGFrame` interface include:
 
-- Added methods :code:`rename_node_properties` and :code:`rename_edge_properties` for changing property names;
+- Added methods:
+	- :code:`rename_node_properties` and :code:`rename_edge_properties` for changing property names;
+	- :code:`add_nodes_from_df` and :code:`add_edges_from_df` for additing nodes and edges using dataframes.
 - Added the :code:`from_ontology` classmethod for importing (e.g. from Webprotege) ontologies as property graphs.
 - Property values that are added to existing properties are now aggregated into sets (and not replaced as it was before).
 
