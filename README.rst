@@ -100,6 +100,13 @@ BlueGraph supports Python versions >= 3.7 and pip >= 21.0.1. To update pip from 
   pip install --upgrade pip wheel setuptools
 
 
+The stable version of BlueGraph can be installed from PyPI using:
+
+::
+    
+   pip install bluegraph
+
+
 The development version of BlueGraph can be installed from the source by cloning the current repository as follows:
 
 ::
