@@ -1,0 +1,98 @@
+====================
+vO.1.2 Release Notes
+====================
+
+This release includes some major bug-fixes, several new features and API changes described below. 
+
+
+Blue Graph's core
+=================
+
+PGFrame
+-------
+
+Updates to the :code:`PGFrame` interface include:
+
+- Added methods:
+	- :code:`rename_node_properties` and :code:`rename_edge_properties` for changing property names;
+	- :code:`add_nodes_from_df` and :code:`add_edges_from_df` for additing nodes and edges using dataframes.
+- Added the :code:`from_ontology` classmethod for importing (e.g. from Webprotege) ontologies as property graphs.
+- Property values that are added to existing properties are now aggregated into sets (and not replaced as it was before).
+
+
+Backend support
+===============
+
+graph-tool
+----------
+
+Fix of a major bug occuring during node merging.
+
+
+Neo4j
+-----
+
+Several minor bugfixes of the Neo4j backend were included in this release. In additon, the interfaces of :code:`pgframe_to_neo4j` has changed:
+
+- :code:`NaN` properties are skipped;
+- Node types can be used as Neo4j node labels;
+- Edge types can be used as Neo4j edge relationship types: edges with multiple types result in multiple Neo4j relationships with respective types and their properties replicated (this behaviour is implemented due to the fact that Neo4j relationships can have exactly one relationship type).
+
+
+Graph preprocessing with BlueGraph
+==================================
+
+
+Semantic property encoding
+--------------------------
+
+Updates to the encoders:
+
+- :code:`Word2VecModel` is renamed to :code:`Doc2VecEncoder` and is inherited from :code:`bluegraph.downstream.Preprocessor`;
+- Wrapped scikit-learn's :code:`TfidfVectorizer` into :code:`TfIdfEncoder` inheriting :code:`bluegraph.downstream.Preprocessor`.
+
+The above-mentioned changes allow using the BlueGraph's encoders as a part of :code:`EmbeddingPipeline`).
+
+
+Downstream tasks with BlueGraph
+===============================
+
+
+Similarity API
+--------------
+
+Similarity processor updates:
+
+- Smarter handling of elements not existing in the index (when vectors or similar points are requested, :code:`None` is returned).
+- Segmented Faiss index can be initialized without vectors, the model can be trained on the first call to :code:`add`.
+
+
+
+Embedding pipelines
+--------------------
+
+Embedding pipeline updates:
+
+- Added basic prediction interface (the :code:`run_prediction` method);
+- Modified :code:`get_similar_points` to be able to query similarity for the unknown vectors;
+- Optimized embedding pipeline memory usage: embedding table is not stored explicitly, but is a part of Faiss index.
+
+
+Services
+========
+
+
+Embedder
+--------
+
+Embedder is a mini-service for retrieving embedding vectors and similar points distributed as a part of BlueGraph. A detailed description of the API can be found `here <https://github.com/BlueBrain/BlueGraph/blob/master/services/embedder/api.yaml>`_. Two examples can be found in the `Embedder API for NCIt term embedding <https://github.com/BlueBrain/BlueGraph/blob/master/services/embedder/examples/notebooks/Embedder%20API%20for%20NCIt%20term%20embedding.ipynb>`_ notebook and `Embedder API for node embedding <https://github.com/BlueBrain/BlueGraph/blob/master/services/embedder/examples/notebooks/Embedder%20API%20for%20node%20embedding.ipynb>`_. 
+
+This release includes the following updates to the service:
+
+- Embedder app can predict vectors for unseen points, the following formats can be passed on the input
+    * :code:`raw`: raw data as is
+    *  :code:`json_pgframe`: a JSON representation of a PGFrame
+    *  :code:`nexus_dataset`: endpoint, bucket, resource id and a Nexus token (in the request header), fetches the dataset by resource ID, downloads it and creates a PGFrame (dataset is a JSON representation of a PGFrame).
+- API changes: the POST method for :code:`embedding/` and :code:`similar-points/` operates on unseen points;
+- Dockerfile fix (smaller image size), dockerignore updates
+- Embedder app can fetch local models from the directory (specified in the configs).

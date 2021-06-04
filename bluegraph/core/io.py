@@ -654,13 +654,52 @@ class PandasPGFrame(PGFrame):
         new_df = new_df.set_index("@id")
         self._nodes = self._nodes.append(new_df)
 
+    def add_nodes_from_df(self, df, id_column, node_type=None,
+                          property_types=None):
+        """Add nodes from a dataframe."""
+        if property_types is None:
+            property_types = {}
+        new_nodes = df.rename(columns={id_column: "@id"}).set_index("@id")
+
+        if node_type:
+            new_nodes["@type"] = node_type
+        self._nodes = pd.concat([self._nodes, new_nodes])
+
+        for c in new_nodes.columns:
+            if c in property_types:
+                self._set_node_prop_type(c, property_types[c])
+            else:
+                self.node_prop_as_category(c)
+
     def add_edges(self, edges):
+        """Add edge ids to the PG frame."""
         sources = [e[0] for e in edges]
         targets = [e[1] for e in edges]
 
         new_df = pd.DataFrame({"@source_id": sources, "@target_id": targets})
         new_df = new_df.set_index(["@source_id", "@target_id"])
         self._edges = self._edges.append(new_df)
+
+    def add_edges_from_df(self, df, source_column, target_column,
+                          edge_type=None, property_types=None):
+        """Add edges from a dataframe."""
+        if property_types is None:
+            property_types = {}
+        new_edges = df.rename(
+            columns={
+                source_column: "@source_id",
+                target_column: "@target_id",
+            }).set_index(["@source_id", "@target_id"])
+
+        if edge_type:
+            new_edges["@type"] = edge_type
+        self._edges = pd.concat([self._edges, new_edges])
+
+        for c in new_edges.columns:
+            if c in property_types:
+                self._set_edge_prop_type(c, property_types[c])
+            else:
+                self.edge_prop_as_category(c)
 
     def add_node_types(self, type_dict):
         type_df = pd.DataFrame(
@@ -1131,12 +1170,30 @@ class PandasPGFrame(PGFrame):
         # Remove nodes
         self._nodes = self._nodes.loc[~self._nodes.index.isin(isolates)]
 
-    def to_json(self):
+    def to_json(self, node_id_key=None, node_type_key=None,
+                edge_id_keys=None, edge_type_key=None):
         """Covert to a JSON dictionary."""
-        nodes_json = self._nodes.reset_index().to_dict(
-            orient="records")
-        edges_json = self._edges.reset_index().to_dict(
-            orient="records")
+        nodes = self._nodes.reset_index()
+        if node_id_key is not None:
+            nodes = nodes.rename(columns={"@id": node_id_key})
+        if node_type_key is not None and "@type" in nodes.columns:
+            nodes = nodes.rename(columns={"@type": node_type_key})
+        nodes_json = [
+            r.dropna().to_dict() for _, r in nodes.iterrows()
+        ]
+
+        edges = self._edges.reset_index()
+        if edge_id_keys is not None:
+            edges = edges.rename(columns={
+                "@source_id": edge_id_keys[0],
+                "@target_id": edge_id_keys[1],
+            })
+        if edge_type_key is not None and "@type" in edges.columns:
+            edges = edges.rename(columns={"@type": edge_type_key})
+        edges_json = [
+            r.dropna().to_dict() for _, r in edges.iterrows()
+        ]
+
         return {
             "nodes": nodes_json,
             "edges": edges_json,

@@ -74,7 +74,7 @@ def _generate_property_repr(properties, prop_types=None):
                 # create a string property
                 quote = "'"
                 props.append("{}: {}{}{}".format(
-                    k, quote,
+                    k.replace(".", "_"), quote,
                     str(preprocess_value(v)).replace("'", "\\'"), quote))
             elif isinstance(v, Iterable):
                 # create a list property
@@ -85,10 +85,12 @@ def _generate_property_repr(properties, prop_types=None):
                     else:
                         values.append("'{}'".format(preprocess_value(vv)))
                 if len(values) > 0:
-                    props.append("{}: [{}]".format(k, ", ".join(values)))
+                    props.append("{}: [{}]".format(
+                        k.replace(".", "_"), ", ".join(values)))
             elif prop_types[k] == "numeric" and not math.isnan(v):
                 # create a numerical property
-                props.append("{}: {}".format(k, preprocess_value(v)))
+                props.append("{}: {}".format(
+                    k.replace(".", "_"), preprocess_value(v)))
     return props
 
 
