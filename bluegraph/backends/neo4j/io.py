@@ -1,4 +1,4 @@
-# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis.
 
 # Copyright 2020-2021 Blue Brain Project / EPFL
 
@@ -18,6 +18,7 @@ import math
 import numpy as np
 import numbers
 import pandas as pd
+import warnings
 
 from neo4j import GraphDatabase
 
@@ -218,8 +219,10 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
             MATCH (n {{id: individual["source"]}})
             WITH individual, n
             OPTIONAL MATCH (m {{id: individual["target"]}})
-            CREATE (n)-[r:{edge_label}]->(m)
-            SET r += individual["props"]
+            FOREACH (dummy in CASE WHEN m IS NULL THEN [] ELSE [1] END |
+                CREATE (n)-[r:{edge_label}]->(m)
+                SET r += individual["props"]
+            )
             """)
             execute(driver, query)
 

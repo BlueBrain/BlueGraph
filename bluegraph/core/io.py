@@ -19,6 +19,7 @@ from collections import defaultdict
 
 import json
 import numpy as np
+import re
 
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_string_dtype
@@ -35,21 +36,21 @@ from bluegraph.exceptions import BlueGraphException
 
 # Default maps of ontology predicates (for `from_ontology`)
 DEFAULT_PREDICATE_MAP = {
-    "label": "http://www.w3.org/2000/01/rdf-schema#label",
-    "subclass": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
-    "on_property": "http://www.w3.org/2002/07/owl#onProperty",
-    "values_from": "http://www.w3.org/2002/07/owl#someValuesFrom",
-    "definition": "http://www.w3.org/2004/02/skos/core#definition",
-    "is_defined_by": "http://www.w3.org/2000/01/rdf-schema#isDefinedBy",
+    "label": ("rdfs", "label"),
+    "subclass": ("rdfs", "subClassOf"),
+    "on_property": ("owl", "onProperty"),
+    "values_from": ("owl", "someValuesFrom"),
+    "class": ("owl", "Class"),
+    "individual": ("owl", "NamedIndividual"),
+    "type": ("rdf", "type")
 }
 
 IGNORE = [
-    URIRef(uri) for uri in [
-        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
-        "http://www.w3.org/2000/01/rdf-schema#range",
-        "http://www.w3.org/2000/01/rdf-schema#domain",
-        "http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
-    ]
+    ("rdf", "type"),
+    ("rdf", "label"),
+    ("rdfs", "range"),
+    ("rdfs", "domain"),
+    ("rdfs", "subPropertyOf")
 ]
 
 
@@ -1258,40 +1259,63 @@ class PandasPGFrame(PGFrame):
     @classmethod
     def from_ontology(cls, filepath, format="turtle",
                       predicate_map=DEFAULT_PREDICATE_MAP,
-                      predicates_to_ignore=IGNORE):
+                      predicates_to_ignore=IGNORE,
+                      remove_prop_uris=False):
         """Create a PandasPGFrame from ontology."""
-        predicates_to_ignore = [
-            URIRef(uri) for uri in predicates_to_ignore + [
-                predicate_map["label"]]
-        ]
-
         g = rdflib.Graph()
         g.parse(filepath, format=format)
 
-        # Extract class labels
+        namespaces = {
+            n[0]: n[1]
+            for n in g.namespaces() if n != ""
+        }
+
+        def _term_from_map(key):
+            return namespaces[predicate_map[key][0]] + predicate_map[key][1]
+
+        predicates_to_ignore = [
+            namespaces[ns] + term
+            for ns, term in predicates_to_ignore
+        ]
+
+        # Extract labels
         label_mapping = {}
         for (s, p, o) in g.triples(
-                (None, URIRef(predicate_map["label"]), None)):
+                (None, _term_from_map("label"), None)):
             label_mapping[s] = str(o)
 
         nodes = set()
+
+        # Extract classes and individuals as nodes
+        type_predicate = _term_from_map("type")
+        for (s, _, _) in g.triples((None, type_predicate, _term_from_map(
+                    "class"))):
+            if s in label_mapping:
+                nodes.add(label_mapping[s])
+        for (s, _, _) in g.triples((None, type_predicate, _term_from_map(
+                    "individual"))):
+            if s in label_mapping:
+                nodes.add(label_mapping[s])
+
         edges = {}
         props = defaultdict(dict)
 
         sources = defaultdict(set)
         relationship_labels = {}
         targets = defaultdict(set)
+
         for (s, p, o) in g.triples((None, None, None)):
-            if p.eq(URIRef(predicate_map["subclass"])):
-                nodes.add(label_mapping[s])
-                if o in label_mapping:
-                    edges[(label_mapping[s], label_mapping[o])] = {"IS_A"}
-                    nodes.add(label_mapping[o])
-                else:
-                    sources[s].add(o)
-            elif p.eq(URIRef(predicate_map["on_property"])):
+            if p.eq(_term_from_map("subclass")):
+                if s in label_mapping:
+                    if o in label_mapping:
+                        edges[(label_mapping[s], label_mapping[o])] = {
+                            "IS_SUBCLASS_OF"
+                        }
+                    else:
+                        sources[s].add(o)
+            elif p.eq(URIRef(_term_from_map("on_property"))):
                 relationship_labels[s] = o
-            elif p.eq(URIRef(predicate_map["values_from"])):
+            elif p.eq(URIRef(_term_from_map("values_from"))):
                 targets[s].add(o)
             elif p not in predicates_to_ignore:
                 # Extract other props as is
@@ -1299,7 +1323,8 @@ class PandasPGFrame(PGFrame):
                     props[label_mapping[p]][label_mapping[s]] = str(o)
                 else:
                     prop_name = str(p)
-                    props[prop_name][label_mapping[s]] = str(o)
+                    if s in label_mapping:
+                        props[prop_name][label_mapping[s]] = str(o)
 
         # Combine sources and targets to extract relationships
         for k, v in sources.items():
@@ -1307,6 +1332,8 @@ class PandasPGFrame(PGFrame):
                 source = label_mapping[k]
                 for t in targets[vv]:
                     target = label_mapping[t]
+                    if target not in nodes:
+                        nodes.add(target)
                     if (source, target) in edges:
                         edges[(source, target)].add(
                             label_mapping[relationship_labels[vv]])
@@ -1324,6 +1351,16 @@ class PandasPGFrame(PGFrame):
             graph.add_node_properties(
                 pd.DataFrame(v.items(), columns=["@id", k])
             )
+
+        # Remove uri's from property names: 'http://...#prop' becomes 'prop'
+        if remove_prop_uris:
+            mapping = {}
+            for p in graph.node_properties():
+                match = re.match("(http:\/\/.*)#(.*)", p)
+                if match:
+                    mapping[p] = match.groups()[1]
+            graph.rename_node_properties(mapping)
+
         return graph
 
 
