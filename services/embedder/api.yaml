@@ -39,7 +39,7 @@ paths:
                       distribution:
                         type: string
  
-  /model/{model_name}:
+  /models/{model_name}:
     get:
       summary: Get an embedding model from the catalogue by name.
       responses:
@@ -64,7 +64,7 @@ paths:
         '404'
           description: Is returned when the model does not exist.
 
-  /model/{model_name}/details/{component}:
+  /models/{model_name}/details/{component}:
     get:
       summary: Get details on the embedding model component. Component values can be
         "preprocessor", "embedder", "similarity-processor"
@@ -74,7 +74,7 @@ paths:
         '404':
           description: Returned when the requested model does not exist.
 
-  /model/{model_name}/embedding:
+  /models/{model_name}/embedding:
     get:
       summary: Retrieve embedding vectors of the specified ids of existing resources.
       parameters:
@@ -95,7 +95,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  embeddings:
+                  vectors:
                     type: object
         '404':
           description: Returned when the embeddings of the requested resources do not exist
@@ -120,7 +120,7 @@ paths:
                 type: object
                 description: Keyword arguments to pass to the encoder
 
-  /model/{model_name}/similar-points:
+  /models/{model_name}/neighbors:
     get:
       summary: Get similar points to the resources with the provided ids
       parameters:
