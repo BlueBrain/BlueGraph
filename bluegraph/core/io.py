@@ -1313,15 +1313,30 @@ class PandasPGFrame(PGFrame):
                         }
                     else:
                         sources[s].add(o)
+            elif p.eq(_term_from_map("type")):
+                if s in label_mapping:
+                    if o in label_mapping:
+                        edges[(label_mapping[s], label_mapping[o])] = {
+                            "IS_INSTANCE_OF"
+                        }
             elif p.eq(URIRef(_term_from_map("on_property"))):
                 relationship_labels[s] = o
             elif p.eq(URIRef(_term_from_map("values_from"))):
                 targets[s].add(o)
             elif p not in predicates_to_ignore:
-                # Extract other props as is
                 if p in label_mapping:
-                    props[label_mapping[p]][label_mapping[s]] = str(o)
+                    if o in label_mapping:
+                        source = label_mapping[s]
+                        target = label_mapping[o]
+                        if (source, target) in edges:
+                            edges[(source, target)].add(label_mapping[p])
+                        else:
+                            edges[(source, target)] = {label_mapping[p]}
+                    else:
+                        # Extract other props as is
+                        props[label_mapping[p]][label_mapping[s]] = str(o)
                 else:
+                    # Extract other props as is
                     prop_name = str(p)
                     if s in label_mapping:
                         props[prop_name][label_mapping[s]] = str(o)
