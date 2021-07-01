@@ -79,8 +79,8 @@ def _generate_property_repr(properties, prop_types=None):
                     str(preprocess_value(v)).replace("'", "\\'"), quote))
             elif isinstance(v, Iterable):
                 # create a list property
+                values = []
                 for vv in v:
-                    values = []
                     if isinstance(vv, float) and math.isnan(vv):
                         pass
                     else:
