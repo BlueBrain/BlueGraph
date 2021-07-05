@@ -14,9 +14,9 @@ install:
   - sudo add-apt-repository universe
   - sudo apt-get install neo4j=1:4.3.1
   # Download the graph data science lib
-  - wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.5.1-standalone.zip
-  - unzip neo4j-graph-data-science-1.5.1-standalone.zip
-  - sudo cp neo4j-graph-data-science-1.5.1.jar /var/lib/neo4j/plugins/
+  - wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.6.1-standalone.zip
+  - unzip neo4j-graph-data-science-1.6.1-standalone.zip
+  - sudo cp neo4j-graph-data-science-1.6.1.jar /var/lib/neo4j/plugins/
   # Get Miniconda from a third party repo and install
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
