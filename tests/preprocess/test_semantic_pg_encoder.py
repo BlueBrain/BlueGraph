@@ -94,7 +94,24 @@ def test_encoding(random_pgframe):
         text_encoding="tfidf",
         standardize_numeric=True)
     transformed_frame = hom_encoder.fit_transform(random_pgframe)
+
+    # Test dimensionality reduction
     hom_encoder = ScikitLearnPGEncoder(
+        node_properties=["weight", "color", "desc"],
+        edge_properties=["mi", "distance", "shapes", "desc"],
+        edge_features=True,
+        heterogeneous=False,
+        encode_types=True,
+        drop_types=True,
+        text_encoding="word2vec",
+        standardize_numeric=True,
+        reduce_node_dims=True,
+        n_node_components=32,
+        reduce_edge_dims=True,
+        n_edge_components=32)
+    transformed_frame = hom_encoder.fit_transform(random_pgframe)
+
+    het_encoder = ScikitLearnPGEncoder(
         node_properties={
             "Apple": ["weight", "color", "desc"],
             "Orange": ["color", "desc"],
@@ -106,4 +123,4 @@ def test_encoding(random_pgframe):
         drop_types=True,
         text_encoding="word2vec",
         standardize_numeric=True)
-    transformed_frame = hom_encoder.fit_transform(random_pgframe)
+    transformed_frame = het_encoder.fit_transform(random_pgframe)

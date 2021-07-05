@@ -93,7 +93,6 @@ class ElementClassifier(ABC):
         return self.model.predict(data)
 
 
-
 class Preprocessor(ABC):
     """Preprocessor inferface for EmbeddingPipeline."""
 
@@ -245,21 +244,10 @@ class EmbeddingPipeline(object):
         """Get index of existing points."""
         return self.similarity_processor.index
 
-    def generate_embedding_table(self):
-        """Generate embedding table from similarity index."""
-        index = self.similarity_processor.index
-        pairs = [
-            (ind, self.similarity_processor._model.reconstruct(i))
-            for i, ind in enumerate(index)
-        ]
-        return pd.DataFrame(
-            pairs, columns=["@id", "embedding"]).set_index("@id")
-
-
     def retrieve_embeddings(self, indices):
         """Get embedding vectors for the input indices."""
         if self.similarity_processor is None:
-            raise EmbeddingPipelineException(
+            raise EmbeddingPipeline.EmbeddingPipelineException(
                 "Similarity processor object is None, cannot "
                 "retrieve embedding vectors")
         else:

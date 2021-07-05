@@ -19,11 +19,12 @@ from abc import ABC, abstractmethod
 import math
 import numpy as np
 import pandas as pd
+from scipy.sparse import issparse
 
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-
+from sklearn.decomposition import PCA
 
 from .utils import (TfIdfEncoder,
                     Doc2VecEncoder,
@@ -95,7 +96,11 @@ class SemanticPGEncoder(ABC):
                  text_encoding_max_dimension=128,
                  missing_numeric="drop",
                  imputation_strategy="mean",
-                 standardize_numeric=True):
+                 standardize_numeric=True,
+                 reduce_node_dims=False,
+                 reduce_edge_dims=False,
+                 n_node_components=None,
+                 n_edge_components=None):
         """Initialize an encoder.
 
         Parameters
@@ -120,6 +125,18 @@ class SemanticPGEncoder(ABC):
         imputation_strategy : str, optional
         standardize_numeric : str, optional
             Flag indicating if numerical values should be standardized
+        reduce_node_dims : bool, optional.
+            Flag indicating if dimensionality reduction should be performed
+            on the node features. By default, False
+        reduce_edge_dims : bool, optional.
+            Flag indicating if dimensionality reduction should be performed
+            on the edge features. By defau.lt, False
+        n_node_components : int, optional
+            Number of principal components to include for dimensionality
+            reduction of the node features.
+        n_edge_components : int, optional
+            Number of principal components to include for dimensionality
+            reduction of the edges features.
         """
         self.heterogeneous = heterogeneous
         self.drop_types = drop_types
@@ -131,6 +148,10 @@ class SemanticPGEncoder(ABC):
         self.missing_numeric = missing_numeric
         self.imputation_strategy = imputation_strategy
         self.standardize_numeric = standardize_numeric
+        self.reduce_node_dims = reduce_node_dims
+        self.reduce_edge_dims = reduce_edge_dims
+        self.n_node_components = n_node_components
+        self.n_edge_components = n_edge_components
 
         self._node_encoders = {}
         if node_properties is not None:
@@ -163,6 +184,26 @@ class SemanticPGEncoder(ABC):
                 for p in edge_properties:
                     self._edge_encoders[p] = None
 
+        self.node_reducer = None
+        if self.reduce_node_dims is True:
+            if self.n_node_components is None:
+                raise SemanticPGEncoder.EncodingException(
+                    "Dimensionality reduction of node features is enabled, "
+                    "number of dimensions ('n_node_components' must be "
+                    "specified)")
+            else:
+                self.node_reducer = PCA(n_components=self.n_node_components)
+
+        self.edge_reducer = None
+        if self.reduce_edge_dims is True:
+            if self.n_edge_components is None:
+                raise SemanticPGEncoder.EncodingException(
+                    "Dimensionality reduction of edge features is enabled, "
+                    "number of dimensions ('n_edge_components' must be "
+                    "specified)")
+            else:
+                self.edge_reducer = PCA(n_components=self.n_edge_components)
+
     def info(self):
         if self.heterogeneous:
             node_properties = {}
@@ -191,7 +232,11 @@ class SemanticPGEncoder(ABC):
             "imputation_strategy": self.imputation_strategy,
             "standardize_numeric": self.standardize_numeric,
             "node_properties": node_properties,
-            "edge_properties": edge_properties
+            "edge_properties": edge_properties,
+            "reduce_node_dims": self.reduce_node_dims,
+            "reduce_edge_dims": self.reduce_edge_dims,
+            "n_node_components": self.n_node_components,
+            "n_edge_components": self.n_edge_components,
         }
         return info
 
@@ -231,7 +276,21 @@ class SemanticPGEncoder(ABC):
                         pgframe.edges(raw_frame=True), prop,
                         _get_encoder_type(pgframe, prop, is_edge=True))
 
-    def transform(self, pgframe):
+        transformed_frame = None
+        if self.node_reducer is not None:
+            transformed_frame = self.transform(pgframe, skip_reduction=True)
+            X = np.array(transformed_frame.get_node_property_values(
+                "features").apply(lambda x: x.tolist()).tolist())
+            self.node_reducer.fit(X)
+
+        if self.edge_reducer is not None and self.edge_features:
+            if transformed_frame is None:
+                transformed_frame = self.transform(pgframe, skip_reduction=True)
+            X = np.array(transformed_frame.get_edge_property_values(
+                "features").apply(lambda x: x.tolist()).tolist())
+            self.edge_reducer.fit(X)
+
+    def transform(self, pgframe, skip_reduction=False):
         """Transform the input PGFrame."""
         transformed_pgframe = self._create_pgframe(
             nodes=pgframe.nodes(), edges=pgframe.edges())
@@ -304,6 +363,25 @@ class SemanticPGEncoder(ABC):
             transformed_pgframe.aggregate_edge_properties(
                 self._concatenate_features, into="features")
 
+        if not skip_reduction:
+            if self.node_reducer is not None:
+                X = np.array(transformed_pgframe.get_node_property_values(
+                    "features").apply(lambda x: x.tolist()).tolist())
+                reduced_X = self.node_reducer.transform(X)
+                df = pd.DataFrame(
+                    columns=["features"],
+                    index=transformed_pgframe.nodes())
+                df["features"] = reduced_X.tolist()
+                transformed_pgframe.add_node_properties(df)
+
+            if self.edge_reducer is not None and self.edge_features:
+                X = np.array(transformed_pgframe.get_edge_property_values(
+                    "features").apply(lambda x: x.tolist()).tolist())
+                reduced_X = self.edge_reducer.transform(X)
+                # Here, we need to make it generic and not Pandas-dependent
+                transformed_pgframe._edges["features"] =\
+                    reduced_X.tolist()
+
         return transformed_pgframe
 
     def fit_transform(self, pgframe):
@@ -369,6 +447,8 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
             vectors = encoder.transform(
                 np.reshape(frame[prop].to_list(), (frame[prop].shape[0], 1)))
         if vectors is not None:
+            if issparse(vectors):
+                vectors = vectors.todense()
             df = pd.DataFrame(columns=[prop], index=frame.index)
             df[prop] = vectors.tolist()
             return df
