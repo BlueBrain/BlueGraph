@@ -25,33 +25,12 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 import rdflib
-from rdflib.term import URIRef
-
+from rdflib import RDF, RDFS, OWL
 
 from bluegraph.core.utils import (_aggregate_values,
                                   element_has_type,
                                   str_to_set)
 from bluegraph.exceptions import BlueGraphException
-
-
-# Default maps of ontology predicates (for `from_ontology`)
-DEFAULT_PREDICATE_MAP = {
-    "label": ("rdfs", "label"),
-    "subclass": ("rdfs", "subClassOf"),
-    "on_property": ("owl", "onProperty"),
-    "values_from": ("owl", "someValuesFrom"),
-    "class": ("owl", "Class"),
-    "individual": ("owl", "NamedIndividual"),
-    "type": ("rdf", "type")
-}
-
-IGNORE = [
-    ("rdf", "type"),
-    ("rdf", "label"),
-    ("rdfs", "range"),
-    ("rdfs", "domain"),
-    ("rdfs", "subPropertyOf")
-]
 
 
 class PGFrame(ABC):
@@ -1257,108 +1236,77 @@ class PandasPGFrame(PGFrame):
         self._edge_prop_types.update(new_typing)
 
     @classmethod
-    def from_ontology(cls, filepath, format="turtle",
-                      predicate_map=DEFAULT_PREDICATE_MAP,
-                      predicates_to_ignore=IGNORE,
+    def from_ontology(cls, filepath=None, rdf_graph=None, format="turtle",
                       remove_prop_uris=False):
         """Create a PandasPGFrame from ontology."""
-        g = rdflib.Graph()
-        g.parse(filepath, format=format)
+        if filepath is None and rdf_graph is None:
+            raise ValueError(
+                "Ontology source must be specified: both "
+                "'filepath' or 'rdf_graph' are None")
 
-        namespaces = {
-            n[0]: n[1]
-            for n in g.namespaces() if n != ""
-        }
+        if rdf_graph is None:
+            g = rdflib.Graph()
+            g.parse(filepath, format=format)
+        else:
+            g = rdf_graph
 
-        def _term_from_map(key):
-            return namespaces[predicate_map[key][0]] + predicate_map[key][1]
-
-        predicates_to_ignore = [
-            namespaces[ns] + term
-            for ns, term in predicates_to_ignore
-        ]
-
-        # Extract labels
-        label_mapping = {}
-        for (s, p, o) in g.triples(
-                (None, _term_from_map("label"), None)):
-            label_mapping[s] = str(o)
-
-        nodes = set()
+        classes = set()
+        individuals = set()
 
         # Extract classes and individuals as nodes
-        type_predicate = _term_from_map("type")
-        for (s, _, _) in g.triples((None, type_predicate, _term_from_map(
-                    "class"))):
-            if s in label_mapping:
-                nodes.add(label_mapping[s])
-        for (s, _, _) in g.triples((None, type_predicate, _term_from_map(
-                    "individual"))):
-            if s in label_mapping:
-                nodes.add(label_mapping[s])
+        for s in g.subjects(RDF.type, OWL.Class):
+            if g.label(s):
+                classes.add(s)
+        for s in g.subjects(RDF.type, OWL.NamedIndividual):
+            if g.label(s):
+                individuals.add(s)
 
-        edges = {}
+        edges = defaultdict(set)
         props = defaultdict(dict)
-
-        sources = defaultdict(set)
-        relationship_labels = {}
-        targets = defaultdict(set)
-
-        for (s, p, o) in g.triples((None, None, None)):
-            if p.eq(_term_from_map("subclass")):
-                if s in label_mapping:
-                    if o in label_mapping:
-                        edges[(label_mapping[s], label_mapping[o])] = {
-                            "IS_SUBCLASS_OF"
-                        }
+        for c in classes:
+            node_id = g.label(c).value
+            for p, o in g.predicate_objects(c):
+                if isinstance(o, rdflib.Literal):
+                    prop_name = None
+                    if g.label(p):
+                        prop_name = g.label(p).value
                     else:
-                        sources[s].add(o)
-            elif p.eq(_term_from_map("type")):
-                if s in label_mapping:
-                    if o in label_mapping:
-                        edges[(label_mapping[s], label_mapping[o])] = {
-                            "IS_INSTANCE_OF"
-                        }
-            elif p.eq(URIRef(_term_from_map("on_property"))):
-                relationship_labels[s] = o
-            elif p.eq(URIRef(_term_from_map("values_from"))):
-                targets[s].add(o)
-            elif p not in predicates_to_ignore:
-                if p in label_mapping:
-                    if o in label_mapping:
-                        source = label_mapping[s]
-                        target = label_mapping[o]
-                        if (source, target) in edges:
-                            edges[(source, target)].add(label_mapping[p])
+                        prop_name = str(p)
+                    if node_id in props[prop_name]:
+                        if isinstance(props[prop_name][node_id], list):
+                            props[prop_name][node_id].append(o.value)
                         else:
-                            edges[(source, target)] = {label_mapping[p]}
+                            props[prop_name][node_id] = [
+                                props[prop_name][node_id], o.value
+                            ]
                     else:
-                        # Extract other props as is
-                        props[label_mapping[p]][label_mapping[s]] = str(o)
+                        props[prop_name][node_id] = o.value
                 else:
-                    # Extract other props as is
-                    prop_name = str(p)
-                    if s in label_mapping:
-                        props[prop_name][label_mapping[s]] = str(o)
-
-        # Combine sources and targets to extract relationships
-        for k, v in sources.items():
-            for vv in v:
-                source = label_mapping[k]
-                for t in targets[vv]:
-                    target = label_mapping[t]
-                    if target not in nodes:
-                        nodes.add(target)
-                    if (source, target) in edges:
-                        edges[(source, target)].add(
-                            label_mapping[relationship_labels[vv]])
-                    else:
-                        edges[(source, target)] = {
-                            label_mapping[relationship_labels[vv]]
-                        }
+                    source_node = g.label(c).value
+                    if p.eq(RDFS.subClassOf):
+                        if isinstance(o, rdflib.BNode):
+                            target_node = None
+                            for oo in g.objects(o, OWL.someValuesFrom):
+                                if g.label(oo):
+                                    target_node = g.label(oo).value
+                            for oo in g.objects(o, OWL.onProperty):
+                                if g.label(oo):
+                                    edge_label = g.label(oo).value
+                            if target_node:
+                                edges[(source_node, target_node)].add(edge_label)
+                        else:
+                            if g.label(o):
+                                edges[(source_node, g.label(o).value)].add(
+                                    "IS_SUBCLASS_OF")
+                    elif not p.eq(RDF.type):
+                        target_node = g.label(o)
+                        if target_node:
+                            edges[(source_node, target_node.value)].add(str(p))
 
         # Create a PGFrame
-        graph = cls(nodes=list(nodes), edges=list(edges.keys()))
+        graph = cls(
+            nodes=[g.label(el).value for el in classes.union(individuals)],
+            edges=list(edges.keys()))
         graph.add_edge_types(edges)
 
         # Add node props
@@ -1371,7 +1319,7 @@ class PandasPGFrame(PGFrame):
         if remove_prop_uris:
             mapping = {}
             for p in graph.node_properties():
-                match = re.match("(http:\/\/.*)#(.*)", p)
+                match = re.match(r"(http:\/\/.*)#(.*)", p)
                 if match:
                     mapping[p] = match.groups()[1]
             graph.rename_node_properties(mapping)
