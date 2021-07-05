@@ -56,7 +56,7 @@ def preprocess_value(v):
 
 def safe_node_id(index):
     if isinstance(index, str):
-        return index.replace("\'", "\\'")
+        return index.replace("'", "\\'")
     return index
 
 
@@ -84,7 +84,8 @@ def _generate_property_repr(properties, prop_types=None):
                     if isinstance(vv, float) and math.isnan(vv):
                         pass
                     else:
-                        values.append("'{}'".format(preprocess_value(vv)))
+                        values.append("'{}'".format(
+                            str(preprocess_value(vv)).replace("'", "\\'")))
                 if len(values) > 0:
                     props.append("{}: [{}]".format(
                         k.replace(".", "_"), ", ".join(values)))
@@ -92,6 +93,9 @@ def _generate_property_repr(properties, prop_types=None):
                 # create a numerical property
                 props.append("{}: {}".format(
                     k.replace(".", "_"), preprocess_value(v)))
+            else:
+                props.append("{}: {}".format(
+                    k.replace(".", "_"), v))
     return props
 
 
@@ -139,7 +143,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
 
     # Split nodes into batches
     batches = np.array_split(
-        pgframe._nodes.index, math.ceil(pgframe.number_of_nodes() / batch_size))
+        pgframe._nodes.index,
+        math.ceil(pgframe.number_of_nodes() / batch_size))
     # Run node creation queries for different batches
     for batch in batches:
         node_batch = pgframe._nodes.loc[batch]
@@ -171,7 +176,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                 labels = labels_from_types(properties)
                 if len(labels) > 0:
                     result = session.run(
-                        "MATCH (n {{id: '{}'}})\n".format(index) +
+                        "MATCH (n {{id: '{}'}})\n".format(safe_node_id(index)) +
                         "SET n:{}".format(":".join(labels))
                     )
 
