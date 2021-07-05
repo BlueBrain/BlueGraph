@@ -12,7 +12,7 @@ install:
   - echo 'deb https://debian.neo4j.com stable latest' | sudo tee -a /etc/apt/sources.list.d/neo4j.list
   - sudo apt-get update
   - sudo add-apt-repository universe
-  - sudo apt-get install neo4j=4.2.3
+  - sudo apt-get install neo4j=1:4.3.1
   # Download the graph data science lib
   - wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.5.1-standalone.zip
   - unzip neo4j-graph-data-science-1.5.1-standalone.zip
