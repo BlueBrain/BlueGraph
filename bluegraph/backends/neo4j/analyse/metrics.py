@@ -89,7 +89,7 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
                           write_property=None):
         """Compute (weighted) degree centrality."""
         result = self._run_gdc_query(
-            "gds.alpha.degree", "degree", weight=weight,
+            "gds.degree", "degree", weight=weight,
             write=write, write_property=write_property)
         return result
 
