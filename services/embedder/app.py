@@ -338,7 +338,7 @@ def handle_similar_points_request(model_name):
     )
 
 
-@app.route("/models/<model_name>/info/<component_name>/")
+@app.route("/models/<model_name>/<component_name>/")
 def handle_info_request(model_name, component_name):
     """Handle request of details on different model components."""
     if model_name in app.models:
