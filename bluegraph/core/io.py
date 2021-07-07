@@ -709,7 +709,12 @@ class PandasPGFrame(PGFrame):
             if prop_name == "@type" or prop_type == "category":
                 def augment_property(x):
                     return _aggregate_values(
-                        [x["@type"], prop_column.loc[x.name, prop_name]])
+                        [
+                            x["@type"],
+                            prop_column.loc[x.name, prop_name]
+                            if x.name in prop_column.index
+                            else np.nan
+                        ])
                 self._nodes[prop_name] = self._nodes[[prop_name]].apply(
                     augment_property, axis=1)
             else:

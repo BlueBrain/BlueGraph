@@ -94,8 +94,9 @@ def _generate_property_repr(properties, prop_types=None):
                 props.append("{}: {}".format(
                     k.replace(".", "_"), preprocess_value(v)))
             else:
-                props.append("{}: {}".format(
-                    k.replace(".", "_"), v))
+                if not isinstance(v, float) or not math.isnan(v):
+                    props.append("{}: {}".format(
+                        k.replace(".", "_"), v))
     return props
 
 
