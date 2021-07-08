@@ -27,7 +27,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # Create a new virtual env with graph-tool and faiss-gpu
-  - conda create --name test-environment -c conda-forge graph-tool faiss-gpu python=$TRAVIS_PYTHON_VERSION
+  - conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=$TRAVIS_PYTHON_VERSION
   - conda activate test-environment
   # Install the rest of the dependencies
   - pip install .[dev]
