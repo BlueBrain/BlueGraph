@@ -1027,10 +1027,9 @@ class PandasPGFrame(PGFrame):
                 },
                 index=frame.index)
         else:
+            val = {into: frame.aggregate(func, axis=1)}
             frame = pd.DataFrame(
-                {
-                    into: frame.aggregate(func, axis=1)
-                },
+                val,
                 index=frame.index)
         return frame
 
