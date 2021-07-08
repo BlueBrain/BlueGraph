@@ -1027,9 +1027,9 @@ class PandasPGFrame(PGFrame):
                 },
                 index=frame.index)
         else:
-            val = {into: frame.aggregate(func, axis=1)}
+            aggregated = frame.aggregate(func, axis=1).values.tolist()
             frame = pd.DataFrame(
-                val,
+                {into: aggregated},
                 index=frame.index)
         return frame
 
