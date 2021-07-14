@@ -142,6 +142,7 @@ _retrieve_models(app.config["LOCAL"])
 
 # --------------- Handlers ----------------
 
+
 def _respond_success():
     return (
         json.dumps({"success": True}), 200,
@@ -212,7 +213,7 @@ def _preprocess_data(data, data_type, auth=None):
         raise ValueError("Unknown data type")
 
 
-@app.route("/model/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
+@app.route("/models/<model_name>", methods=["GET"])  # , "GET", "DELETE"])
 def handle_model_request(model_name):
     """Handle request of model data."""
     if model_name in app.models:
@@ -236,7 +237,7 @@ def handle_models_request():
     )
 
 
-@app.route("/model/<model_name>/embedding/", methods=["GET", "POST"])
+@app.route("/models/<model_name>/embedding/", methods=["GET", "POST"])
 def handle_embeddings_request(model_name):
     """Handle request of embedding vectors for provided resources."""
     if model_name in app.models:
@@ -247,7 +248,7 @@ def handle_embeddings_request(model_name):
             embeddings = pipeline.retrieve_embeddings(indices)
             return (
                 json.dumps({
-                    "embeddings": dict(zip(indices, embeddings))
+                    "vectors": dict(zip(indices, embeddings))
                 }), 200,
                 {'ContentType': 'application/json'}
             )
@@ -276,7 +277,7 @@ def handle_embeddings_request(model_name):
                     vectors = vectors.tolist()
 
                 return (
-                    json.dumps({"embeddings": vectors}), 200,
+                    json.dumps({"vectors": vectors}), 200,
                     {'ContentType': 'application/json'}
                 )
             else:
@@ -288,7 +289,7 @@ def handle_embeddings_request(model_name):
         return _respond_not_found()
 
 
-@app.route("/model/<model_name>/similar-points/", methods=["GET", "POST"])
+@app.route("/models/<model_name>/neighbors/", methods=["GET", "POST"])
 def handle_similar_points_request(model_name):
     """Handle request of similar points to provided resources."""
     if model_name not in app.models:
@@ -332,12 +333,12 @@ def handle_similar_points_request(model_name):
                 el.tolist() for el in similar_points
             ]
     return (
-        json.dumps({"similar_points": result}), 200,
+        json.dumps({"neighbors": result}), 200,
         {'ContentType': 'application/json'}
     )
 
 
-@app.route("/model/<model_name>/details/<component_name>/")
+@app.route("/models/<model_name>/info/<component_name>/")
 def handle_info_request(model_name, component_name):
     """Handle request of details on different model components."""
     if model_name in app.models:
