@@ -102,7 +102,7 @@ def _retrieve_models(local=True):
         for f in os.listdir(app.config["DOWNLOAD_DIR"]):
             try:
                 os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
-            except:
+            except Exception:
                 shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
     else:
         # Fetch from a local dir
