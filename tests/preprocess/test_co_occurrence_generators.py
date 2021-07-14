@@ -19,7 +19,7 @@ def test_generation_from_nodes():
     edges = generator.generate_from_nodes(
         "papers", total_factor_instances=6,
         compute_statistics=["frequency", "npmi"],
-        parallelize=True, cores=8)
+        parallelize=True, cores=4)
     frame._edges = edges
     assert(edges.shape[0] == 3)
     props = frame.get_edge("a", "b")
@@ -91,7 +91,7 @@ def test_generation_from_edges():
         "OccursIn",
         factor_aggregator=aggregate_paragraphs,
         compute_statistics=["frequency", "ppmi", "npmi"],
-        parallelize=True, cores=8)
+        parallelize=True, cores=4)
     new_frame = frame.copy()
     new_frame._edges = edges
     assert(edges.shape[0] == 3)
