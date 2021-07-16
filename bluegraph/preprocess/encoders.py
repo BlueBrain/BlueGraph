@@ -335,7 +335,11 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
         non_empty_vectors = features[features.notna()].to_list()
         if len(non_empty_vectors) == 0:
             return math.nan
-        return np.concatenate(non_empty_vectors)
+        result = np.concatenate([
+            el if isinstance(el, list) else el.tolist()
+            for el in non_empty_vectors
+        ])
+        return result
 
     def _fit_encoder(self, frame, prop, encoder_type="category"):
         """Create and fit an encoder according to the property type."""

@@ -161,7 +161,7 @@ def node_embedding_test_graph():
     edge_weight = pd.DataFrame({
         "@source_id": sources,
         "@target_id": targets,
-        "distance": weights
+        "weight": weights
     })
     frame.add_edge_properties(edge_weight, prop_type="numeric")
     return frame

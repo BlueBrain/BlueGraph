@@ -19,38 +19,18 @@ from collections import defaultdict
 
 import json
 import numpy as np
+import re
 
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 import rdflib
-from rdflib.term import URIRef
-
+from rdflib import RDF, RDFS, OWL
 
 from bluegraph.core.utils import (_aggregate_values,
                                   element_has_type,
                                   str_to_set)
 from bluegraph.exceptions import BlueGraphException
-
-
-# Default maps of ontology predicates (for `from_ontology`)
-DEFAULT_PREDICATE_MAP = {
-    "label": "http://www.w3.org/2000/01/rdf-schema#label",
-    "subclass": "http://www.w3.org/2000/01/rdf-schema#subClassOf",
-    "on_property": "http://www.w3.org/2002/07/owl#onProperty",
-    "values_from": "http://www.w3.org/2002/07/owl#someValuesFrom",
-    "definition": "http://www.w3.org/2004/02/skos/core#definition",
-    "is_defined_by": "http://www.w3.org/2000/01/rdf-schema#isDefinedBy",
-}
-
-IGNORE = [
-    URIRef(uri) for uri in [
-        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
-        "http://www.w3.org/2000/01/rdf-schema#range",
-        "http://www.w3.org/2000/01/rdf-schema#domain",
-        "http://www.w3.org/2000/01/rdf-schema#subPropertyOf"
-    ]
-]
 
 
 class PGFrame(ABC):
@@ -729,7 +709,12 @@ class PandasPGFrame(PGFrame):
             if prop_name == "@type" or prop_type == "category":
                 def augment_property(x):
                     return _aggregate_values(
-                        [x["@type"], prop_column.loc[x.name, prop_name]])
+                        [
+                            x["@type"],
+                            prop_column.loc[x.name, prop_name]
+                            if x.name in prop_column.index
+                            else np.nan
+                        ])
                 self._nodes[prop_name] = self._nodes[[prop_name]].apply(
                     augment_property, axis=1)
             else:
@@ -1042,10 +1027,9 @@ class PandasPGFrame(PGFrame):
                 },
                 index=frame.index)
         else:
+            aggregated = frame.aggregate(func, axis=1).values.tolist()
             frame = pd.DataFrame(
-                {
-                    into: frame.aggregate(func, axis=1)
-                },
+                {into: aggregated},
                 index=frame.index)
         return frame
 
@@ -1256,67 +1240,77 @@ class PandasPGFrame(PGFrame):
         self._edge_prop_types.update(new_typing)
 
     @classmethod
-    def from_ontology(cls, filepath, format="turtle",
-                      predicate_map=DEFAULT_PREDICATE_MAP,
-                      predicates_to_ignore=IGNORE):
+    def from_ontology(cls, filepath=None, rdf_graph=None, format="turtle",
+                      remove_prop_uris=False):
         """Create a PandasPGFrame from ontology."""
-        predicates_to_ignore = [
-            URIRef(uri) for uri in predicates_to_ignore + [
-                predicate_map["label"]]
-        ]
+        if filepath is None and rdf_graph is None:
+            raise ValueError(
+                "Ontology source must be specified: both "
+                "'filepath' or 'rdf_graph' are None")
 
-        g = rdflib.Graph()
-        g.parse(filepath, format=format)
+        if rdf_graph is None:
+            g = rdflib.Graph()
+            g.parse(filepath, format=format)
+        else:
+            g = rdf_graph
 
-        # Extract class labels
-        label_mapping = {}
-        for (s, p, o) in g.triples(
-                (None, URIRef(predicate_map["label"]), None)):
-            label_mapping[s] = str(o)
+        classes = set()
+        individuals = set()
 
-        nodes = set()
-        edges = {}
+        # Extract classes and individuals as nodes
+        for s in g.subjects(RDF.type, OWL.Class):
+            if g.label(s):
+                classes.add(s)
+        for s in g.subjects(RDF.type, OWL.NamedIndividual):
+            if g.label(s):
+                individuals.add(s)
+
+        edges = defaultdict(set)
         props = defaultdict(dict)
-
-        sources = defaultdict(set)
-        relationship_labels = {}
-        targets = defaultdict(set)
-        for (s, p, o) in g.triples((None, None, None)):
-            if p.eq(URIRef(predicate_map["subclass"])):
-                nodes.add(label_mapping[s])
-                if o in label_mapping:
-                    edges[(label_mapping[s], label_mapping[o])] = {"IS_A"}
-                    nodes.add(label_mapping[o])
-                else:
-                    sources[s].add(o)
-            elif p.eq(URIRef(predicate_map["on_property"])):
-                relationship_labels[s] = o
-            elif p.eq(URIRef(predicate_map["values_from"])):
-                targets[s].add(o)
-            elif p not in predicates_to_ignore:
-                # Extract other props as is
-                if p in label_mapping:
-                    props[label_mapping[p]][label_mapping[s]] = str(o)
-                else:
-                    prop_name = str(p)
-                    props[prop_name][label_mapping[s]] = str(o)
-
-        # Combine sources and targets to extract relationships
-        for k, v in sources.items():
-            for vv in v:
-                source = label_mapping[k]
-                for t in targets[vv]:
-                    target = label_mapping[t]
-                    if (source, target) in edges:
-                        edges[(source, target)].add(
-                            label_mapping[relationship_labels[vv]])
+        for c in classes:
+            node_id = g.label(c).value
+            for p, o in g.predicate_objects(c):
+                if isinstance(o, rdflib.Literal):
+                    prop_name = None
+                    if g.label(p):
+                        prop_name = g.label(p).value
                     else:
-                        edges[(source, target)] = {
-                            label_mapping[relationship_labels[vv]]
-                        }
+                        prop_name = str(p)
+                    if node_id in props[prop_name]:
+                        if isinstance(props[prop_name][node_id], list):
+                            props[prop_name][node_id].append(o.value)
+                        else:
+                            props[prop_name][node_id] = [
+                                props[prop_name][node_id], o.value
+                            ]
+                    else:
+                        props[prop_name][node_id] = o.value
+                else:
+                    source_node = g.label(c).value
+                    if p.eq(RDFS.subClassOf):
+                        if isinstance(o, rdflib.BNode):
+                            target_node = None
+                            for oo in g.objects(o, OWL.someValuesFrom):
+                                if g.label(oo):
+                                    target_node = g.label(oo).value
+                            for oo in g.objects(o, OWL.onProperty):
+                                if g.label(oo):
+                                    edge_label = g.label(oo).value
+                            if target_node:
+                                edges[(source_node, target_node)].add(edge_label)
+                        else:
+                            if g.label(o):
+                                edges[(source_node, g.label(o).value)].add(
+                                    "IS_SUBCLASS_OF")
+                    elif not p.eq(RDF.type):
+                        target_node = g.label(o)
+                        if target_node:
+                            edges[(source_node, target_node.value)].add(str(p))
 
         # Create a PGFrame
-        graph = cls(nodes=list(nodes), edges=list(edges.keys()))
+        graph = cls(
+            nodes=[g.label(el).value for el in classes.union(individuals)],
+            edges=list(edges.keys()))
         graph.add_edge_types(edges)
 
         # Add node props
@@ -1324,6 +1318,16 @@ class PandasPGFrame(PGFrame):
             graph.add_node_properties(
                 pd.DataFrame(v.items(), columns=["@id", k])
             )
+
+        # Remove uri's from property names: 'http://...#prop' becomes 'prop'
+        if remove_prop_uris:
+            mapping = {}
+            for p in graph.node_properties():
+                match = re.match(r"(http:\/\/.*)#(.*)", p)
+                if match:
+                    mapping[p] = match.groups()[1]
+            graph.rename_node_properties(mapping)
+
         return graph
 
 

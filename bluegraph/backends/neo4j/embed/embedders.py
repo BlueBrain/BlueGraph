@@ -27,7 +27,7 @@ from ..io import Neo4jGraphView, pgframe_to_neo4j
 
 NEO4J_NODE_EMBEDDING_CALLS = {
     "fastrp": "gds.fastRP",
-    "node2vec": "gds.alpha.node2vec",
+    "node2vec": "gds.beta.node2vec",
     "graphsage": "gds.beta.graphSage"
 }
 
