@@ -280,7 +280,7 @@ class SemanticPGEncoder(ABC):
         if self.node_reducer is not None:
             transformed_frame = self.transform(pgframe, skip_reduction=True)
             X = np.array(transformed_frame.get_node_property_values(
-                "features").apply(lambda x: x.tolist()).tolist())
+                "features").apply(lambda x: x.tolist()))
             self.node_reducer.fit(X)
 
         if self.edge_reducer is not None and self.edge_features:
