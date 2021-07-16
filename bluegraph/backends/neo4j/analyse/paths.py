@@ -67,7 +67,7 @@ class Neo4jPathFinder(Neo4jGraphProcessor, PathFinder):
             graph._generate_st_match_query(source, target) +
             Neo4jPathFinder._generate_path_search_call(
                 graph, source, target,
-                "gds.beta.shortestPath.dijkstra.stream",
+                "gds.shortestPath.dijkstra.stream",
                 distance, exclude_edge) +
             "YIELD nodeIds\n"
             "UNWIND [n IN nodeIds | gds.util.asNode(n).id] AS node_id \n"

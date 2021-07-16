@@ -75,7 +75,7 @@ It is recommended to use a virtual environment such as `venv <https://docs.pytho
 Installing backend dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you want to use :code:`graph-tool` as a backend, you need to manually install the library (it cannot be simply installed by running :code:`pip install`), as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_).
+If you want to use :code:`graph-tool` as a backend, you need to manually install the library (it cannot be simply installed by running :code:`pip install`), as it is not an ordinary Python library, but a wrapper around a C++ library (please, see `graph-tool installation instructions <https://git.skewed.de/count0/graph-tool/-/wikis/installation-instructions#native-installation>`_). Currently, BlueGraph supports :code:`graph-tool<=2.37`.
 
 Similarly, if you want to use the :code:`bluegraph.downstream.similarity` module for building similarity indices (on embedder nodes, for example), you should install the Facebook :code:`Faiss` library separately. Please, see `Faiss installation instructions <https://github.com/facebookresearch/faiss/blob/master/INSTALL.md>`_ (:code:`conda` and :code:`conda-forge` installation available).
 
@@ -87,7 +87,7 @@ You can install both :code:`graph-tool` and the Facebook :code:`Faiss` library b
   conda activate <your_environment>
 
 
-The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided. In addition, BlueGraph uses the Neo4j Graph Data Science (GDS) library, which should be installed separately for the database on which you would like to run the analytics (see `installation instructions <https://neo4j.com/docs/graph-data-science/current/installation/>`_).
+The same holds for the Neo4j backend: in order to use it, the database should be installed and started (please, see `Neo4j installation instructions <https://neo4j.com/docs/operations-manual/current/installation/>`_). Typically, the Neo4j-based interfaces provided by BlueGraph require the database uri (the bolt port), username and password to be provided. In addition, BlueGraph uses the Neo4j Graph Data Science (GDS) library, which should be installed separately for the database on which you would like to run the analytics (see `installation instructions <https://neo4j.com/docs/graph-data-science/current/installation/>`_). Current supported Neo4j GDS version is :code:`1.6.1`.
 
 
 Installing BlueGraph

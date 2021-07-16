@@ -77,7 +77,7 @@ setup(
             "pyjwt==1.7.1",
             "ipywidgets",
             "neo4j",
-            "stellargraph"
+            "stellargraph>=1.2.0"
         ],
         "docs": [
             "sphinx", "sphinx-bluebrain-theme",
@@ -99,7 +99,7 @@ setup(
             "neo4j"
         ],
         "stellargraph": [
-            "stellargraph"
+            "stellargraph>=1.2.0"
         ],
         "all": [
             "jupyter_dash",
@@ -111,7 +111,7 @@ setup(
             "pyjwt==1.7.1",
             "ipywidgets",
             "neo4j",
-            "stellargraph"
+            "stellargraph>=1.2.0"
         ]
     },
     classifiers=[
