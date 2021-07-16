@@ -1,4 +1,4 @@
-# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis. 
+# BlueGraph: unifying Python framework for graph analytics and co-occurrence analysis.
 
 # Copyright 2020-2021 Blue Brain Project / EPFL
 
@@ -18,6 +18,7 @@ import math
 import numpy as np
 import numbers
 import pandas as pd
+import warnings
 
 from neo4j import GraphDatabase
 
@@ -55,7 +56,7 @@ def preprocess_value(v):
 
 def safe_node_id(index):
     if isinstance(index, str):
-        return index.replace("\'", "\\'")
+        return index.replace("'", "\\'")
     return index
 
 
@@ -78,12 +79,13 @@ def _generate_property_repr(properties, prop_types=None):
                     str(preprocess_value(v)).replace("'", "\\'"), quote))
             elif isinstance(v, Iterable):
                 # create a list property
+                values = []
                 for vv in v:
-                    values = []
                     if isinstance(vv, float) and math.isnan(vv):
                         pass
                     else:
-                        values.append("'{}'".format(preprocess_value(vv)))
+                        values.append("'{}'".format(
+                            str(preprocess_value(vv)).replace("'", "\\'")))
                 if len(values) > 0:
                     props.append("{}: [{}]".format(
                         k.replace(".", "_"), ", ".join(values)))
@@ -91,6 +93,10 @@ def _generate_property_repr(properties, prop_types=None):
                 # create a numerical property
                 props.append("{}: {}".format(
                     k.replace(".", "_"), preprocess_value(v)))
+            else:
+                if not isinstance(v, float) or not math.isnan(v):
+                    props.append("{}: {}".format(
+                        k.replace(".", "_"), v))
     return props
 
 
@@ -138,7 +144,8 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
 
     # Split nodes into batches
     batches = np.array_split(
-        pgframe._nodes.index, math.ceil(pgframe.number_of_nodes() / batch_size))
+        pgframe._nodes.index,
+        math.ceil(pgframe.number_of_nodes() / batch_size))
     # Run node creation queries for different batches
     for batch in batches:
         node_batch = pgframe._nodes.loc[batch]
@@ -170,7 +177,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
                 labels = labels_from_types(properties)
                 if len(labels) > 0:
                     result = session.run(
-                        "MATCH (n {{id: '{}'}})\n".format(index) +
+                        "MATCH (n {{id: '{}'}})\n".format(safe_node_id(index)) +
                         "SET n:{}".format(":".join(labels))
                     )
 
@@ -218,8 +225,10 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
             MATCH (n {{id: individual["source"]}})
             WITH individual, n
             OPTIONAL MATCH (m {{id: individual["target"]}})
-            CREATE (n)-[r:{edge_label}]->(m)
-            SET r += individual["props"]
+            FOREACH (dummy in CASE WHEN m IS NULL THEN [] ELSE [1] END |
+                CREATE (n)-[r:{edge_label}]->(m)
+                SET r += individual["props"]
+            )
             """)
             execute(driver, query)
 
