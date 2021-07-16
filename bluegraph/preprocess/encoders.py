@@ -279,8 +279,8 @@ class SemanticPGEncoder(ABC):
         transformed_frame = None
         if self.node_reducer is not None:
             transformed_frame = self.transform(pgframe, skip_reduction=True)
-            X = np.array(transformed_frame.get_node_property_values(
-                "features").apply(
+            X = np.array(
+                transformed_frame.get_node_property_values("features").apply(
                     lambda x: x.tolist() if not isinstance(x, list) else x).tolist())
             self.node_reducer.fit(X)
 
@@ -368,7 +368,8 @@ class SemanticPGEncoder(ABC):
         if not skip_reduction:
             if self.node_reducer is not None:
                 X = np.array(transformed_pgframe.get_node_property_values(
-                    "features").apply(lambda x: x.tolist()).tolist())
+                    "features").apply(
+                        lambda x: x.tolist() if not isinstance(x, list) else x).tolist())
                 reduced_X = self.node_reducer.transform(X)
                 df = pd.DataFrame(
                     columns=["features"],
@@ -378,7 +379,8 @@ class SemanticPGEncoder(ABC):
 
             if self.edge_reducer is not None and self.edge_features:
                 X = np.array(transformed_pgframe.get_edge_property_values(
-                    "features").apply(lambda x: x.tolist()).tolist())
+                    "features").apply(
+                        lambda x: x.tolist() if not isinstance(x, list) else x).tolist())
                 reduced_X = self.edge_reducer.transform(X)
                 # Here, we need to make it generic and not Pandas-dependent
                 transformed_pgframe._edges["features"] =\
