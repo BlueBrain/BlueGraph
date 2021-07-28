@@ -245,7 +245,8 @@ def random_text_corpus():
     )
     return corpus
 
+
 @pytest.fixture(scope="session")
 def random_words():
-    corpus = list(random.sample(words.words(), 700))
+    corpus = list(set(random.sample(words.words(), 700)))
     return corpus
