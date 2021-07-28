@@ -102,7 +102,7 @@ def _retrieve_models(local=True):
         for f in os.listdir(app.config["DOWNLOAD_DIR"]):
             try:
                 os.remove(os.path.join(app.config["DOWNLOAD_DIR"], f))
-            except:
+            except Exception:
                 shutil.rmtree(os.path.join(app.config["DOWNLOAD_DIR"], f))
     else:
         # Fetch from a local dir
@@ -338,7 +338,7 @@ def handle_similar_points_request(model_name):
     )
 
 
-@app.route("/models/<model_name>/info/<component_name>/")
+@app.route("/models/<model_name>/<component_name>/")
 def handle_info_request(model_name, component_name):
     """Handle request of details on different model components."""
     if model_name in app.models:
