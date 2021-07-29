@@ -64,7 +64,7 @@ paths:
         '404'
           description: Is returned when the model does not exist.
 
-  /models/{model_name}/details/{component}:
+  /models/{model_name}/{component}:
     get:
       summary: Get details on the embedding model component. Component values can be
         "preprocessor", "embedder", "similarity-processor"
