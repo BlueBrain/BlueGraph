@@ -26,7 +26,7 @@ from scipy import sparse
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from bluegraph.downstream.data_structures import Preprocessor
+from bluegraph.core.utils import Preprocessor
 
 
 def _get_encoder_type(pgframe, prop, is_edge=False):

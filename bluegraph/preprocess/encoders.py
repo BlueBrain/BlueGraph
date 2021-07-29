@@ -30,12 +30,12 @@ from .utils import (TfIdfEncoder,
                     Doc2VecEncoder,
                     _get_encoder_type,
                     _generate_type_repr)
-from bluegraph.core.utils import normalize_to_set
+from bluegraph.core.utils import normalize_to_set, Preprocessor
 from bluegraph.core.io import PandasPGFrame
 from bluegraph.exceptions import BlueGraphException
 
 
-class SemanticPGEncoder(ABC):
+class SemanticPGEncoder(Preprocessor):
     """Abstract class for semantic property graph encoder.
 
     The encoder provides a wrapper for multiple heterogeneous

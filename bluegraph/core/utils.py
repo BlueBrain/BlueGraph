@@ -13,6 +13,8 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+from abc import ABC, abstractmethod
+
 import math
 import pandas as pd
 
@@ -74,3 +76,22 @@ def top_n(data_dict, n, smallest=False):
     else:
         df = df.nlargest(n, columns=["value"])
     return(list(df["id"]))
+
+
+class Preprocessor(ABC):
+    """Preprocessor inferface for EmbeddingPipeline."""
+
+    @abstractmethod
+    def info(self):
+        """Get dictionary with the info."""
+        pass
+
+    @abstractmethod
+    def fit(self, data, **kwargs):
+        """Fit the preprocessor."""
+        pass
+
+    @abstractmethod
+    def transform(self, data, **kwargs):
+        """Tranform the input data."""
+        pass

@@ -1,11 +1,9 @@
 from sklearn.svm import LinearSVC
 import numpy as np
-import pandas as pd
 
 
 from sklearn import model_selection
-from bluegraph.downstream import (EmbeddingPipeline,
-                                  get_classification_scores)
+from bluegraph.downstream import get_classification_scores
 from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
 from bluegraph.downstream.link_prediction import (generate_negative_edges,
                                                   EdgePredictor)
