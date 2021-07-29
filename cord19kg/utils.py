@@ -23,12 +23,10 @@ import pickle
 import zipfile
 
 import pandas as pd
-import networkx as nx
 
 from collections import Counter
 
 from kgforge.core import KnowledgeGraphForge
-from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from bluegraph.core.io import PandasPGFrame
 from bluegraph.preprocess import CooccurrenceGenerator

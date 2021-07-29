@@ -463,12 +463,13 @@ class PGFrame(ABC):
         resources : iterable of dict
             Collection of input resources in JSON-LD format
         include_context : bool, optional
-            Flag indicating if the context should be included as a property. Default is True.
+            Flag indicating if the context should be included as a property.
+            Default is True.
         type_handler : func, optional
             Function to apply to the value of type (e.g. '@type')
         types_from_relations : bool, optional
-            Flag indicating if resources with unkown types should be assigned with types
-            from the incoming relations. Default is True
+            Flag indicating if resources with unkown types should be assigned
+            with types from the incoming relations. Default is True
         exclude : list of str, optional
             Collection of property names to exclude. Default is empty.
         only_props : bool, optional
