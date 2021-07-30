@@ -23,13 +23,13 @@ Backend support
 graph-tool
 ----------
 
-In this release we have fixed the version of :code:`graph-tool` to to 2.37 due to the breaking changes in the new API of 2.4X (in particular, removal of `B_min` parameter from the interface of :code:`minimize_blockmodel_dl`).
+In this release we have fixed the version of :code:`graph-tool` to 2.37 due to the breaking changes in the new API of 2.4X (in particular, removal of `B_min` parameter from the interface of :code:`minimize_blockmodel_dl`).
   
 
 Neo4j
 -----
 
-We have updated Neo4j-based analytics utils to use the lastest Neo4j GDS 1.6.X and added a couple of minor bugfixes to :code:`bluegraph.backends.neo4j.pgframe_to_neo4j`.
+Neo4j-based analytics utils was updated to use the lastest Neo4j GDS 1.6.X, a couple of minor bugfixes to :code:`bluegraph.backends.neo4j.pgframe_to_neo4j` were added.
 
 
 Graph preprocessing with BlueGraph
