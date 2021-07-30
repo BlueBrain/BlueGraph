@@ -2,7 +2,7 @@
 vO.1.3 Release Notes
 ====================
 
-This release includes some minor bug-fixes, several new features and API changes described below. 
+This release includes some minor bug-fixes, several new features and API changes described below. In particular, it adds compatibility with :code:`pandas` version 1.3.
 
 
 Blue Graph's core
