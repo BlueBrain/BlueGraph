@@ -67,7 +67,7 @@ setup(
         "dev": [
             "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
             "pytest-mock==3.3.1", "codecov",
-            "dash==1.19.0",
+            "dash",
             "jupyter_dash",
             "dash_bootstrap_components",
             "dash_daq",
@@ -81,7 +81,7 @@ setup(
         ],
         "docs": [
             "sphinx", "sphinx-bluebrain-theme",
-            "dash==1.19.0",
+            "dash",
             "jupyter_dash"  # a temporary solution, mocking this module fails
         ],
         "cord19kg": [
