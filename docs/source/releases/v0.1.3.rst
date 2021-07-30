@@ -14,7 +14,7 @@ PGFrame
 Updates to the :code:`PGFrame` interface include:
 
 - Several minor bugfixes;
-- New :code:`from_ontology` method of :code:`PandasPGFrame` allowing to import ontologies as property graphs (based on `rdflib`).
+- New :code:`from_ontology` method of :code:`PGFrame` allowing to import ontologies as property graphs (based on `rdflib`).
 
 
 Backend support
