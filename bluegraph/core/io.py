@@ -614,6 +614,97 @@ class PGFrame(ABC):
 
         return self.number_of_edges() / total_edges
 
+    @classmethod
+    def from_ontology(cls, filepath=None, rdf_graph=None, format="turtle",
+                      remove_prop_uris=False):
+        """Create a PandasPGFrame from ontology."""
+        if filepath is None and rdf_graph is None:
+            raise ValueError(
+                "Ontology source must be specified: both "
+                "'filepath' or 'rdf_graph' are None")
+
+        if rdf_graph is None:
+            g = rdflib.Graph()
+            g.parse(filepath, format=format)
+        else:
+            g = rdf_graph
+
+        classes = set()
+        individuals = set()
+
+        # Extract classes and individuals as nodes
+        for s in g.subjects(RDF.type, OWL.Class):
+            if g.label(s):
+                classes.add(s)
+        for s in g.subjects(RDF.type, OWL.NamedIndividual):
+            if g.label(s):
+                individuals.add(s)
+
+        edges = defaultdict(set)
+        props = defaultdict(dict)
+        for c in classes:
+            node_id = g.label(c).value
+            for p, o in g.predicate_objects(c):
+                if isinstance(o, rdflib.Literal):
+                    prop_name = None
+                    if g.label(p):
+                        prop_name = g.label(p).value
+                    else:
+                        prop_name = str(p)
+                    if node_id in props[prop_name]:
+                        if isinstance(props[prop_name][node_id], list):
+                            props[prop_name][node_id].append(o.value)
+                        else:
+                            props[prop_name][node_id] = [
+                                props[prop_name][node_id], o.value
+                            ]
+                    else:
+                        props[prop_name][node_id] = o.value
+                else:
+                    source_node = g.label(c).value
+                    if p.eq(RDFS.subClassOf):
+                        if isinstance(o, rdflib.BNode):
+                            target_node = None
+                            for oo in g.objects(o, OWL.someValuesFrom):
+                                if g.label(oo):
+                                    target_node = g.label(oo).value
+                            for oo in g.objects(o, OWL.onProperty):
+                                if g.label(oo):
+                                    edge_label = g.label(oo).value
+                            if target_node:
+                                edges[(source_node, target_node)].add(edge_label)
+                        else:
+                            if g.label(o):
+                                edges[(source_node, g.label(o).value)].add(
+                                    "IS_SUBCLASS_OF")
+                    elif not p.eq(RDF.type):
+                        target_node = g.label(o)
+                        if target_node:
+                            edges[(source_node, target_node.value)].add(str(p))
+
+        # Create a PGFrame
+        graph = cls(
+            nodes=[g.label(el).value for el in classes.union(individuals)],
+            edges=list(edges.keys()))
+        graph.add_edge_types(edges)
+
+        # Add node props
+        for k, v in props.items():
+            graph.add_node_properties(
+                pd.DataFrame(v.items(), columns=["@id", k])
+            )
+
+        # Remove uri's from property names: 'http://...#prop' becomes 'prop'
+        if remove_prop_uris:
+            mapping = {}
+            for p in graph.node_properties():
+                match = re.match(r"(http:\/\/.*)#(.*)", p)
+                if match:
+                    mapping[p] = match.groups()[1]
+            graph.rename_node_properties(mapping)
+
+        return graph
+
     class PGFrameException(BlueGraphException):
         pass
 
@@ -1239,97 +1330,6 @@ class PandasPGFrame(PGFrame):
             if k in self._edge_prop_types:
                 del self._edge_prop_types[k]
         self._edge_prop_types.update(new_typing)
-
-    @classmethod
-    def from_ontology(cls, filepath=None, rdf_graph=None, format="turtle",
-                      remove_prop_uris=False):
-        """Create a PandasPGFrame from ontology."""
-        if filepath is None and rdf_graph is None:
-            raise ValueError(
-                "Ontology source must be specified: both "
-                "'filepath' or 'rdf_graph' are None")
-
-        if rdf_graph is None:
-            g = rdflib.Graph()
-            g.parse(filepath, format=format)
-        else:
-            g = rdf_graph
-
-        classes = set()
-        individuals = set()
-
-        # Extract classes and individuals as nodes
-        for s in g.subjects(RDF.type, OWL.Class):
-            if g.label(s):
-                classes.add(s)
-        for s in g.subjects(RDF.type, OWL.NamedIndividual):
-            if g.label(s):
-                individuals.add(s)
-
-        edges = defaultdict(set)
-        props = defaultdict(dict)
-        for c in classes:
-            node_id = g.label(c).value
-            for p, o in g.predicate_objects(c):
-                if isinstance(o, rdflib.Literal):
-                    prop_name = None
-                    if g.label(p):
-                        prop_name = g.label(p).value
-                    else:
-                        prop_name = str(p)
-                    if node_id in props[prop_name]:
-                        if isinstance(props[prop_name][node_id], list):
-                            props[prop_name][node_id].append(o.value)
-                        else:
-                            props[prop_name][node_id] = [
-                                props[prop_name][node_id], o.value
-                            ]
-                    else:
-                        props[prop_name][node_id] = o.value
-                else:
-                    source_node = g.label(c).value
-                    if p.eq(RDFS.subClassOf):
-                        if isinstance(o, rdflib.BNode):
-                            target_node = None
-                            for oo in g.objects(o, OWL.someValuesFrom):
-                                if g.label(oo):
-                                    target_node = g.label(oo).value
-                            for oo in g.objects(o, OWL.onProperty):
-                                if g.label(oo):
-                                    edge_label = g.label(oo).value
-                            if target_node:
-                                edges[(source_node, target_node)].add(edge_label)
-                        else:
-                            if g.label(o):
-                                edges[(source_node, g.label(o).value)].add(
-                                    "IS_SUBCLASS_OF")
-                    elif not p.eq(RDF.type):
-                        target_node = g.label(o)
-                        if target_node:
-                            edges[(source_node, target_node.value)].add(str(p))
-
-        # Create a PGFrame
-        graph = cls(
-            nodes=[g.label(el).value for el in classes.union(individuals)],
-            edges=list(edges.keys()))
-        graph.add_edge_types(edges)
-
-        # Add node props
-        for k, v in props.items():
-            graph.add_node_properties(
-                pd.DataFrame(v.items(), columns=["@id", k])
-            )
-
-        # Remove uri's from property names: 'http://...#prop' becomes 'prop'
-        if remove_prop_uris:
-            mapping = {}
-            for p in graph.node_properties():
-                match = re.match(r"(http:\/\/.*)#(.*)", p)
-                if match:
-                    mapping[p] = match.groups()[1]
-            graph.rename_node_properties(mapping)
-
-        return graph
 
 
 class SparkPGFrame(PGFrame):
