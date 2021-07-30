@@ -39,7 +39,7 @@ Graph preprocessing with BlueGraph
 Semantic property encoding
 --------------------------
 
-Added PCA-based dimensionality reduction as a part of :code:`SklearnPGEncoder`, that an optional dimensionality reduction step can be added as a part of preprocessing.
+Added PCA-based dimensionality reduction as a part of :code:`SklearnPGEncoder`. This allows adding an optional dimensionality reduction step as a part of preprocessing.
 
 For example, the following snippet creates an encoder that processes node and edge properties of the input graph and further performs dimensionality reduction to 10 components for resulting node features and 3 components for edges features.
 
