@@ -10,3 +10,4 @@ pyjwt==1.7.1
 tensorflow
 stellargraph>=1.2.0
 graph-tool==2.37
+dash==1.19.0

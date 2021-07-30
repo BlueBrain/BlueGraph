@@ -22,7 +22,6 @@ import os
 import re
 import pickle
 import shutil
-import warnings
 
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 from .similarity import SimilarityProcessor
@@ -91,44 +90,6 @@ class ElementClassifier(ABC):
             pgframe, predict_elements)
         data = self._generate_data_table(pgframe, predict_elements)
         return self.model.predict(data)
-
-
-class Preprocessor(ABC):
-    """Preprocessor inferface for EmbeddingPipeline."""
-
-    @abstractmethod
-    def info(self):
-        """Get dictionary with the info."""
-        pass
-
-    @abstractmethod
-    def fit(self, data, **kwargs):
-        """Fit the preprocessor."""
-        pass
-
-    @abstractmethod
-    def transform(self, data, **kwargs):
-        """Tranform the input data."""
-        pass
-
-
-class Embedder(ABC):
-    """Embedder inferface for EmbeddingPipeline."""
-
-    @abstractmethod
-    def info(self):
-        """Get dictionary with the info."""
-        pass
-
-    @abstractmethod
-    def fit_model(self, data, **kwargs):
-        """Train specified model on the provided data."""
-        pass
-
-    @abstractmethod
-    def predict_embeddings(self, data=None, **kwargs):
-        """Predict embeddings of out-sample elements."""
-        pass
 
 
 class EmbeddingPipeline(object):

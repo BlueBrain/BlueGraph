@@ -23,12 +23,10 @@ import pickle
 import zipfile
 
 import pandas as pd
-import networkx as nx
 
 from collections import Counter
 
 from kgforge.core import KnowledgeGraphForge
-from networkx.readwrite.json_graph.cytoscape import cytoscape_data
 
 from bluegraph.core.io import PandasPGFrame
 from bluegraph.preprocess import CooccurrenceGenerator
@@ -238,7 +236,7 @@ def mentions_to_occurrence(raw_data,
         aggregation_function = set
 
     occurence_data = raw_data.groupby(term_column).aggregate(
-        lambda x: aggregation_function(x))
+        aggregation_function)
 
     if dump_prefix is not None:
         print("Saving the occurrence data....")
@@ -259,13 +257,14 @@ def aggregate_cord_entities(x, factors):
     The rest of the input occurrence factors are aggregated as sets
     (e.g. sets of unique papers/sections/paragraphs).
     """
-    result = {
-        "entity_type": list(x.entity_type)
-    }
-    for f in factors:
-        result[f] = set(x[f])
+    if x.name == "entity_type":
+        return x.tolist()
+    else:
+        return set(x.tolist())
+    # for f in factors:
+    #     result[f] = set(x[f])
 
-    return result
+    # return result
 
 
 def prepare_occurrence_data(mentions_df=None,

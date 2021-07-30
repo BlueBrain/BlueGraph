@@ -18,7 +18,7 @@ import itertools
 from operator import itemgetter
 from functools import partial
 
-import community as community_louvain
+import community.community_louvain as community_louvain
 from networkx.algorithms.community.centrality import girvan_newman
 from networkx.algorithms.community.label_propagation import asyn_lpa_communities
 from networkx.algorithms.community.quality import (performance,

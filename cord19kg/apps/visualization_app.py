@@ -36,7 +36,6 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from bluegraph.core.utils import top_n
-from bluegraph.backends.networkx import pgframe_to_networkx
 
 import cord19kg
 from cord19kg.apps.resources import (CYTOSCAPE_STYLE_STYLESHEET,

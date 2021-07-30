@@ -25,11 +25,29 @@ import pandas as pd
 
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
-
 DEFAULT_EMBEDDING_DIMENSION = 64
 
 
-class GraphElementEmbedder(ABC):
+class Embedder(ABC):
+    """Embedder inferface for EmbeddingPipeline."""
+
+    @abstractmethod
+    def info(self):
+        """Get dictionary with the info."""
+        pass
+
+    @abstractmethod
+    def fit_model(self, data, **kwargs):
+        """Train specified model on the provided data."""
+        pass
+
+    @abstractmethod
+    def predict_embeddings(self, data=None, **kwargs):
+        """Predict embeddings of out-sample elements."""
+        pass
+
+
+class GraphElementEmbedder(Embedder):
     """Abstract class for a node/edge embedder."""
 
     @property
@@ -80,7 +98,7 @@ class GraphElementEmbedder(ABC):
         """Initialize StellarGraphEmbedder."""
         if model_name.lower() not in self._transductive_models and\
            model_name.lower() not in self._inductive_models:
-            raise ElementEmbedder.InvalidModelException(
+            raise GraphElementEmbedder.InvalidModelException(
                 f"Embedding model '{model_name.lower()}' is not implemented "
                 f"for {self.__class__.__name__}")
 
@@ -164,7 +182,7 @@ class GraphElementEmbedder(ABC):
         if nodes is None:
             nodes = pgframe.nodes()
         if self._embedding_model is None:
-            raise ElementEmbedder.PredictionException(
+            raise GraphElementEmbedder.PredictionException(
                 "Embedder does not have a predictive model")
 
         input_graph = self._generate_graph(pgframe, self.graph_configs)
@@ -241,6 +259,6 @@ class GraphElementEmbedder(ABC):
         pass
 
 
-class GraphEmbedder(ABC):
+class GraphEmbedder(Embedder):
     """Abstract class for a graph embedder."""
     pass
