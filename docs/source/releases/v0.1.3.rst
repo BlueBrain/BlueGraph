@@ -1,0 +1,71 @@
+====================
+vO.1.3 Release Notes
+====================
+
+This release includes some minor bug-fixes, several new features and API changes described below. 
+
+
+Blue Graph's core
+=================
+
+PGFrame
+-------
+
+Updates to the :code:`PGFrame` interface include:
+
+- Several minor bugfixes;
+- New :code:`from_ontology` method of :code:`PandasPGFrame` allowing to import ontologies as property graphs (based on `rdflib`).
+
+
+Backend support
+===============
+
+graph-tool
+----------
+
+In this release we have fixed the version of :code:`graph-tool` to to 2.37 due to the breaking changes in the new API of 2.4X (in particular, removal of `B_min` parameter from the interface of :code:`minimize_blockmodel_dl`).
+  
+
+Neo4j
+-----
+
+We have updated Neo4j-based analytics utils to use the lastest Neo4j GDS 1.6.X and added a couple of minor bugfixes to :code:`bluegraph.backends.neo4j.pgframe_to_neo4j`.
+
+
+Graph preprocessing with BlueGraph
+==================================
+
+
+Semantic property encoding
+--------------------------
+
+Added PCA-based dimensionality reduction as a part of :code:`SklearnPGEncoder`, that an optional dimensionality reduction step can be added as a part of preprocessing.
+
+For example, the following snippet creates an encoder that processes node and edge properties of the input graph and further performs dimensionality reduction to 10 components for resulting node features and 3 components for edges features.
+
+.. code-block:: python
+
+	encoder = SklearnPGEncoder(
+	    node_properties=["nprop1", "nprop2", "nprop3"],
+	    edge_properties=["eprop1", "eprop2", "eprop3"],
+	    reduce_node_dims=True,
+	    reduce_edge_dims=True,
+	    n_node_components=10,
+	    n_edge_components=3)
+
+
+Services
+========
+
+
+Embedder
+--------
+
+Changes to the API of the embedding service were introduced:
+
+- :code:`models/{model_id}/details/{component}`
+- :code:`/models/{model_id}/{component}`
+- :code:`model/{model_id>}/...` is replaced by :code:`models/{model_id}/...`
+- :code:`model/{model_id}/similar-points` is replaced by :code:`models/{model_id}/neighbors`
+- :code:`models/<model_id>/embedding` returns  :code:`{"vectors": [..., ..., ...] }`
+
