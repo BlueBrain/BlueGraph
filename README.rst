@@ -83,7 +83,7 @@ You can install both :code:`graph-tool` and the Facebook :code:`Faiss` library b
 
 ::
 
-  conda create --name <your_environment> -c conda-forge graph-tool faiss python=<your_python>
+  conda create --name <your_environment> -c conda-forge graph-tool==2.37 faiss python=<your_python>
   conda activate <your_environment>
 
 
