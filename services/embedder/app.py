@@ -255,7 +255,6 @@ def handle_embeddings_request(model_name):
             if content and "resource_ids" in content:
                 indices = content["resource_ids"]
                 embeddings = pipeline.retrieve_embeddings(indices)
-                print(pipeline.similarity_processor.get_vectors(indices))
                 vectors = dict(zip(indices, embeddings))
             elif pipeline.is_inductive():
                 auth_token = _retrieve_token(request)
