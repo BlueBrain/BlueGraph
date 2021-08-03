@@ -13,14 +13,13 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-from abc import ABC, abstractmethod
-
+import json
 import os
 import pickle
 import re
 import shutil
-import json
 
+from abc import ABC, abstractmethod
 import pandas as pd
 
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning

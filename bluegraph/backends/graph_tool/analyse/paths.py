@@ -19,7 +19,7 @@ from graph_tool import GraphView
 from graph_tool.topology import shortest_path, min_spanning_tree
 from graph_tool.topology import all_shortest_paths as gt_all_shortest_paths
 
-from ..io import GTGraphProcessor, _get_vertex_obj, _get_node_id, _get_edge_obj
+from ..io import GTGraphProcessor, _get_vertex_obj, _get_edge_obj
 
 
 def handle_exclude_gt_edge(method):
