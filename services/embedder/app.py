@@ -242,20 +242,23 @@ def handle_embeddings_request(model_name):
     """Handle request of embedding vectors for provided resources."""
     if model_name in app.models:
         pipeline = app.models[model_name]["object"]
+
+        # Check if the request queries existing resources
+        indices = None
         if request.method == "GET":
             params = request.args.to_dict(flat=False)
             indices = params["resource_ids"]
             embeddings = pipeline.retrieve_embeddings(indices)
-            return (
-                json.dumps({
-                    "vectors": dict(zip(indices, embeddings))
-                }), 200,
-                {'ContentType': 'application/json'}
-            )
+            vectors = dict(zip(indices, embeddings))
         else:
-            if pipeline.is_inductive():
+            content = request.get_json()
+            if content and "resource_ids" in content:
+                indices = content["resource_ids"]
+                embeddings = pipeline.retrieve_embeddings(indices)
+                print(pipeline.similarity_processor.get_vectors(indices))
+                vectors = dict(zip(indices, embeddings))
+            elif pipeline.is_inductive():
                 auth_token = _retrieve_token(request)
-                content = request.get_json()
                 data = content["data"]
                 data_type = (
                     content["data_type"]
@@ -275,15 +278,14 @@ def handle_embeddings_request(model_name):
 
                 if not isinstance(vectors, list):
                     vectors = vectors.tolist()
-
-                return (
-                    json.dumps({"vectors": vectors}), 200,
-                    {'ContentType': 'application/json'}
-                )
             else:
                 _respond_not_allowed(
                     "Model is transductive, prediction of "
                     "embedding for unseen data is not supported")
+        return (
+            json.dumps({"vectors": vectors}), 200,
+            {'ContentType': 'application/json'}
+        )
 
     else:
         return _respond_not_found()
@@ -301,16 +303,31 @@ def handle_similar_points_request(model_name):
     values = (
         params["values"][0] == "True" if "values" in params else False
     )
-
+    existing = False
     if request.method == 'GET':
         indices = params["resource_ids"]
+        existing = True
         similar_points, dist = pipeline.get_similar_points(
             existing_indices=indices, k=k)
+    else:
+        content = request.get_json()
+        if "resource_ids" in content:
+            existing = True
+            indices = content["resource_ids"]
+            similar_points, dist = pipeline.get_similar_points(
+                existing_indices=indices, k=k)
+        elif "vectors" in content:
+            vectors = content["vectors"]
+            similar_points, dist = pipeline.get_similar_points(
+                vectors=vectors, k=k)
+
+    if existing:
         if values:
             result = {
                 indices[i]: {
                     p: float(dist[i][j]) for j, p in enumerate(points)
-                } if points is not None else None
+                }
+                if points is not None else None
                 for i, points in enumerate(similar_points)
             }
         else:
@@ -319,19 +336,14 @@ def handle_similar_points_request(model_name):
                 for i, points in enumerate(similar_points)
             }
     else:
-        content = request.get_json()
-        vectors = content["vectors"]
-        similar_points, dist = pipeline.get_similar_points(
-            vectors=vectors, k=k)
         if values:
             result = [
-                {point: dist[i].tolist()[j] for j, point in enumerate(el)}
-                for i, el in enumerate(similar_points)
+                {point: dist[i].tolist()[j] for j, point in enumerate(points)}
+                for i, points in enumerate(similar_points)
             ]
         else:
-            result = [
-                el.tolist() for el in similar_points
-            ]
+            result = [points.tolist() for points in similar_points]
+
     return (
         json.dumps({"neighbors": result}), 200,
         {'ContentType': 'application/json'}
