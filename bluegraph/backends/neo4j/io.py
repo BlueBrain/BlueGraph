@@ -282,8 +282,9 @@ class Neo4jGraphProcessor(GraphProcessor):
     input PGFrames and read out PGFrames from the database.
     """
 
-    def __init__(self, pgframe=None, uri=None, username=None, password=None,
-                 driver=None, node_label=None, edge_label=None, directed=True):
+    def __init__(self, pgframe=None, directed=True,
+                 uri=None, username=None, password=None,
+                 driver=None, node_label=None, edge_label=None):
         if node_label is None:
             raise Neo4jGraphProcessor.ProcessorException(
                 "Cannot initialize a Neo4jMetricProcessor: "

@@ -22,8 +22,9 @@ from stellargraph.data import UnsupervisedSampler
 from stellargraph.layer import link_classification
 from stellargraph.losses import graph_log_likelihood
 
-from bluegraph.core.embed.embedders import (GraphElementEmbedder,
-                                            DEFAULT_EMBEDDING_DIMENSION)
+from bluegraph.core.embed.embedders import GraphElementEmbedder
+from bluegraph.backends.params import (STELLARGRAPH_PARAMS,
+                                       DEFAULT_STELLARGRAPH_PARAMS)
 
 from .ml_utils import (_fit_node2vec,
                        _fit_deep_graph_infomax,
@@ -34,45 +35,6 @@ from .ml_utils import (_fit_node2vec,
                        _dispatch_layer_sizes)
 from ..io import pgframe_to_stellargraph
 
-
-DEFAULT_STELLARGRAPH_PARAMS = {
-    "embedding_dimension": DEFAULT_EMBEDDING_DIMENSION,
-    "batch_size": 20,
-    "negative_samples": 10,
-    "epochs": 5,
-    "length": 5,  # maximum length of a random walk
-    "number_of_walks": 4,  # number of random walks per root node
-    "num_samples": [10, 5],
-    "random_walk_p": 0.5,  # Defines (unormalised) probability, 1/p, of returning to source node
-    "random_walk_q": 2.0,  # Defines (unormalised) probability, 1/q, for moving away from source node
-    "clusters": 2,
-    "clusters_q": 1
-}
-
-
-STELLARGRAPH_PARAMS = {
-    "transductive": [
-        "embedding_dimension",
-        "batch_size",
-        "negative_samples",
-        "epochs",
-        "length",
-        "num_samples",
-        "number_of_walks",
-        "random_walk_p",
-        "random_walk_q"
-    ],
-    "inductive": [
-        "embedding_dimension",
-        "length",
-        "number_of_walks",
-        "batch_size",
-        "epochs",
-        "num_samples",
-        "clusters",  # number of random clusters
-        "clusters_q"  # number of clusters to combine for each mini-batch
-    ]
-}
 
 LOSSES = {
     "complex": losses.BinaryCrossentropy(from_logits=True),
@@ -161,9 +123,18 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
         train_generator = _generate_transductive_train_flow(
             train_graph, generator, self.model_name, self.params)
 
-        model.fit(train_generator, epochs=self.params["epochs"], verbose=0)
+        model.fit(
+            train_generator,
+            epochs=self.params["epochs"],
+            steps_per_epoch=(
+                None
+                if self.model_name != "watchyourstep"
+                else int(
+                    train_graph.number_of_nodes() // self.params["batch_size"])
+            ),
+            verbose=0)
         if self.model_name == "watchyourstep":
-            embeddings = embedding_layer.embeddings()[0]
+            embeddings = embedding_layer.embeddings()
         else:
             embeddings = embedding_layer.embeddings()[0]
         return embeddings

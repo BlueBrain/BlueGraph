@@ -14,15 +14,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """Collection of utils."""
-import string
 import collections
+import nltk
+import string
 
 import numpy as np
-import nltk
+
 from nltk.corpus import stopwords
-
 from scipy import sparse
-
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
 

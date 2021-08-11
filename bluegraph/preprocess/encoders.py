@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 import math
 import numpy as np
 import pandas as pd
+
 from scipy.sparse import issparse
 
 from sklearn.preprocessing import StandardScaler, MultiLabelBinarizer
@@ -30,6 +31,7 @@ from .utils import (TfIdfEncoder,
                     Doc2VecEncoder,
                     _get_encoder_type,
                     _generate_type_repr)
+
 from bluegraph.core.utils import normalize_to_set, Preprocessor
 from bluegraph.core.io import PandasPGFrame
 from bluegraph.exceptions import BlueGraphException

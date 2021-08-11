@@ -17,7 +17,7 @@ import warnings
 
 from bluegraph.core.analyse.metrics import MetricProcessor
 
-from ..io import Neo4jGraphProcessor, Neo4jGraphView
+from ..io import Neo4jGraphProcessor
 
 
 class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
@@ -27,7 +27,8 @@ class Neo4jMetricProcessor(Neo4jGraphProcessor, MetricProcessor):
         graph_view = self._get_identity_view()
 
         node_match = graph_view._get_nodes_query(no_return=True)
-        edge_match = graph_view._get_edges_query(single_direction=True, no_return=True)
+        edge_match = graph_view._get_edges_query(
+            single_direction=True, no_return=True)
         query = (
             f"""{node_match}
             WITH count(n) as n_nodes

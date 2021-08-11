@@ -15,7 +15,6 @@
 #    limitations under the License.
 from abc import (ABC, abstractmethod)
 
-
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
