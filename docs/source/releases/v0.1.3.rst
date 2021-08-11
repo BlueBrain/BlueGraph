@@ -20,7 +20,7 @@ Updates to the :code:`PGFrame` interface include:
 Backend support
 ===============
 
-In this release a collection of dispatch utilities for creating different backend-specific objects was added (see :code:`bluegraph.backends.utils`).
+In this release a collection of factory utilities for creating different backend-specific objects was added (see :code:`bluegraph.backends.utils`).
 
 For example, instead of doing the following:
 
@@ -35,7 +35,7 @@ For example, instead of doing the following:
 	gt_detector =  GTComminityDetector(input_pgframe)
 
 
-(which includes a lot of backend-specific imports) user can also do:
+(which includes a lot of backend-specific imports) users can also do:
 
 .. code-block:: python
 
