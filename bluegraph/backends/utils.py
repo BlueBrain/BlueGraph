@@ -1,4 +1,4 @@
-"""A set of utils for dispatching and using different processing backends."""
+"""A set of factory utils for different processing backends."""
 
 from bluegraph.exceptions import BlueGraphException
 from .configs import (ANALYZER_CLS, EMBEDDER_CLS)
