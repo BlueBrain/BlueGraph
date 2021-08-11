@@ -81,10 +81,6 @@ class SimilarityProcessor(object):
             return processor
 
     def _preprocess_vectors(self, vectors):
-        not_empty_flag = [
-            True if el is not None else False
-            for i, el in enumerate(vectors)
-        ]
         if isinstance(vectors, pd.Series):
             vectors = np.array(vectors.to_list())
         else:
