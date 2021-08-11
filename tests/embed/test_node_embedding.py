@@ -167,6 +167,16 @@ def test_stellar_node_embedder(node_embedding_test_graph,
         set(node_embedding_test_graph.nodes()) ==
         set(embedding.index))
 
+    embedder = StellarGraphNodeEmbedder(
+        "watchyourstep", epochs=100, num_walks=80,
+        num_powers=10, batch_size=4, embedding_dimension=64)
+    embedding = embedder.fit_model(
+        node_embedding_test_graph)
+    assert(len(embedding["embedding"].iloc[0]) == 64)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))
+
 
 def test_neo4j_node_embedder(node_embedding_test_graph,
                              node_embedding_prediction_test_graph,

@@ -24,9 +24,6 @@ import warnings
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
-from bluegraph.exceptions import BlueGraphException
-
-
 # This is to avoid a wierd Faiss segmentation fault (TODO: investigate)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 

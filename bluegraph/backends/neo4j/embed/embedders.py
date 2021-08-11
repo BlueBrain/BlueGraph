@@ -13,64 +13,23 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-import time
 import json
 import warnings
 
 import pandas as pd
 
-from bluegraph.core.embed.embedders import (GraphElementEmbedder,
-                                            DEFAULT_EMBEDDING_DIMENSION)
+from bluegraph.core.embed.embedders import GraphElementEmbedder
 
-from ..io import Neo4jGraphView, pgframe_to_neo4j
+
+from bluegraph.backends.params import (NEO4j_PARAMS,
+                                       DEFAULT_NEO4j_PARAMS)
+from ..io import pgframe_to_neo4j
 
 
 NEO4J_NODE_EMBEDDING_CALLS = {
     "fastrp": "gds.fastRP",
     "node2vec": "gds.beta.node2vec",
     "graphsage": "gds.beta.graphSage"
-}
-
-
-DEFAULT_NEO4j_PARAMS = {
-    "embeddingDimension": DEFAULT_EMBEDDING_DIMENSION,
-}
-
-NEO4j_PARAMS = {
-    "fastrp": [
-        "embeddingDimension",
-        "iterationWeights",
-        "normalizationStrength"
-    ],
-    "node2vec": [
-        "walkLength",
-        "walksPerNode",
-        "windowSize",
-        "walkBufferSize",
-        "inOutFactor",
-        "returnFactor",
-        "negativeSamplingRate",
-        "centerSamplingFactor",
-        "contextSamplingExponent",
-        "embeddingDimension",
-        "initialLearningRate",
-        "minLearningRate",
-        "iterations"
-    ],
-    "graphsage": [
-        "embeddingDimension",
-        "activationFunction",
-        "sampleSizes",
-        # "featureProperties":,
-        "projectedFeatureDimension",
-        "batchSize",
-        "tolerance",
-        "learningRate",
-        "epochs",
-        "maxIterations",
-        "searchDepth",
-        "negativeSampleWeight",
-    ]
 }
 
 
