@@ -14,11 +14,45 @@ PGFrame
 Updates to the :code:`PGFrame` interface include:
 
 - Several minor bugfixes;
-- New :code:`from_ontology` method of :code:`PGFrame` allowing to import ontologies as property graphs (based on `rdflib`).
+- New :code:`from_ontology` method of :code:`PGFrame` allowing to import ontologies as property graphs (based on :code:`rdflib`).
 
 
 Backend support
 ===============
+
+In this release a collection of factory utilities for creating different backend-specific objects was added (see :code:`bluegraph.backends.utils`).
+
+For example, instead of doing the following:
+
+.. code-block:: python
+
+	from bluegraph.backends.networkx import NXMetricProcessor, NXCommunityDetector
+	from bluegraph.backends.graph_tool import GTPathFinder, GTComminityDetector
+
+	processor = NXMetricProcessor(input_pgframe)
+	finder = GTPathFinder(input_pgframe)
+	nx_detector =  NXCommunityDetector(input_pgframe)
+	gt_detector =  GTComminityDetector(input_pgframe)
+
+
+(which includes a lot of backend-specific imports) users can also do:
+
+.. code-block:: python
+
+	from bluegraph.backends import create_analyzer
+
+	processor = create_analyzer("metric_processor", "network", input_pgframe)
+	finder = create_analyzer("path_finder", "graph_tool", input_pgframe)
+	nx_detector =  create_analyzer("community_detector", "networkx", input_pgframe)
+	gt_detector =  create_analyzer("community_detector", "graph_tool", input_pgframe)
+
+
+The same holds for node embedders, for example:
+
+.. code-block:: python
+
+	embedded = create_node_embedder("stellargraph", "node2vec", edge_weight="weight", **kwargs)
+
 
 graph-tool
 ----------
@@ -63,9 +97,9 @@ Embedder
 
 Changes to the API of the embedding service were introduced:
 
-- :code:`models/{model_id}/details/{component}`
-- :code:`/models/{model_id}/{component}`
-- :code:`model/{model_id>}/...` is replaced by :code:`models/{model_id}/...`
-- :code:`model/{model_id}/similar-points` is replaced by :code:`models/{model_id}/neighbors`
-- :code:`models/<model_id>/embedding` returns  :code:`{"vectors": [..., ..., ...] }`
+- The endpoint :code:`models/{model_id}/details/{component}` is replaced by :code:`/models/{model_id}/{component}`
+- The endpoint :code:`model/{model_id}/...` is replaced by :code:`models/{model_id}/...`
+- The endpoint :code:`model/{model_id}/similar-points` is replaced by :code:`models/{model_id}/neighbors`
+- The endpoint :code:`models/{model_id}/embedding` returns  :code:`{"vectors": [..., ..., ...] }`
+- Added a :code:`POST` endpoint to :code:`/models/{model_id}/embedding/` and :code:`/models/{model_id}/neighbors/` that allows to query existing points (not only to predict new ones). This endpoint is necessary, if the number of resources is large, so that the :code:`GET` request uri explodes.
 
