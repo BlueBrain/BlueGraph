@@ -13,11 +13,11 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+import queue
 import math
-import pandas as pd
 
 import multiprocessing as mp
-import queue
+import pandas as pd
 
 from bluegraph.core.utils import _aggregate_values, safe_intersection
 

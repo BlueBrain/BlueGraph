@@ -16,9 +16,9 @@
 import math
 import pandas as pd
 import graph_tool as gt
+
 from graph_tool import GraphView
 from graph_tool.spectral import adjacency
-from graph_tool.util import find_vertex
 
 from bluegraph.core.io import PandasPGFrame, GraphProcessor
 

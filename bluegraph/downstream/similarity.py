@@ -24,9 +24,6 @@ import warnings
 from bluegraph.exceptions import BlueGraphException, BlueGraphWarning
 
 
-from bluegraph.exceptions import BlueGraphException
-
-
 # This is to avoid a wierd Faiss segmentation fault (TODO: investigate)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
@@ -84,10 +81,6 @@ class SimilarityProcessor(object):
             return processor
 
     def _preprocess_vectors(self, vectors):
-        not_empty_flag = [
-            True if el is not None else False
-            for i, el in enumerate(vectors)
-        ]
         if isinstance(vectors, pd.Series):
             vectors = np.array(vectors.to_list())
         else:
