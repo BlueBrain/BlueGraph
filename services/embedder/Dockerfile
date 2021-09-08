@@ -40,9 +40,9 @@ WORKDIR /app
 
 COPY --from=intermediate /venv /venv
 ADD . /app
-# RUN chgrp root /app
-# RUN chown -R embedder_user:root /app && usermod -d /app embedder_user
+
 RUN chmod -R 777 services/embedder/downloads/
+# RUN chmod -R 777 /app
 
 # The EXPOSE instruction indicates the ports on which a container 
 # will listen for connections
@@ -51,5 +51,6 @@ EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
 RUN source /venv/bin/activate && \
+	pip install git+https://github.com/BlueBrain/nexus-forge.git && \
  	pip install --no-cache-dir .[stellargraph]
 ENTRYPOINT source /venv/bin/activate && cd services/embedder && flask run --host=0.0.0.0

@@ -16,7 +16,9 @@
 
 """Embedding service configs."""
 FORGE_CONFIG = "configs/forge_configs/forge-config.yml"
+ENDPOINT = "https://bbp.epfl.ch/nexus/v1"
+# ENDPOINT = "https://staging.nexus.ocp.bbp.epfl.ch/v1"
 DOWNLOAD_DIR = "downloads/"
-LOCAL = True
+LOCAL = False
 
 DEBUG = True

@@ -15,6 +15,7 @@
 #    limitations under the License.
 
 """Main embedding service app."""
+from datetime import datetime
 import json
 import os
 import shutil
@@ -41,41 +42,55 @@ def _retrieve_token(request):
         return match.groups()[0]
 
 
-def digest_model_data(model_resource):
+def _get_remote_meta_data(forge, model_resource):
     """Digest model meta-data."""
+
+    def get_field(json_data, name):
+        return json_data[name] if name in json_data else None
+
+    def convert_nexus_time(value):
+        return datetime.strptime(
+            value, "%Y-%m-%dT%H:%M:%S.%f%z").strftime(
+                "%a %b %d %H:%M:%S %Y")
+
+    json_data = forge.as_json(model_resource)
+
     model_data = {
-        "id": model_resource.id,
-        "name": model_resource.name,
-        "description": model_resource.description,
-        "filename": model_resource.distribution.name,
-        "created": model_resource._store_metadata._createdAt,
-        "modified": model_resource._store_metadata._updatedAt
+        "store_id": model_resource.id,
+        "name": get_field(json_data, "name"),
+        "description": get_field(json_data, "description"),
+        "prefLabel": get_field(json_data, "prefLabel"),
+        "contribution": get_field(json_data, "contribution"),
+        "wasAssociatedWith": get_field(json_data, "wasAssociatedWith"),
+        "distribution": model_resource.distribution.name,
+        "created": convert_nexus_time(
+            model_resource._store_metadata._createdAt),
+        "modified": convert_nexus_time(
+            model_resource._store_metadata._updatedAt)
     }
     return model_data
+
+
+def _get_local_meta_data(model_name, file, download_dir):
+    return {
+        "store_id": None,
+        "name": model_name.replace("_", " "),
+        "description": None,
+        "prefLabel": None,
+        "contribution": None,
+        "wasAssociatedWith": None,
+        "distribution": os.path.join(download_dir, file),
+        "created": time.ctime(os.path.getctime(
+            os.path.join(download_dir, file))),
+        "modified": time.ctime(os.path.getmtime(
+            os.path.join(download_dir, file)))
+    }
 
 
 def _retrieve_models(local=True):
     """Retrieve all models from the catalog."""
     # Check if the download folder exists
-    def _get_meta_data(model_name, file):
-        return {
-            "data": {
-                "id": model_name,
-                "name": model_name,
-                "description": model_name,
-                "filename": os.path.join(
-                    app.config["DOWNLOAD_DIR"], file),
-                "created": time.ctime(os.path.getctime(
-                    os.path.join(
-                        app.config["DOWNLOAD_DIR"],
-                        file))),
-                "modified": time.ctime(os.path.getmtime(
-                    os.path.join(
-                        app.config["DOWNLOAD_DIR"],
-                        file)))
-            }
-        }
-
+    print(os.getcwd())
     if not os.path.exists(app.config["DOWNLOAD_DIR"]):
         os.makedirs(app.config["DOWNLOAD_DIR"])
 
@@ -83,8 +98,10 @@ def _retrieve_models(local=True):
         # Fetch from a Nexus-hosted catalog
         resources = app.forge.search({"type": "EmbeddingModel"})
         for resource in resources:
-            app.models[resource.name] = {
-                "data": digest_model_data(resource),
+            model_uuid = resource.id.split("/")[-1]
+
+            app.models[model_uuid] = {
+                "data": _get_remote_meta_data(app.forge, resource),
             }
             app.forge.download(
                 resource, "distribution.contentUrl",
@@ -93,7 +110,7 @@ def _retrieve_models(local=True):
             pipeline_path = os.path.join(
                 app.config["DOWNLOAD_DIR"],
                 resource.distribution.name)
-            app.models[resource.name]["object"] = EmbeddingPipeline.load(
+            app.models[model_uuid]["object"] = EmbeddingPipeline.load(
                 pipeline_path,
                 embedder_interface=GraphElementEmbedder,
                 embedder_ext="zip")
@@ -114,7 +131,10 @@ def _retrieve_models(local=True):
                         model_name = match.groups()[0]
                     else:
                         model_name = path
-                    app.models[model_name] = _get_meta_data(model_name, path)
+                    app.models[model_name] = {
+                        "data": _get_local_meta_data(
+                            model_name, path, app.config["DOWNLOAD_DIR"])
+                    }
                     pipeline_path = os.path.join(
                         app.config["DOWNLOAD_DIR"], path)
                     app.models[model_name]["object"] = EmbeddingPipeline.load(
@@ -131,8 +151,10 @@ app.config.from_pyfile('configs/app_config.py')
 
 if app.config["LOCAL"] is False:
     TOKEN = os.environ["NEXUS_TOKEN"]
+    ENDPOINT = app.config["ENDPOINT"]
     app.forge = KnowledgeGraphForge(
         app.config["FORGE_CONFIG"],
+        endpoint=ENDPOINT,
         token=TOKEN)
 else:
     app.forge = None
