@@ -382,6 +382,7 @@ class SimilarityProcessor(object):
                       existing_points=None, k=10,
                       add_to_index=False):
         """Get top N similar points."""
+        vectors = np.array(vectors)
         if existing_points is not None:
             distance, int_index = self.query_existing(existing_points, k)
         elif vectors is not None:
