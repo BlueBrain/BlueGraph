@@ -59,7 +59,7 @@ class GraphElementEmbedder(Embedder):
 
     @staticmethod
     @abstractmethod
-    def _generate_graph(self, pgframe):
+    def _generate_graph(pgframe, graph_configs):
         """Generate backend-specific graph object."""
         pass
 
@@ -167,7 +167,7 @@ class GraphElementEmbedder(Embedder):
             if not isinstance(embeddings, pd.DataFrame):
                 embeddings = pd.DataFrame(
                     {"embedding": embeddings.tolist()},
-                    index=train_graph.nodes())
+                    index=pgframe.nodes())
         elif self.model_name in self._inductive_models:
             self._embedding_model = self._fit_inductive_embedder(train_graph)
             embeddings = self._predict_embeddings(train_graph)

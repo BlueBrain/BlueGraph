@@ -48,11 +48,16 @@ class Neo4jNodeEmbedder(GraphElementEmbedder):
     @staticmethod
     def _generate_graph(pgframe=None, uri=None, username=None,
                         password=None, driver=None,
-                        node_label=None, edge_label=None):
+                        node_label=None, edge_label=None,
+                        graph_configs=None):
         """Generate backend-specific graph object."""
+        if graph_configs is None:
+            graph_configs = {"directed": True}
+
         return pgframe_to_neo4j(
             pgframe=pgframe, uri=uri, username=username, password=password,
-            driver=driver, node_label=node_label, edge_label=edge_label)
+            driver=driver, node_label=node_label, edge_label=edge_label,
+            directed=graph_configs["directed"])
 
     def _dispatch_model_params(self, **kwargs):
         """Dispatch training parameters."""
@@ -223,7 +228,9 @@ class Neo4jNodeEmbedder(GraphElementEmbedder):
             train_graph = self._generate_graph(
                 pgframe=pgframe, uri=uri, username=username,
                 password=password, driver=driver,
-                node_label=node_label, edge_label=edge_label)
+                node_label=node_label, edge_label=edge_label,
+                graph_configs=self.graph_configs)
+            # self.graph_configs
         else:
             train_graph = graph_view
 
