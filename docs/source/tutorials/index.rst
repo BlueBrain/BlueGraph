@@ -13,4 +13,5 @@ Tutorials
    bluegraph_tutorials/literature
    bluegraph_tutorials/nasa
    bluegraph_tutorials/embedding_tutorial
+   bluegraph_tutorials/pipelines_tutorial
 
