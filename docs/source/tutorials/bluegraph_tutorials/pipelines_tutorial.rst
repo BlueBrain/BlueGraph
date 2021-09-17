@@ -93,17 +93,6 @@ embedder 4. produces the embedding table 5. fits the similarity index
     attri2vec_pipeline.run_fitting(graph)
 
 
-.. parsed-literal::
-
-    link_classification: using 'ip' method to combine node embeddings into edge embeddings
-    <faiss.swigfaiss_avx2.IndexIVFFlat; proxy of <Swig Object of type 'faiss::IndexIVFFlat *' at 0x7f970e2d6f90> >
-
-
-.. parsed-literal::
-
-    /Users/oshurko/opt/anaconda3/envs/bg/lib/python3.7/site-packages/bluegraph/downstream/similarity.py:180: SimilarityWarning: Faiss segmented index is not trained, training on the provided vectors
-      SimilarityIndex.SimilarityWarning)
-
 
 We can save our pipeline to the file system as follows:
 
@@ -112,14 +101,6 @@ We can save our pipeline to the file system as follows:
     attri2vec_pipeline.save(
         "../data/attri2vec_test_model",
         compress=True)
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:From /Users/oshurko/opt/anaconda3/envs/bg/lib/python3.7/site-packages/tensorflow/python/ops/resource_variable_ops.py:1817: calling BaseResourceVariable.__init__ (from tensorflow.python.ops.resource_variable_ops) with constraint is deprecated and will be removed in a future version.
-    Instructions for updating:
-    If using Keras pass *_constraint arguments to layers.
-    INFO:tensorflow:Assets written to: ../data/attri2vec_test_model/embedder/model/assets
 
 
 We can launch prediction of the unseen graph nodes using our pipeline as

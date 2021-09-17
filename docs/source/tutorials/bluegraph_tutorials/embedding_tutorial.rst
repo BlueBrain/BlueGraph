@@ -1879,14 +1879,6 @@ How we can save our pipeline to the file system.
         compress=True)
 
 
-.. parsed-literal::
-
-    WARNING:tensorflow:From /Users/oshurko/opt/anaconda3/envs/bg/lib/python3.7/site-packages/tensorflow/python/ops/resource_variable_ops.py:1817: calling BaseResourceVariable.__init__ (from tensorflow.python.ops.resource_variable_ops) with constraint is deprecated and will be removed in a future version.
-    Instructions for updating:
-    If using Keras pass *_constraint arguments to layers.
-    INFO:tensorflow:Assets written to: ../data/attri2vec_test_model/embedder/model/assets
-
-
 And we can load the pipeline back into memory:
 
 .. code:: ipython3
