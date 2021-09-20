@@ -197,4 +197,4 @@ The development of this project was supported by funding to the Blue Brain Proje
 
 
 
-COPYRIGHT © 2020–2021, Blue Brain Project/EPFL
+Copyright (c) 2020-2021 Blue Brain Project/EPFL
