@@ -181,7 +181,7 @@ Licensing
 - Included example scripts and notebooks (`BlueGraph/examples <https://github.com/BlueBrain/BlueGraph/tree/master/examples>`_ and `BlueGraph/cord19kg/examples <https://github.com/BlueBrain/BlueGraph/tree/master/cord19kg/examples>`_) are distributed under the 3-Clause BSD License.
 - Data files stored in the repository are distributed under the `Commons Attribution 4.0 International license (CC BY 4.0) <https://creativecommons.org/licenses/by/4.0/>`_ License.
 
-Funding and Acknowledgements
+Funding & Acknowledgements
 ----------------------------
 
 The development of this project was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology.
