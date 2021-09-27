@@ -234,8 +234,12 @@ class GraphElementEmbedder(Embedder):
 
         with open(os.path.join(path, "emb.pkl"), "rb") as f:
             embedder = pickle.load(f)
-        embedder._embedding_model = embedder._load_predictive_model(
-            os.path.join(path, "model"))
+
+        embedder._embedding_model = None
+        if os.path.isfile(os.path.join(path, "model")):
+            embedder._embedding_model = embedder._load_predictive_model(
+                os.path.join(path, "model"))
+
         if decompressed:
             shutil.rmtree(path)
 
