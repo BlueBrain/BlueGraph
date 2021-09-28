@@ -84,3 +84,27 @@ DEFAULT_STELLARGRAPH_PARAMS = {
     "clusters_q": 1,
     "num_powers": 10
 }
+
+
+GENSIM_PARAMS = {
+    "poincare": [
+        "epochs",
+        "size",
+        "alpha",
+        "negative",
+        "workers",
+        "epsilon",
+        "regularization_coeff",
+        "burn_in",
+        "burn_in_alpha",
+        "init_range",
+        "dtype",
+        "seed"
+    ]
+}
+
+
+DEFAULT_GENSIM_PARAMS = {
+    "size": 64,
+    "epochs": 50
+}

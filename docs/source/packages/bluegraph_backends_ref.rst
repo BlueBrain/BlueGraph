@@ -10,3 +10,4 @@
    ../packages/bluegraph_backends_graph_tool
    ../packages/bluegraph_backends_neo4j
    ../packages/bluegraph_backends_stellargraph
+   ../packages/bluegraph_backends_gensim

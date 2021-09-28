@@ -162,12 +162,12 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         node_label_repr = f":{node_label}" if node_label else ""
 
         query = (
-        f"""
-        WITH [{", ".join(node_repr)}] AS batch
-        UNWIND batch as individual
-        CREATE (n{node_label_repr})
-        SET n += individual
-        """)
+            f"""
+            WITH [{", ".join(node_repr)}] AS batch
+            UNWIND batch as individual
+            CREATE (n{node_label_repr})
+            SET n += individual
+            """)
         execute(driver, query)
 
     # Add node types to the Neo4j node labels
@@ -189,6 +189,7 @@ def pgframe_to_neo4j(pgframe=None, uri=None, username=None, password=None,
         edge_labels = [edge_label]
 
     for edge_label in edge_labels:
+
         # Select edges of a given type, if applicable
         edges = pgframe.edges(
             raw_frame=True,

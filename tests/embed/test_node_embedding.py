@@ -17,6 +17,7 @@
 from bluegraph.backends.stellargraph import StellarGraphNodeEmbedder
 from bluegraph.backends.neo4j import (Neo4jNodeEmbedder, pgframe_to_neo4j,
                                       Neo4jGraphView)
+from bluegraph.backends.gensim import GensimNodeEmbedder
 
 
 def _execute(driver, query):
@@ -267,3 +268,15 @@ def test_neo4j_node_embedder(node_embedding_test_graph,
     embedder.save("neo4j_sage_emedder", compress=True)
     embedder = Neo4jNodeEmbedder.load("neo4j_sage_emedder.zip")
     embedder.info()
+
+
+def test_gensim_node_embedder(node_embedding_test_graph,
+                              node_embedding_prediction_test_graph):
+    embedder = GensimNodeEmbedder(
+        "poincare", directed=True, size=6, epochs=100, negative=3)
+    embedding = embedder.fit_model(node_embedding_test_graph)
+    print(embedding)
+    assert(len(embedding["embedding"].iloc[0]) == 6)
+    assert(
+        set(node_embedding_test_graph.nodes()) ==
+        set(embedding.index))

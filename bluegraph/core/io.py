@@ -954,6 +954,8 @@ class PandasPGFrame(PGFrame):
         """Return a list of edges types."""
         if flatten:
             types = _aggregate_values(self._edges["@type"])
+            if isinstance(types, str):
+                types = [types]
         else:
             types = []
             for el in self._edges["@type"]:
@@ -1112,9 +1114,10 @@ class PandasPGFrame(PGFrame):
     def aggregate_properties(frame, func, into="aggregation_result"):
         if "@type" in frame.columns:
             df = frame.drop("@type", axis=1)
+            aggregated = df.aggregate(func, axis=1).values.tolist()
             frame = pd.DataFrame(
                 {
-                    into: df.aggregate(func, axis=1),
+                    into: aggregated,
                     "@type": frame["@type"]
                 },
                 index=frame.index)

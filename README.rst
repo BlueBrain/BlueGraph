@@ -28,6 +28,7 @@ Using the built-in :code:`PGFrame` data structure (currently, `pandas <https://p
 - `graph-tool <https://graph-tool.skewed.de/>`_ (for the analytics API)
 - `Neo4j <https://neo4j.com/>`_ (for the analytics and representation learning API);
 - `StellarGraph <https://stellargraph.readthedocs.io/en/stable/>`_ (for the representation learning API).
+- `gensim <https://radimrehurek.com/gensim/>`_ (for the representation learning API).
 
 This repository originated from the Blue Brain effort on building a COVID-19-related knowledge graph from the `CORD-19 <https://www.kaggle.com/allen-institute-for-ai/CORD-19-research-challenge>`_ dataset and analysing the generated graph to perform literature review of the role of glucose metabolism deregulations in the progression of COVID-19. For more details on how the knowledge graph is built, explored and analysed, see `COVID-19 co-occurrence graph generation and analysis <https://github.com/BlueBrain/BlueGraph/tree/master/cord19kg#readme>`__.
 
@@ -156,7 +157,9 @@ To get familiar with the ideas behind the co-occurrence analysis and the graph a
 - `Literature exploration (PGFrames + in-memory analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Literature%20exploration%20(PGFrames%20%2B%20in-memory%20analytics%20tutorial).ipynb>`_  illustrates how to use BlueGraphs's analytics API for in-memory graph backends based on the :code:`NetworkX` and the :code:`graph-tool` libraries.
 - `NASA keywords (PGFrames + Neo4j analytics tutorial) <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/NASA%20keywords%20(PGFrames%20%2B%20Neo4j%20analytics%20tutorial).ipynb>`_ illustrates how to use the Neo4j-based analytics API for persistent property graphs.
 
-`Embedding and downstream tasks tutorial <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Embedding%20and%20downstream%20tasks%20tutorial.ipynb>`_ starts from the co-occurrence graph generation example and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification, edge prediction and embedding pipeline building.
+`Embedding and downstream tasks tutorial <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Embedding%20and%20downstream%20tasks%20tutorial.ipynb>`_ starts from the co-occurrence graph generation example and guides the user through the graph representation learning and all it's downstream tasks including node similarity queries, node classification and edge prediction.
+
+`Create and run embedding pipelines <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Create%20and%20run%20embedding%20pipelines.ipynb>`_ illustrates how embedding pipelines can be built and executed using BlueGraph.
 
 Finally, `Create and push embedding pipeline into Nexus.ipynb <https://github.com/BlueBrain/BlueGraph/blob/master/examples/notebooks/Create%20and%20push%20embedding%20pipeline%20into%20Nexus.ipynb>`_ illustrates how embedding pipelines can be created and pushed to `Nexus <https://bluebrainnexus.io/>`_ and
 `Embedding service API <https://github.com/BlueBrain/BlueGraph/blob/master/services/embedder/examples/notebooks/Embedding%20service%20API.ipynb>`_ shows how embedding service that retrieves the embedding pipelines from Nexus can be used.

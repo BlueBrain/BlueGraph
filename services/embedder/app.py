@@ -306,18 +306,18 @@ def handle_similar_points_request(model_name):
     if request.method == 'GET':
         indices = params["resource_ids"]
         existing = True
-        similar_points, dist = pipeline.get_similar_points(
-            existing_indices=indices, k=k)
+        dist, similar_points = pipeline.get_neighbors(
+            existing_points=indices, k=k)
     else:
         content = request.get_json()
         if "resource_ids" in content:
             existing = True
             indices = content["resource_ids"]
-            similar_points, dist = pipeline.get_similar_points(
-                existing_indices=indices, k=k)
+            dist, similar_points = pipeline.get_neighbors(
+                existing_points=indices, k=k)
         elif "vectors" in content:
             vectors = content["vectors"]
-            similar_points, dist = pipeline.get_similar_points(
+            dist, similar_points = pipeline.get_neighbors(
                 vectors=vectors, k=k)
 
     if existing:
