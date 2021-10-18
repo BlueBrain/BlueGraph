@@ -27,12 +27,12 @@ jobs:
           sudo add-apt-repository universe
           sudo apt-get install neo4j=1:4.3.1
       - name: Download the graph data science lib
-          run: |
+        run: |
           wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.6.1-standalone.zip
           unzip neo4j-graph-data-science-1.6.1-standalone.zip
           sudo cp neo4j-graph-data-science-1.6.1.jar /var/lib/neo4j/plugins/
       - name: Get Miniconda from a third party repo and install
-          run: |
+        run: |
           wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
           bash miniconda.sh -b -p $HOME/miniconda
           source "$HOME/miniconda/etc/profile.d/conda.sh"
@@ -40,31 +40,31 @@ jobs:
           conda config --set always_yes yes --set changeps1 no
           conda update -q conda
       - name: Useful for debugging any issues with conda
-          run: conda info -a
+        run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
-          run: |
+        run: |
           conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=$TRAVIS_PYTHON_VERSION
           conda activate test-environment
       - name: Install the rest of the dependencies
-          run: pip install .[dev]
+        run: pip install .[dev]
       - name: Configure the Neo4j database
-          run: |
+        run: |
           sudo neo4j-admin set-initial-password neo4j
           echo 'dbms.connector.bolt.listen_address=0.0.0.0:7687' | sudo tee -a /etc/neo4j/neo4j.conf
           echo 'dbms.security.procedures.unrestricted=gds.*' | sudo tee -a /etc/neo4j/neo4j.conf
           echo 'dbms.security.procedures.whitelist=gds.*' | sudo tee -a /etc/neo4j/neo4j.conf
           cat /etc/neo4j/neo4j.conf
       - name: Start a db instance and wait (it takes time to start)
-          run: |
+        run: |
           sudo service neo4j restart
           sleep 60
       - name: Test with pytest
-          run: pytest --cov=./bluegraph
+        run: pytest --cov=./bluegraph
       - name: Upload to codecov
-          if: ${{matrix.python-version == '3.7'}}
-          uses: codecov/codecov-action@v1
-          with:
-            fail_ci_if_error: false
-            files: ./coverage.xml
-            flags: pytest
-            name: "bluegraph-py37"
+        if: ${{matrix.python-version == '3.7'}}
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: false
+          files: ./coverage.xml
+          flags: pytest
+          name: "bluegraph-py37"
