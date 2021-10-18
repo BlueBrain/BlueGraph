@@ -43,8 +43,9 @@ jobs:
         run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
+          conda init bash
           conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }}
-          conda activate test-environment
+          $CONDA/bin/activate test-environment
       - name: Install the rest of the dependencies
         run: pip install .[dev]
       - name: Configure the Neo4j database
