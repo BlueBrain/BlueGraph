@@ -1,0 +1,23 @@
+name: Publish BlueGraph to PyP
+on:
+  push:
+    tags:
+      - '/^v\d+\.\d+(\.\d+)?(-\S*)?$/'
+jobs:
+  publish:
+    name: Build and publish on PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Build a source tarball
+        run:
+            python setup.py sdist
+      - name: Publish distribution package to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: 'bbp.opensource'
+          password: ${{ secrets.PYPI_API_TOKEN }}
