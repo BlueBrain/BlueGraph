@@ -42,9 +42,9 @@ jobs:
       - name: Useful for debugging any issues with conda
         run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
+        shell: bash -l {0}
         run: |
           conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=$TRAVIS_PYTHON_VERSION
-          conda init bash
           conda activate test-environment
       - name: Install the rest of the dependencies
         run: pip install .[dev]
