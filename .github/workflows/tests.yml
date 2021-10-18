@@ -61,7 +61,9 @@ jobs:
           sudo service neo4j restart
           sleep 60
       - name: Test with pytest
-        run: pytest --cov=./bluegraph
+        run: |
+        $CONDA/bin/activate test-environment
+        pytest --cov=./bluegraph
       - name: Upload to codecov
         if: ${{matrix.python-version == '3.7'}}
         uses: codecov/codecov-action@v1
