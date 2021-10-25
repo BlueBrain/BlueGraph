@@ -40,6 +40,10 @@ jobs:
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
            $CONDA/bin/conda create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name test
+      - name: Activate a conda environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            activate-environment: test
       - name: Install the rest of the dependencies
         run: |
           pip install --upgrade pip
