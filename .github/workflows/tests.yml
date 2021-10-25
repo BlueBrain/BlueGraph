@@ -53,6 +53,7 @@ jobs:
 #          conda info -a
       - name: Install the rest of the dependencies
         run: |
+          pip install --upgrade pip
           pip install .[dev]
           conda info -a
       - name: Configure the Neo4j database
