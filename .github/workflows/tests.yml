@@ -47,7 +47,7 @@ jobs:
         run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
-           conda create --name test -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }}
+           conda create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name base
 #          echo "::add-path::/usr/share/miniconda/bin"
 #          conda activate test-environment
 #          conda info -a
