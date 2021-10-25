@@ -55,7 +55,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .[dev]
-          conda info -a
+          $CONDA/bin/pytest info -a
       - name: Configure the Neo4j database
         run: |
           sudo neo4j-admin set-initial-password neo4j
@@ -69,7 +69,7 @@ jobs:
           sleep 60
       - name: Test with pytest
         run: |
-          pytest --cov=./bluegraph
+          $CONDA/bin/pytest --cov=./bluegraph
           conda info -a
       - name: Upload to codecov
         if: ${{matrix.python-version == '3.7'}}
