@@ -1,6 +1,8 @@
 channels:
   - conda-forge
   - defaults
+  - stellargraph
 dependencies:
   - graph-tool==2.37
   - faiss-cpu
+  - stellargraph>=1.2.0
