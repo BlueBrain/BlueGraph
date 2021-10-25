@@ -35,22 +35,11 @@ jobs:
         run: |
             # $CONDA is an environment variable pointing to the root of the miniconda directory
             echo $CONDA/bin >> $GITHUB_PATH
-#       - name: Get Miniconda from a third party repo and install
-#         run: |
-#           wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-#           bash miniconda.sh -b -p $HOME/miniconda
-#           source "$HOME/miniconda/etc/profile.d/conda.sh"
-#           hash -r
-#           conda config --set always_yes yes --set changeps1 no
-#           conda update -q conda
       - name: Useful for debugging any issues with conda
         run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
-           conda create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name base
-#          echo "::add-path::/usr/share/miniconda/bin"
-#          conda activate test-environment
-#          conda info -a
+           conda env create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name base
       - name: Install the rest of the dependencies
         run: |
           pip install --upgrade pip
