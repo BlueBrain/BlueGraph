@@ -12,7 +12,7 @@ jobs:
       matrix:
         python-version: [ 3.7, 3.8 ]
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -31,24 +31,30 @@ jobs:
           wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.6.1-standalone.zip
           unzip neo4j-graph-data-science-1.6.1-standalone.zip
           sudo cp neo4j-graph-data-science-1.6.1.jar /var/lib/neo4j/plugins/
-      - name: Get Miniconda from a third party repo and install
+      - name: Add conda to system path
         run: |
-          wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-          bash miniconda.sh -b -p $HOME/miniconda
-          source "$HOME/miniconda/etc/profile.d/conda.sh"
-          hash -r
-          conda config --set always_yes yes --set changeps1 no
-          conda update -q conda
+            # $CONDA is an environment variable pointing to the root of the miniconda directory
+            echo $CONDA/bin >> $GITHUB_PATH
+#       - name: Get Miniconda from a third party repo and install
+#         run: |
+#           wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+#           bash miniconda.sh -b -p $HOME/miniconda
+#           source "$HOME/miniconda/etc/profile.d/conda.sh"
+#           hash -r
+#           conda config --set always_yes yes --set changeps1 no
+#           conda update -q conda
       - name: Useful for debugging any issues with conda
         run: conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
-          conda init bash
-          conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }}
-          echo "::add-path::/usr/share/miniconda/bin"
-          conda activate test-environment
-          conda info -a
+           conda create --name test-environment -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }}
+#          echo "::add-path::/usr/share/miniconda/bin"
+#          conda activate test-environment
+#          conda info -a
       - name: Install the rest of the dependencies
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            activate-environment: test-environment
         run: |
           pip install .[dev]
           conda info -a
