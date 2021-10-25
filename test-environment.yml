@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - graph-tool==2.37
+  - faiss-cpu
