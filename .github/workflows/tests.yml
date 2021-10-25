@@ -42,6 +42,7 @@ jobs:
            $CONDA/bin/conda env update --file test-environment.yml --name base
       - name: Install the rest of the dependencies
         run: |
+          $CONDA/bin/conda install -c stellargraph stellargraph
           python3 -m pip install .[dev]
           $CONDA/bin/pytest info -a
       - name: Configure the Neo4j database
