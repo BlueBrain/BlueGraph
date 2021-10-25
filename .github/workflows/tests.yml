@@ -36,10 +36,10 @@ jobs:
             # $CONDA is an environment variable pointing to the root of the miniconda directory
             echo $CONDA/bin >> $GITHUB_PATH
       - name: Useful for debugging any issues with conda
-        run: conda info -a
+        run: $CONDA/bin/conda info -a
       - name: Create a new virtual env with graph-tool and faiss-gpu
         run: |
-           conda env create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name base
+           $CONDA/bin/conda create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name test
       - name: Install the rest of the dependencies
         run: |
           pip install --upgrade pip
@@ -59,7 +59,7 @@ jobs:
       - name: Test with pytest
         run: |
           $CONDA/bin/pytest --cov=./bluegraph
-          conda info -a
+          $CONDA/bin/conda info -a
       - name: Upload to codecov
         if: ${{matrix.python-version == '3.7'}}
         uses: codecov/codecov-action@v1
