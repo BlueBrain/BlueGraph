@@ -51,10 +51,11 @@ jobs:
 #          echo "::add-path::/usr/share/miniconda/bin"
 #          conda activate test-environment
 #          conda info -a
-      - name: Install the rest of the dependencies
+      - name: Activate the newly created environment
         uses: conda-incubator/setup-miniconda@v2
         with:
             activate-environment: test-environment
+      - name: Install the rest of the dependencies
         run: |
           pip install .[dev]
           conda info -a
