@@ -37,13 +37,9 @@ jobs:
             echo $CONDA/bin >> $GITHUB_PATH
       - name: Useful for debugging any issues with conda
         run: $CONDA/bin/conda info -a
-      - name: Create a new virtual env with graph-tool and faiss-gpu
+      - name: Update the base env with graph-tool and faiss-gpu installed from conda-forge
         run: |
-           $CONDA/bin/conda create -c conda-forge graph-tool==2.37 faiss-gpu python=${{ matrix.python-version }} --name test
-      - name: Activate a conda environment
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-            activate-environment: test
+           $CONDA/bin/conda env update --file environment.yml --name base
       - name: Install the rest of the dependencies
         run: |
           pip install --upgrade pip
