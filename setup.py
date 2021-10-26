@@ -45,7 +45,7 @@ setup(
     install_requires=[
         "numpy>=1.20.1",
         "pandas",
-        "sklearn",
+        "scikit-learn>=0.24.2",
         "scipy",
         "matplotlib",
         "nltk",
