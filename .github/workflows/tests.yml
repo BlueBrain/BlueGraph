@@ -36,14 +36,13 @@ jobs:
             # $CONDA is an environment variable pointing to the root of the miniconda directory
             echo $CONDA/bin >> $GITHUB_PATH
       - name: Useful for debugging any issues with conda
-        run: $CONDA/bin/conda info -a
+        run: conda info -a
       - name: Update the base env with graph-tool and faiss-gpu installed from conda-forge
         run: |
-           $CONDA/bin/conda env update --file test-environment.yml --name base
+           conda env update --file test-environment.yml --name base
       - name: Install the rest of the dependencies
         run: |
           python3 -m pip install .[dev]
-          $CONDA/bin/pytest info -a
       - name: Configure the Neo4j database
         run: |
           sudo neo4j-admin set-initial-password neo4j
@@ -57,8 +56,7 @@ jobs:
           sleep 60
       - name: Test with pytest
         run: |
-          $CONDA/bin/pytest --cov=./bluegraph
-          $CONDA/bin/conda info -a
+          pytest --cov=./bluegraph
       - name: Upload to codecov
         if: ${{matrix.python-version == '3.7'}}
         uses: codecov/codecov-action@v1
