@@ -77,7 +77,7 @@ setup(
             "pyjwt==1.7.1",
             "ipywidgets",
             "neo4j",
-            "stellargraph>=1.2.0"
+         #   "stellargraph>=1.2.0"
         ],
         "docs": [
             "sphinx", "sphinx-bluebrain-theme",
