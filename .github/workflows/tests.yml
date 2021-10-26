@@ -39,6 +39,7 @@ jobs:
         run: conda info -a
       - name: Update the base env with graph-tool and faiss-gpu installed from conda-forge
         run: |
+           conda install python=${{ matrix.python-version }}
            conda env update --file test-environment.yml --name base
       - name: Install the rest of the dependencies
         run: |
