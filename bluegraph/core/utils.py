@@ -15,18 +15,28 @@
 #    limitations under the License.
 from abc import ABC, abstractmethod
 
+from collections import Counter
+
 import math
 import pandas as pd
 
 
 def normalize_to_set(value):
     if not isinstance(value, set):
-        if isinstance(value, str) or not math.isnan(value):
-            return {value}
-        elif math.isnan(value):
-            return set()
+        if value is None:
+            result = set()
         else:
-            return {value}
+            try:
+                if math.isnan(value):
+                    result = set()
+                else:
+                    result = {value}
+            except TypeError:
+                if isinstance(value, list):
+                    result = set(value)
+                else:
+                    result = {value}
+        return result
     return value
 
 
@@ -47,9 +57,26 @@ def _aggregate_values(values):
 
 
 def safe_intersection(set1, set2):
-    set1 = normalize_to_set(set1)
-    set2 = normalize_to_set(set2)
-    return set1.intersection(set2)
+    multiset = False
+    if isinstance(set1, list):
+        multiset = True
+    if isinstance(set2, list):
+        multiset = True
+
+    if multiset:
+        counter1 = Counter(set1)
+        counter2 = Counter(set2)
+        common_keys = set(
+            counter1.keys()).intersection(set(counter2.keys()))
+        common_counts = {}
+        for k in common_keys:
+            common_counts[k] = min(counter1[k], counter2[k])
+        return sum([[k] * v for k, v in common_counts.items()], [])
+
+    else:
+        set1 = normalize_to_set(set1)
+        set2 = normalize_to_set(set2)
+        return set1.intersection(set2)
 
 
 def element_has_type(element_type, query_type):
