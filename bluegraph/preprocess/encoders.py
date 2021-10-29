@@ -36,6 +36,12 @@ from bluegraph.core.utils import normalize_to_set, Preprocessor
 from bluegraph.core.io import PandasPGFrame
 from bluegraph.exceptions import BlueGraphException
 
+try:
+    DISABLED_GENSIM = False
+    from gensim.models import doc2vec
+except ImportError:
+    DISABLED_GENSIM = True
+
 
 class SemanticPGEncoder(Preprocessor):
     """Abstract class for semantic property graph encoder.
@@ -140,6 +146,13 @@ class SemanticPGEncoder(Preprocessor):
             Number of principal components to include for dimensionality
             reduction of the edges features.
         """
+
+        if DISABLED_GENSIM and text_encoding == "word2vec":
+            raise BlueGraphException(
+                "Gensim support is disabled in the current installation of "
+                "BlueGraph (run `pip install bluegraph[gensim])` "
+                "to enable gensim ")
+
         self.heterogeneous = heterogeneous
         self.drop_types = drop_types
         self.encode_types = encode_types
@@ -433,6 +446,11 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
                 encoder = self._fit_tfidf(
                     frame[prop], max_dim=self.text_encoding_max_dimension)
             elif self.text_encoding == "word2vec":
+                if DISABLED_GENSIM:
+                    raise BlueGraphException(
+                        "Gensim support is disabled in the current installation of "
+                        "BlueGraph (run `pip install bluegraph[gensim])` "
+                        "to enable gensim ")
                 encoder = self._fit_word2vec(frame[prop])
         elif encoder_type == "category":
             encoder = self._fit_multibin(frame[prop])
@@ -517,6 +535,12 @@ class ScikitLearnPGEncoder(SemanticPGEncoder):
 
     @staticmethod
     def _fit_word2vec(series, transform=False):
+        if DISABLED_GENSIM:
+            raise BlueGraphException(
+                "Gensim support is disabled in the current installation of "
+                "BlueGraph (run `pip install bluegraph[gensim])` "
+                "to enable gensim ")
+
         corpus = series[series.apply(lambda x: isinstance(x, str))]
         encoder = Doc2VecEncoder()
         encoder.fit(corpus)
