@@ -18,7 +18,7 @@ import warnings
 from tensorflow.keras import optimizers, losses, metrics, Model
 from tensorflow.keras.models import load_model
 
-from stellargraph.data import UnsupervisedSampler
+from stellargraph.data import (BiasedRandomWalk, UnsupervisedSampler)
 from stellargraph.layer import link_classification
 from stellargraph.losses import graph_log_likelihood
 
@@ -147,12 +147,27 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
             return _fit_deep_graph_infomax(
                 train_graph, self.params, self.model_name)
 
-        unsupervised_samples = UnsupervisedSampler(
-            train_graph,
-            nodes=train_graph.nodes(),
-            length=self.params["length"],
-            number_of_walks=self.params["number_of_walks"]
-        )
+        if "biased" in self.params and self.params["biased"] is True:
+            print("Biased...")
+            walker = BiasedRandomWalk(
+                train_graph,
+                n=self.params["number_of_walks"],
+                length=self.params["length"],
+                p=self.params["random_walk_p"],
+                q=self.params["random_walk_q"],
+            )
+            unsupervised_sampler = UnsupervisedSampler(
+                train_graph,
+                nodes=train_graph.nodes(),
+                walker=walker
+            )
+        else:
+            unsupervised_sampler = UnsupervisedSampler(
+                train_graph,
+                nodes=train_graph.nodes(),
+                length=self.params["length"],
+                number_of_walks=self.params["number_of_walks"]
+            )
 
         generator = _dispatch_generator(
             train_graph, self.model_name, self.params,
@@ -174,7 +189,7 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
             loss=losses.binary_crossentropy,
             metrics=[metrics.binary_accuracy],
         )
-        train_generator = generator.flow(unsupervised_samples)
+        train_generator = generator.flow(unsupervised_sampler)
 
         model.fit(
             train_generator,

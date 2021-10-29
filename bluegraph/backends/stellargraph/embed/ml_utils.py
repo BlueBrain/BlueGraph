@@ -126,7 +126,7 @@ def _dispatch_layer_sizes(model_name, params):
     if model_name == "attri2vec":
         return [params["embedding_dimension"]]
     elif model_name == "graphsage":
-        return [params["embedding_dimension"], params["embedding_dimension"]]
+        return [params["embedding_dimension"]] * len(params["num_samples"])
 
 
 def _dispatch_inductive_layer(layer_sizes, generator, model_name, params):
