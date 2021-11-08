@@ -45,7 +45,7 @@ setup(
     install_requires=[
         "numpy>=1.20.1",
         "pandas>=1.3.0",
-        "scikit-learn>=0.24.2",
+        "scikit-learn>=0.20",
         "scipy",
         "matplotlib",
         "nltk",
@@ -79,8 +79,9 @@ setup(
             "dash_cytoscape<=0.2.0",
             "ipywidgets==7.6.3",
             "neo4j",
-            "stellargraph>=1.2.0",
             "gensim<4.0.0",
+            "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
         ],
         "docs": [
             "sphinx",
@@ -102,7 +103,8 @@ setup(
         ],
         "stellargraph": [
             "gensim<4.0.0",
-            "stellargraph>=1.2.0"
+            "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
         ],
         "gensim": [
             "gensim<4.0.0"
@@ -119,6 +121,7 @@ setup(
             "neo4j",
             "gensim<4.0.0",
             "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
         ]
     },
     classifiers=[
