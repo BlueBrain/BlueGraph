@@ -108,6 +108,8 @@ def _get_s_t_frequencies(pgframe, s, t, node_property, factor_aggregator,
 def _compute_ppmi(pgframe, s, t, node_property, common_factors,
                   total_factor_instances,
                   factor_aggregator, reverse_edges):
+    if not isinstance(common_factors, set):
+        common_factors = set(common_factors)
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
         pgframe, s, t, node_property, factor_aggregator, reverse_edges)
@@ -119,6 +121,8 @@ def _compute_ppmi(pgframe, s, t, node_property, common_factors,
 def _compute_npmi(pgframe, s, t, node_property, common_factors,
                   total_factor_instances,
                   factor_aggregator, reverse_edges):
+    if not isinstance(common_factors, set):
+        common_factors = set(common_factors)
     co_freq = len(common_factors)
     s_freq, t_freq = _get_s_t_frequencies(
         pgframe, s, t, node_property, factor_aggregator, reverse_edges)

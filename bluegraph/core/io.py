@@ -694,13 +694,15 @@ class PGFrame(ABC):
                 pd.DataFrame(v.items(), columns=["@id", k])
             )
 
-        # Remove uri's from property names: 'http://...#prop' becomes 'prop'
+        # Remove uri's from property names: 'http(s*)://...[#|\/]prop'
+        # becomes 'prop'
+        pattern = r"(http(s*):\/\/.*)[#|\/](.*)"
         if remove_prop_uris:
             mapping = {}
             for p in graph.node_properties():
-                match = re.match(r"(http:\/\/.*)#(.*)", p)
+                match = re.match(pattern, p)
                 if match:
-                    mapping[p] = match.groups()[1]
+                    mapping[p] = match.groups()[2]
             graph.rename_node_properties(mapping)
 
         return graph

@@ -73,4 +73,6 @@ autodoc_mock_imports = [
     "neo4j",
     "faiss",
     "stellargraph",
+    "gensim",
+    "tensorflow"
 ]

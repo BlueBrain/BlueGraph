@@ -22,10 +22,16 @@ import numpy as np
 
 from nltk.corpus import stopwords
 from scipy import sparse
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+try:
+    DISABLED_GENSIM = False
+    from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+except ImportError:
+    DISABLED_GENSIM = True
+
 from bluegraph.core.utils import Preprocessor
+from bluegraph.exceptions import BlueGraphException
 
 
 def _get_encoder_type(pgframe, prop, is_edge=False):
@@ -126,6 +132,12 @@ class Doc2VecEncoder(Preprocessor):
 
     def fit(self, corpus):
         """Fit a word2vec model."""
+        if DISABLED_GENSIM:
+            raise BlueGraphException(
+                "Gensim support is disabled in the current installation of "
+                "BlueGraph (run `pip install bluegraph[gensim])` "
+                "to enable gensim ")
+
         tokenized_corpus = [
             TaggedDocument(tokenize_text(text), [i])
             for i, text in enumerate(corpus)

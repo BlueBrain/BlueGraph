@@ -44,16 +44,16 @@ setup(
     ],
     install_requires=[
         "numpy>=1.20.1",
-        "pandas",
-        "sklearn",
+        "pandas>=1.3.0",
+        "scikit-learn>=0.20",
         "scipy",
         "matplotlib",
         "nltk",
         "nexusforge",
-        "gensim==3.8.3",
-        "tensorflow",
+        "nexus-sdk",
         "networkx>=2",
-        "python-louvain"
+        "python-louvain",
+        "pyjwt==1.7.1",
     ],
     package_data={
         'cord19kg.apps': [
@@ -65,53 +65,63 @@ setup(
     },
     extras_require={
         "dev": [
-            "tox", "pytest", "pytest-bdd", "pytest-cov==2.10.1",
-            "pytest-mock==3.3.1", "codecov",
-            "dash==1.19.0",
-            "jupyter_dash",
-            "dash_bootstrap_components",
-            "dash_daq",
-            "dash_extensions",
-            "dash_cytoscape",
-            "nexus-sdk",
-            "pyjwt==1.7.1",
-            "ipywidgets",
+            "tox",
+            "pytest",
+            "pytest-bdd",
+            "pytest-cov==2.10.1",
+            "pytest-mock==3.3.1",
+            "codecov",
+            "dash<=1.19.0",
+            "jupyter_dash==0.4.0",
+            "dash_bootstrap_components<=0.13.0",
+            "dash_daq==0.5.0",
+            "dash_extensions==0.0.58",
+            "dash_cytoscape<=0.2.0",
+            "ipywidgets==7.6.3",
             "neo4j",
-            "stellargraph>=1.2.0"
+            "gensim<4.0.0",
+            "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
         ],
         "docs": [
-            "sphinx", "sphinx-bluebrain-theme",
-            "dash==1.19.0",
-            "jupyter_dash"  # a temporary solution, mocking this module fails
+            "sphinx",
+            "sphinx-bluebrain-theme",
+            "dash<=1.19.0",
+            "jupyter_dash==0.4.0"  # a temporary solution, mocking this module fails
         ],
         "cord19kg": [
-            "jupyter_dash",
-            "dash_bootstrap_components",
-            "dash_daq",
-            "dash_extensions",
-            "dash_cytoscape",
-            "nexusforge",
-            "nexus-sdk",
-            "pyjwt==1.7.1",
-            "ipywidgets"
+            "jupyter_dash==0.4.0",
+            "dash<=1.19.0",
+            "dash_bootstrap_components<=0.13.0",
+            "dash_daq==0.5.0",
+            "dash_extensions==0.0.58",
+            "dash_cytoscape<=0.2.0",
+            "ipywidgets==7.6.3"
         ],
         "neo4j": [
             "neo4j"
         ],
         "stellargraph": [
-            "stellargraph>=1.2.0"
+            "gensim<4.0.0",
+            "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
+        ],
+        "gensim": [
+            "gensim<4.0.0"
         ],
         "all": [
-            "jupyter_dash",
-            "dash_bootstrap_components",
-            "dash_daq",
-            "dash_extensions",
-            "dash_cytoscape",
+            "dash<=1.19.0",
+            "jupyter_dash==0.4.0",
+            "dash_bootstrap_components<=0.13.0",
+            "dash_daq==0.5.0",
+            "dash_extensions==0.0.58",
+            "dash_cytoscape<=0.2.0",
             "nexus-sdk",
-            "pyjwt==1.7.1",
-            "ipywidgets",
+            "ipywidgets==7.6.3",
             "neo4j",
-            "stellargraph>=1.2.0"
+            "gensim<4.0.0",
+            "stellargraph>=1.2.0",
+            "chardet>=4.0.0"
         ]
     },
     classifiers=[
