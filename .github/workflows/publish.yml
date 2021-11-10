@@ -18,5 +18,5 @@ jobs:
       - name: Publish distribution package to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
-          user: 'bbp.opensource'
+          username: 'bbp.opensource'
           password: ${{ secrets.PYPI_API_TOKEN }}
