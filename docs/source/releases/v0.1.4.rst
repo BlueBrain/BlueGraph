@@ -1,0 +1,104 @@
+====================
+vO.1.4 Release Notes
+====================
+
+
+This release includes several bugfixes in the core package, new features and API changes described below.
+
+
+
+Backend support
+===============
+
+
+Neo4j
+-----
+
+BlueGraph now supporsts Neo4j's GDS library v1.6 (`gds.beta.shortestPath.yens.stream` becomes `gds.shortestPath.yens.stream`). 
+
+
+Gensim
+------
+
+In the new BlueGraph release, `GensimNodeEmbedder` interface is added. This interface allows wrapping `gensim` embedding models (in particular, added the implementation of `poincare` embedding).
+
+
+.. code-block:: python
+
+    from bluegraph.backends.gensim import GensimNodeEmbedder
+
+    embedder = GensimNodeEmbedder(
+        "poincare", directed=True, size=6, epochs=100, negative=3)
+    embedding = embedder.fit_model(test_graph)
+
+
+Downstream tasks with BlueGraph
+==================================
+
+
+Similarity API
+--------------
+
+This release includes a refactored `SimilarityProcessor` that now supports multiple backends (through dependency injection), in particular:
+
+- `SimilarityIndex` interface for backend-specific similarity indices;
+- `FaissSimilarityIndex` interface for `faiss` similarity index;
+- `ScikitLearnSimilarityIndex` interface for `sklearn` similarity index based on `sklearn.neighbors.KDTree` and `sklearn.neighbors.BallTree`;
+- A new similarity metric to `ScikitLearnSimilarityIndex` based on `sklearn.neighbors.BallTree` corresponding to Poincare distance;
+- `SimilarityProcessor` now takes on input a `SimilarityIndex`.
+
+
+The two following snippets illustrate examples of usage of new interfaces.
+
+.. code-block:: python
+
+    from bluegraph.downstream.similarity import (FaissSimilarityIndex,
+                                                 ScikitLearnSimilarityIndex,
+                                                 SimilarityProcessor)
+
+    d = 64
+    initial_vectors = np.random.rand(100, 64)
+    new_vectors = np.random.rand(20, 64)
+
+    # Create a faiss-based similarity index
+    faiss_index = FaissSimilarityIndex(
+        d, similarity=similarity, n_segments=n_segments)
+
+    point_names = [f"point{el}" for el in range(100)]
+
+    # Create a a similarity processor interface and supply point ids
+    faiss_processor = SimilarityProcessor(
+        faiss_index, point_ids=point_names)
+    
+    # Add vectors to the index
+    faiss_processor.add(initial_vectors, point_ids=point_names)
+
+    # Get vectors by point ids and query similar vectors
+    vectors = faiss_processor.get_vectors(point_names[:10])
+    result = faiss_processor.query_existing(point_names[:10], 20)
+
+
+
+.. code-block:: python
+
+    # Create a scikit-learn-based similarity index    
+    sklearn_index = ScikitLearnSimilarityIndex(
+        d, similarity="poincare",
+        initial_vectors=initial_vectors
+
+    # Create a a similarity processor interface and supply point ids
+    sklearn_processor = SimilarityProcessor(
+        sklearn_index, point_ids=point_names)
+
+    # Get vectors by point ids and query similar vectors
+    vectors = sklearn_processor.get_vectors(point_names[:10])
+    result = sklearn_processor.query_existing(point_names[:10], 20)
+
+
+    
+
+Building embedding pipelines
+----------------------------
+
+- `EmbeddingPipeline` was moved into `blugraph.downstream.pipelines`
+- A tutorial notebook with embedding pipelines was added.
