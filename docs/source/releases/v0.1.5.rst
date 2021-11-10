@@ -1,0 +1,84 @@
+====================
+vO.1.5 Release Notes
+====================
+
+This release focuses on several BlueGraph's dependecy issues, in particular, this release
+
+- adds more dependency constraints for the library;
+- adds pinned versions for the :code:`cord19kg.apps` part (in order to make it reproducible);
+- moves :code:`gensim` (together with its dependency :code:`tensorflow`) to optional dependencies (can be installed with extras, for example, :code:`pip install bluegraph[gensim]`, :code:`pip install bluegraph[stellargraph]`, :code:`pip install bluegraph[dev]` or :code:`pip install bluegraph[all]`) which makes the installation process for the basic library faster.
+
+It also implements several bugfixes and features described below.
+
+
+Backend support
+===============
+
+
+StellarGraph
+------------
+
+- Bugfixes in StellarGraph-based embeddings.
+- Inductive node embedding models (e.g. attri2vec or GraphSAGE) now support biased random walks.
+
+
+
+
+Graph preprocessing with BlueGraph
+==================================
+
+
+Co-occurrence generation
+------------------------
+
+Support for multi-set co-occurrence is added. Consider the following example:
+
+.. code-block:: python
+
+    from bluegraph import PandasPGFrame
+    from bluegraph.preprocess import CooccurrenceGenerator
+
+    graph = PandasPGFrame()
+    graph.add_nodes(["node1", "node2"])
+    graph.add_node_properties(
+        nodes=pd.DataFrame([
+            ["node1", ["a", "a", "b", "b", "c", "c"]],
+            ["node2", ["a", "b", "b", "c", "c", "c"]]
+        ], columns=["@id", "factor"])
+    )
+
+
+We want to generate co-occurrence edges for the given nodes using their property :code:`factor`. Note that the property values are lists with some elements occurring multiple times (they are multi-sets).
+
+.. code-block:: python
+
+
+    generator = CooccurrenceGenerator(graph)
+    edges = generator.generate_from_nodes(
+        "factor", compute_statistics=["frequency"])
+
+
+The multi-set of common factors for the two nodes is the following:
+
+>>> edges[["common_factors"]].to_dict()
+{'frequency': {('node1', 'node2'): ["a", "b", "b", "c", "c"]}}
+
+
+Therefore, the total co-occurrence frequency of :code:`node1` and :code:`node2` is 5:
+
+>>> edges[["frequency"]].to_dict()
+{'frequency': {('node1', 'node2'): 5}}
+
+
+
+
+Services
+========
+
+
+Embedder
+--------
+
+This release
+- fixes :code:`nexus-forge` mappings to local files (in :code:`services.embedder`);
+- fixes :code:`Dockerimage` to fetch :code:`nexusforge` from the source.
