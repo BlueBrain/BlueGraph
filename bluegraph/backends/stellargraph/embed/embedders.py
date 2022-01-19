@@ -148,7 +148,6 @@ class StellarGraphNodeEmbedder(GraphElementEmbedder):
                 train_graph, self.params, self.model_name)
 
         if "biased" in self.params and self.params["biased"] is True:
-            print("Biased...")
             walker = BiasedRandomWalk(
                 train_graph,
                 n=self.params["number_of_walks"],

@@ -64,6 +64,9 @@ STELLARGRAPH_PARAMS = {
         "batch_size",
         "epochs",
         "num_samples",
+        "random_walk_p",
+        "random_walk_q",
+        "biased",
         "clusters",  # number of random clusters
         "clusters_q"  # number of clusters to combine for each mini-batch
     ]
@@ -80,6 +83,7 @@ DEFAULT_STELLARGRAPH_PARAMS = {
     "num_samples": [10, 5],
     "random_walk_p": 0.5,  # Defines (unormalised) probability, 1/p, of returning to source node
     "random_walk_q": 2.0,  # Defines (unormalised) probability, 1/q, for moving away from source node
+    "biased": False,
     "clusters": 2,
     "clusters_q": 1,
     "num_powers": 10
