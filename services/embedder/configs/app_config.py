@@ -17,6 +17,6 @@
 """Embedding service configs."""
 FORGE_CONFIG = "configs/forge_configs/forge-config.yml"
 DOWNLOAD_DIR = "downloads/"
-LOCAL = True
+LOCAL = False
 
 DEBUG = True
