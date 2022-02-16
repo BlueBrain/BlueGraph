@@ -20,6 +20,7 @@ channels:
   - pytorch
 dependencies:
   - python=3.7
+  - python=3.7
   - flask
   - numpy>=1.20.1
   - pandas
@@ -32,3 +33,4 @@ dependencies:
   - tensorflow
   - conda-pack
   - faiss-cpu
+  - chardet>=4.0.0

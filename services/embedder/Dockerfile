@@ -16,13 +16,15 @@
 
 # ----------------------------------------------------------------------
 # 1. Build an intermediate image which installs dependencies using conda
-FROM continuumio/miniconda3 as intermediate
+FROM continuumio/miniconda3:4.10.3 as intermediate
 
 COPY ./services/embedder/environment.yml .
 COPY ./requirements.txt .
 
 RUN conda env create -f environment.yml
-SHELL ["conda", "run", "-n", "embedder", "/bin/bash", "-c"]
+# SHELL ["conda", "run", "-n", "embedder", "/bin/bash", "-c"]
+ENV PATH /opt/conda/envs/embedder/bin:$PATH
+RUN /bin/bash -c "source activate embedder"
 RUN conda-pack -n embedder -o /tmp/env.tar && \
     mkdir /venv && cd /venv && tar xf /tmp/env.tar && \
     rm /tmp/env.tar
@@ -52,5 +54,6 @@ EXPOSE 5000
 SHELL ["/bin/bash", "-c"]
 RUN source /venv/bin/activate && \
     pip install git+https://github.com/BlueBrain/nexus-forge.git && \
- 	pip install --no-cache-dir .[stellargraph]
+    pip install --no-cache-dir .  && \
+    pip install stellargraph>=1.2.0
 ENTRYPOINT source /venv/bin/activate && cd services/embedder && flask run --host=0.0.0.0

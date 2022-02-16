@@ -1,0 +1,63 @@
+include:
+  - project: cs/gitlabci-templates
+    file: /build-image-using-kaniko.yml
+
+stages:
+  - deploy
+
+
+# Customized for supporting Dockerfile being in a subdir
+# from https://bbpgitlab.epfl.ch/cs/gitlabci-templates/-/blob/main/build-image-using-kaniko.yml
+.build-image-using-kaniko-dockerfile-path:
+  variables:
+    REGISTRY_IMAGE_TAG: latest  # if it is not overwritten we use latest
+    BUILD_PATH: $CI_PROJECT_DIR # in case we want to build multiple images in the same repo
+    DOCKERFILE_PATH: $CI_PROJECT_DIR
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - echo $CI_PROJECT_DIR
+    - echo $CI_REGISTRY_IMAGE
+    - echo $BUILD_PATH
+    - mkdir -p /kaniko/.docker
+    - |-
+       KANIKOCFG="{
+         \"auths\": {
+           \"$CI_REGISTRY\":{
+             \"username\": \"$CI_REGISTRY_USER\",
+             \"password\": \"$CI_REGISTRY_PASSWORD\"
+           }
+         },
+         \"proxies\": {
+           \"default\": {
+             \"httpProxy\": \"${http_proxy}\",
+             \"httpsProxy\": \"${https_proxy}\",
+             \"noProxy\": \"${no_proxy}\"
+           }
+         }
+       }"
+       KANIKOPROXYBUILDARGS="--build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy} --build-arg no_proxy=${no_proxy}"
+       echo "${KANIKOCFG}" > /kaniko/.docker/config.json
+    - cat /kaniko/.docker/config.json
+    # This is written like that in case $KANIKO_EXTRA_ARGS has args that require spaces, which is tricky on `sh`
+    # bash hacks like passing an array don't work because kaniko uses `sh`. For more info:
+    # https://unix.stackexchange.com/questions/459367/using-shell-variables-for-command-options
+    # https://unix.stackexchange.com/questions/444946/how-can-we-run-a-command-stored-in-a-variable
+    # https://github.com/GoogleContainerTools/kaniko/issues/1803
+    - COMMAND="/kaniko/executor --context $BUILD_PATH --dockerfile $DOCKERFILE_PATH/Dockerfile $KANIKOPROXYBUILDARGS --destination $CI_REGISTRY_IMAGE:$REGISTRY_IMAGE_TAG --skip-tls-verify $KANIKO_EXTRA_ARGS"
+    - eval "${COMMAND}"
+
+
+# Executes deployment of the embedding service to bbp-dev in Kubernetes
+deploy-embedding-service-bbp-dev:
+  stage: deploy
+  extends: .build-image-using-kaniko-dockerfile-path
+#  rules:
+#    - if: '$CI_COMMIT_BRANCH == "main"'
+#      when: on_success
+  variables:
+    DOCKERFILE_PATH: $CI_PROJECT_DIR/services/embedder/
+#    KANIKO_EXTRA_ARGS: "--build-arg GENERATED_DOCS_PATH=generated/html"
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 16Gi
