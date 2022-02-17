@@ -45,7 +45,7 @@ setup(
     install_requires=[
         "numpy>=1.20.1",
         "pandas>=1.3.0",
-        "scikit-learn>=0.20",
+        "scikit-learn>=1.0.2",
         "scipy",
         "matplotlib",
         "nltk",
@@ -116,7 +116,6 @@ setup(
             "dash_daq==0.5.0",
             "dash_extensions==0.0.58",
             "dash_cytoscape<=0.2.0",
-            "nexus-sdk",
             "ipywidgets==7.6.3",
             "neo4j",
             "gensim<4.0.0",

@@ -27,7 +27,7 @@ def pgframe_to_networkx(pgframe, directed=True):
         create_using = nx.DiGraph
     else:
         create_using = nx.Graph
-    edge_attr = True if len(pgframe.edge_properties()) > 0 else None
+    edge_attr = list(pgframe._edges.columns)
     graph = nx.from_pandas_edgelist(
         pgframe._edges.reset_index(),
         source="@source_id", target="@target_id",

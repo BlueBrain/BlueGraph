@@ -54,6 +54,10 @@ def preprocess_value(v):
     return v
 
 
+def preprocess_key(key):
+    return key.replace(".", "_").replace(":", "_")
+
+
 def safe_node_id(index):
     if isinstance(index, str):
         return index.replace("'", "\\'")
@@ -75,7 +79,7 @@ def _generate_property_repr(properties, prop_types=None):
                 # create a string property
                 quote = "'"
                 props.append("{}: {}{}{}".format(
-                    k.replace(".", "_"), quote,
+                    preprocess_key(k), quote,
                     str(preprocess_value(v)).replace("'", "\\'"), quote))
             elif isinstance(v, Iterable):
                 # create a list property
@@ -88,15 +92,15 @@ def _generate_property_repr(properties, prop_types=None):
                             str(preprocess_value(vv)).replace("'", "\\'")))
                 if len(values) > 0:
                     props.append("{}: [{}]".format(
-                        k.replace(".", "_"), ", ".join(values)))
+                        preprocess_key(k), ", ".join(values)))
             elif prop_types[k] == "numeric" and not math.isnan(v):
                 # create a numerical property
                 props.append("{}: {}".format(
-                    k.replace(".", "_"), preprocess_value(v)))
+                    preprocess_key(k), preprocess_value(v)))
             else:
                 if not isinstance(v, float) or not math.isnan(v):
                     props.append("{}: {}".format(
-                        k.replace(".", "_"), v))
+                        preprocess_key(k), v))
     return props
 
 

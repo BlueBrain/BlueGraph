@@ -32,3 +32,4 @@ dependencies:
   - tensorflow
   - conda-pack
   - faiss-cpu
+  - chardet>=4.0.0

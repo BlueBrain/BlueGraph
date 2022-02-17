@@ -13,17 +13,19 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-import numpy as np
-import pandas as pd
 import pickle
-
 import faiss
 import joblib
 import os
 import warnings
 
+import numpy as np
+import pandas as pd
+
 from abc import ABC, abstractmethod
 
+from scipy.special import rel_entr
+from scipy.stats import wasserstein_distance
 from sklearn.neighbors import BallTree, KDTree, DistanceMetric, VALID_METRICS
 
 
@@ -45,6 +47,23 @@ def poincare_distance(v1, v2):
         (euclidean_distance ** 2) / ((1 - v1_norm ** 2) * (1 - v2_norm ** 2))
     )
     return np.arccosh(value)
+
+
+def wasserstein_metric(v1, v2):
+    """Compute Wasserstein metric on two vectors."""
+    # normalize vectors to sum to 1
+    v1 /= v1.sum()
+    v2 /= v2.sum()
+    elements = list(range(len(v1)))
+    return wasserstein_distance(elements, elements, v1, v2)
+
+
+def kl_divergence(v1, v2):
+    """Compute Kullback–Leibler divergence on two vectors."""
+    # normalize vectors to sum to 1
+    v1 /= v1.sum()
+    v2 /= v2.sum()
+    return sum(rel_entr(v1, v2))
 
 
 class SimilarityIndex(ABC):
@@ -231,6 +250,12 @@ class ScikitLearnSimilarityIndex(SimilarityIndex):
             if similarity == "poincare":
                 similarity = DistanceMetric.get_metric(
                     'pyfunc', func=poincare_distance)
+            elif similarity == "kl":
+                similarity = DistanceMetric.get_metric(
+                    'pyfunc', func=kl_divergence)
+            elif similarity == "wasserstein":
+                similarity = DistanceMetric.get_metric(
+                    'pyfunc', func=wasserstein_metric)
             self.index = BallTree(
                 initial_vectors, leaf_size=leaf_size, metric=similarity)
 
