@@ -87,6 +87,7 @@ setup(
             "sphinx",
             "sphinx-bluebrain-theme",
             "dash<=1.19.0",
+            "Werkzeug==2.0.3",
             "jupyter_dash==0.4.0"  # a temporary solution, mocking this module fails
         ],
         "cord19kg": [
