@@ -54,6 +54,7 @@ setup(
         "networkx>=2",
         "python-louvain",
         "pyjwt==1.7.1",
+        "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
         'cord19kg.apps': [
@@ -87,7 +88,6 @@ setup(
             "sphinx",
             "sphinx-bluebrain-theme",
             "dash<=1.19.0",
-            "Werkzeug==2.0.3",
             "jupyter_dash==0.4.0"  # a temporary solution, mocking this module fails
         ],
         "cord19kg": [
