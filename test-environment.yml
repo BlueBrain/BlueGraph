@@ -5,4 +5,3 @@ channels:
 dependencies:
   - graph-tool==2.37
   - faiss-cpu
-  - scipy>=1.7.3
