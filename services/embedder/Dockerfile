@@ -52,8 +52,10 @@ RUN chmod -R 777 services/embedder/downloads/
 EXPOSE 5000
 
 SHELL ["/bin/bash", "-c"]
+ENV FLASK_APP=app
 RUN source /venv/bin/activate && \
     pip install git+https://github.com/BlueBrain/nexus-forge.git && \
     pip install --no-cache-dir .  && \
+    pip install markupsafe==2.0.1 && \
     pip install stellargraph>=1.2.0
 ENTRYPOINT source /venv/bin/activate && cd services/embedder && flask run --host=0.0.0.0
