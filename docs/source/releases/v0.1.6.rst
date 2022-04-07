@@ -2,7 +2,7 @@
 vO.1.5 Release Notes
 ====================
 
-This release focuses on several BlueGraph's dependecy issue, implements several bugfixes and adds new features to the :code:`bluegraph.downstream.similarity` module.
+This release focuses on several BlueGraph's dependency issues, fixes several bugs and adds new features to the :code:`bluegraph.downstream.similarity` module.
 
 Downstream tasks
 ================
