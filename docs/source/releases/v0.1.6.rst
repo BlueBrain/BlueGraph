@@ -1,0 +1,59 @@
+====================
+vO.1.6 Release Notes
+====================
+
+
+This release focuses on several BlueGraph's dependency issues, fixes several bugs and adds new features to the :code:`bluegraph.downstream.similarity` module.
+
+
+Downstream tasks
+================
+
+
+Similarity search
+-----------------
+
+Added new similarity metrics for similarity indices:
+
+- Wasserstein distance
+- Kullback–Leibler divergence
+
+These metrics can be used with `ScikitLearnSimilarityIndex` (based on ball-trees). The following snippets of code illustrate the usage of new metrics.
+
+
+.. code-block:: python
+
+    from bluegraph.downstream.similarity import ScikitLearnSimilarityIndex, SimilarityProcessor
+
+    vectors = [
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 1]
+    ]
+
+    ws_index = ScikitLearnSimilarityIndex(
+        dimension=3,
+        similarity="wasserstein",
+        initial_vectors=vectors)
+
+    distances, indices = ws_index.search([[1, 1, 0]], k=1)
+    closest_vectors = ws_index.reconstruct(indices)
+
+>>> closest_vectors
+array([[[1., 0., 0.]]])
+
+The following code illustrates the usage of the Kullback–Leibler divergence:
+
+.. code-block:: python
+
+    kl_index = ScikitLearnSimilarityIndex(
+        dimension=3,
+        similarity="kl",
+        initial_vectors=vectors)
+
+    distances, indices = kl_index.search([[1, 1, 0]], k=1)
+    closest_vectors = kl_index.reconstruct(indices)
+
+>>> closest_vectors
+array([[[0., 0., 1.]]])
+
