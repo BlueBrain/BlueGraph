@@ -1,8 +1,8 @@
 ====================
-vO.1.5 Release Notes
+vO.1.6 Release Notes
 ====================
 
-This release focuses on several BlueGraph's dependecy issue, implements several bugfixes and adds new features to the :code:`bluegraph.downstream.similarity` module.
+This release focuses on several BlueGraph's dependecy issues, fixes several bugs and adds new features to the :code:`bluegraph.downstream.similarity` module.
 
 Downstream tasks
 ================
@@ -43,6 +43,7 @@ array([[[1., 0., 0.]]])
 The following code illustrates the usage of the Kullback–Leibler divergence:
 
 .. code-block:: python
+
     kl_index = ScikitLearnSimilarityIndex(
         dimension=3,
         similarity="kl",
