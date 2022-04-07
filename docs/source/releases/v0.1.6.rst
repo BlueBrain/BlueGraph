@@ -11,7 +11,7 @@ Downstream tasks
 
 
 Similarity search
-----------------
+-----------------
 
 Added new similarity metrics for similarity indices:
 
