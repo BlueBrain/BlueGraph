@@ -54,7 +54,7 @@ setup(
         "networkx==2.6.3",  # needed to fix networkx, because the new versions are not 
                             # consistent with the requirements of graph-tools on scipy
         "python-louvain",
-        "pyjwt==1.7.1",
+        "pyjwt==2.4.0",
         "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
