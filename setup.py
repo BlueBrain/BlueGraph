@@ -55,6 +55,7 @@ setup(
                             # consistent with the requirements of graph-tools on scipy
         "python-louvain",
         "pyjwt==2.4.0",
+        "rdflib==6.1.1",
         "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
@@ -83,7 +84,8 @@ setup(
             "neo4j",
             "gensim<4.0.0",
             "stellargraph>=1.2.0",
-            "chardet>=4.0.0"
+            "chardet>=4.0.0",
+            "rdflib==6.1.1"
         ],
         "docs": [
             "sphinx",
