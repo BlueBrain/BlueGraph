@@ -41,7 +41,7 @@ def test_node_classification(random_pgframe):
     cluster_nodes(
         random_pgframe.get_node_property_values("node2vec").to_list())
     node2vec_2d = transform_to_2d(
-        random_pgframe.get_node_property_values("node2vec").to_list())
+        np.array(random_pgframe.get_node_property_values("node2vec").to_list()))
     plot_2d(
         random_pgframe, vectors=node2vec_2d, label_prop="entity_type",
         silent=True)
