@@ -1,5 +1,5 @@
 ===============================================================================
-Co-occurrence knowledge graph generation, analysis and exploration
+Examples of Co-occurrence knowledge graph generation, analysis and exploration
 ===============================================================================
 
 |Co-Occurence-KG-Colab|
