@@ -1,5 +1,5 @@
 ===============================================================================
-CORD-19 co-occurrence knowledge graph generation, analysis and exploration
+Co-occurrence knowledge graph generation, analysis and exploration
 ===============================================================================
 
 |Co-Occurence-KG-Colab|
