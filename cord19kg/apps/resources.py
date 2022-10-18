@@ -40,6 +40,8 @@ DEFAULT_TYPES = [
     "Condition",
     "ORGAN",
     "ORGANISM",
+    "GENE",
+    "BRAIN_REGION",
     "GENE"
 ]
 
@@ -65,6 +67,7 @@ COLORS = {
     "CELL_COMPARTMENT": "#df7fa5",
     "Biomarkers": "#7cccee",
     "Condition": "#91c79f",
+    "BRAIN_REGION":"#91c79f",
     "0": "#8cb900",
     "1": "#d97dd8",
     "2": "#00c7ff",
