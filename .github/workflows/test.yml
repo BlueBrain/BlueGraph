@@ -24,6 +24,7 @@ jobs:
           wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
           echo 'deb https://debian.neo4j.com stable latest' | sudo tee -a /etc/apt/sources.list.d/neo4j.list
           sudo apt-get update
+          sudo apt list -a neo4j
           sudo apt-get install neo4j=1:4.4.3
       - name: Download the graph data science lib
         run: |
