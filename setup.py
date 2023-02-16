@@ -56,7 +56,7 @@ setup(
         "python-louvain",
         "pyjwt==2.4.0",
         "rdflib==6.1.1",
-        "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
+        "Werkzeug==2.2.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
         'cord19kg.apps': [
