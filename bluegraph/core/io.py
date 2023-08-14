@@ -225,7 +225,7 @@ class PGFrame(ABC):
 
     @classmethod
     @abstractmethod
-    def from_frames(self, nodes, edges):
+    def from_frames(cls, nodes, edges):
         pass
 
     @abstractmethod
@@ -368,7 +368,7 @@ class PGFrame(ABC):
                                include_context=True, type_handler=None,
                                types_from_relations=True,
                                exclude=[], only_props=False):
-        """Retreive nodes and edges from a resource."""
+        """Retrieve nodes and edges from a resource."""
         node_id = None
         if "@id" in record:
             node_id = record["@id"]
@@ -646,11 +646,8 @@ class PGFrame(ABC):
             node_id = g.label(c).value
             for p, o in g.predicate_objects(c):
                 if isinstance(o, rdflib.Literal):
-                    prop_name = None
-                    if g.label(p):
-                        prop_name = g.label(p).value
-                    else:
-                        prop_name = str(p)
+                    prop_name = g.label(p).value if g.label(p) else str(p)
+
                     if node_id in props[prop_name]:
                         if isinstance(props[prop_name][node_id], list):
                             props[prop_name][node_id].append(o.value)
@@ -726,7 +723,7 @@ class PandasPGFrame(PGFrame):
         """Add node ids to the PG frame."""
         new_df = pd.DataFrame({"@id": node_ids})
         new_df = new_df.set_index("@id")
-        self._nodes = self._nodes.append(new_df)
+        self._nodes = pd.concat([self._nodes, new_df])
 
     def add_nodes_from_df(self, df, id_column, node_type=None,
                           property_types=None):
@@ -752,7 +749,7 @@ class PandasPGFrame(PGFrame):
 
         new_df = pd.DataFrame({"@source_id": sources, "@target_id": targets})
         new_df = new_df.set_index(["@source_id", "@target_id"])
-        self._edges = self._edges.append(new_df)
+        self._edges = pd.concat([self._edges, new_df])
 
     def add_edges_from_df(self, df, source_column, target_column,
                           edge_type=None, property_types=None):
@@ -946,10 +943,8 @@ class PandasPGFrame(PGFrame):
         if flatten:
             types = _aggregate_values(self._nodes["@type"])
         else:
-            types = []
-            for el in self._nodes["@type"]:
-                if el not in types:
-                    types.append(el)
+            types = list(set(el for el in self._nodes["@type"]))
+
         return types
 
     def edge_types(self, flatten=False):
@@ -959,10 +954,8 @@ class PandasPGFrame(PGFrame):
             if isinstance(types, str):
                 types = [types]
         else:
-            types = []
-            for el in self._edges["@type"]:
-                if el not in types:
-                    types.append(el)
+            types = list(set(el for el in self._edges["@type"]))
+
         return types
 
     def nodes(self, typed_by=None, raw_frame=False, include_index=False,
@@ -1066,27 +1059,28 @@ class PandasPGFrame(PGFrame):
         """Get edge properties."""
         return self._edges.loc[(s, t)].to_dict()
 
-    def number_of_nodes(self):
+    def number_of_nodes(self, node_type=None):
         """Return a number of nodes."""
         return self._nodes.shape[0]
 
-    def number_of_edges(self):
+    def number_of_edges(self, edge_type=None):
         """Return a number of nodes."""
         return self._edges.shape[0]
 
-    def _write_node(self, node_id, node_type, context, attrs):
+    def _write_node(self, node_id, node_type, context, attrs=None):
         if node_type is not None:
             attrs["@type"] = set(node_type)
-        self._nodes = self._nodes.append(
-            {"@id": node_id, **attrs}, ignore_index=True)
+        self._nodes = pd.concat([self._nodes,
+            {"@id": node_id, **attrs}], ignore_index=True
+        )
 
-    def _write_edge(self, source_id, target_id, edge_type, attrs):
+    def _write_edge(self, source_id, target_id, edge_type, attrs=None):
         attrs["@type"] = {edge_type}
-        self._edges = self._edges.append({
+        self._edges = pd.concat([self._edges, {
             "@source_id": source_id,
             "@target_id": target_id,
             **attrs
-        }, ignore_index=True)
+        }], ignore_index=True)
 
     def _aggregate_nodes(self):
         res = self._nodes.groupby("@id").aggregate(
@@ -1148,8 +1142,8 @@ class PandasPGFrame(PGFrame):
 
         # create triples from edges
         triple_sets.append(
-            self._edges.reset_index()[
-                ["@source_id", predicate_prop, "@target_id"]].to_numpy())
+            self._edges.reset_index()[["@source_id", predicate_prop, "@target_id"]].to_numpy()
+        )
 
         # create triples from literals
         if include_literals:
@@ -1239,10 +1233,7 @@ class PandasPGFrame(PGFrame):
         nodes = self.nodes()
         sources = self._edge_sources()
         targets = self._edge_targets()
-        isolates = []
-        for n in nodes:
-            if n not in sources and n not in targets:
-                isolates.append(n)
+        isolates = [n for n in nodes if n not in sources and n not in targets]
         return isolates
 
     def remove_isolated_nodes(self):
@@ -1341,7 +1332,7 @@ class SparkPGFrame(PGFrame):
     """Class for storing typed PGs as a collection of Spark DataFrames."""
 
     def __init__(self):
-        """Initalize a SparkPGFrame."""
+        """Initialize a SparkPGFrame."""
         pass
 
 
