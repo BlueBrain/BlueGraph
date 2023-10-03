@@ -22,4 +22,4 @@ dash_extensions==0.0.58
 dash_cytoscape<=0.2.0
 ipywidgets==7.6.3
 neo4j>=4.2.1
-rdflib==6.1.1
+rdflib==6.3.2
