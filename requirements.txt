@@ -8,7 +8,7 @@ nexus-sdk>=0.3.2
 nexusforge>=0.6.3
 gensim==3.8.3
 pyjwt==2.4.0
-tensorflow==2.2.0
+tensorflow==2.11.1
 stellargraph>=1.2.0
 chardet>=4.0.0
 graph-tool==2.58
