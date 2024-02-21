@@ -48,8 +48,7 @@ setup(
         "scikit-learn>=1.0.2",
         "scipy",
         "matplotlib",
-        "nltk",
-        "nexusforge",
+        "nexusforge@git+https://github.com/BlueBrain/nexus-forge",
         "nexus-sdk",
         "networkx==2.6.3",  # needed to fix networkx, because the new versions are not 
                             # consistent with the requirements of graph-tools on scipy
