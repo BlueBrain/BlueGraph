@@ -55,7 +55,7 @@ setup(
                             # consistent with the requirements of graph-tools on scipy
         "python-louvain",
         "pyjwt==2.4.0",
-        "rdflib==6.3.2",
+        "rdflib==7.0.0",
         "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
