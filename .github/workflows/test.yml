@@ -27,9 +27,9 @@ jobs:
           sudo apt-get install neo4j=1:5.18.0
       - name: Download the graph data science lib
         run: |
-          wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-2.6.2-standalone.zip
-          unzip neo4j-graph-data-science-2.6.2-standalone.zip
-          sudo cp neo4j-graph-data-science-2.6.2.jar /var/lib/neo4j/plugins/
+          wget https://s3-eu-west-1.amazonaws.com/com.neo4j.graphalgorithms.dist/graph-data-science/neo4j-graph-data-science-1.8.6-standalone.zip
+          unzip neo4j-graph-data-science-1.8.6-standalone.zip
+          sudo cp neo4j-graph-data-science-1.8.6.jar /var/lib/neo4j/plugins/
       - name: Add conda to system path
         run: |
             # $CONDA is an environment variable pointing to the root of the miniconda directory
