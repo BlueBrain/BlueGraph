@@ -38,7 +38,7 @@ setup(
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueGraph",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=[
         "setuptools_scm",
     ],
