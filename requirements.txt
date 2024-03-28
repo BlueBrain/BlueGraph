@@ -5,7 +5,7 @@ scipy>=1.4.1
 matplotlib>=3.4.2
 nltk>=3.6
 nexus-sdk>=0.3.2
-nexusforge @ git+https://github.com:BlueBrain/nexus-forge@master 
+nexusforge @ git+https://github.com/BlueBrain/nexus-forge@master 
 gensim==3.8.3
 pyjwt==2.4.0
 tensorflow==2.2.0

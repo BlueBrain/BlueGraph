@@ -49,7 +49,7 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        "nexusforge @ git+https://github.com:BlueBrain/nexus-forge@master",
+        "nexusforge @ git+https://github.com/BlueBrain/nexus-forge@master",
         "nexus-sdk",
         "networkx==2.6.3",  # needed to fix networkx, because the new versions are not 
                             # consistent with the requirements of graph-tools on scipy
