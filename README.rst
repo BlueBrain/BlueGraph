@@ -94,7 +94,7 @@ The same holds for the Neo4j backend: in order to use it, the database should be
 Installing BlueGraph
 ^^^^^^^^^^^^^^^^^^^^^
 
-BlueGraph supports Python versions >= 3.7 and pip >= 21.0.1. To update pip from the older versions run:
+BlueGraph supports Python versions >= 3.8 and pip >= 21.0.1. To update pip from the older versions run:
 
 ::
   
