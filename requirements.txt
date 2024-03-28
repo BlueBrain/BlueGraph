@@ -11,7 +11,7 @@ pyjwt==2.4.0
 tensorflow==2.2.0
 stellargraph>=1.2.0
 chardet>=4.0.0
-graph-tool==2.58
+graph-tool==2.59
 dash<=1.19.0
 networkx==2.6.3
 python-louvain
