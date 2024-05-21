@@ -38,7 +38,7 @@ setup(
     keywords="framework knowledge graph data science",
     url="https://github.com/BlueBrain/BlueGraph",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=[
         "setuptools_scm",
     ],
@@ -49,13 +49,13 @@ setup(
         "scipy",
         "matplotlib",
         "nltk",
-        "nexusforge",
+        "nexusforge@git+https://github.com/BlueBrain/nexus-forge@master",
         "nexus-sdk",
         "networkx==2.6.3",  # needed to fix networkx, because the new versions are not 
                             # consistent with the requirements of graph-tools on scipy
         "python-louvain",
         "pyjwt==2.4.0",
-        "rdflib==6.1.1",
+        "rdflib==7.0.0",
         "Werkzeug==2.0.3"  # dash doesn't work with the new version of Werkzeug
     ],
     package_data={
@@ -84,8 +84,7 @@ setup(
             "neo4j",
             "gensim<4.0.0",
             "stellargraph>=1.2.0",
-            "chardet>=4.0.0",
-            "rdflib==6.1.1"
+            "chardet>=4.0.0"
         ],
         "docs": [
             "sphinx",
