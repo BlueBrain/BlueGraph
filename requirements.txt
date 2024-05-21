@@ -11,7 +11,7 @@ pyjwt==2.4.0
 tensorflow==2.2.0
 stellargraph>=1.2.0
 chardet>=4.0.0
-graph-tool==2.59
+graph-tool==2.58
 dash<=1.19.0
 networkx==2.6.3
 python-louvain
@@ -21,5 +21,5 @@ dash_daq==0.5.0
 dash_extensions==0.0.58
 dash_cytoscape<=0.2.0
 ipywidgets==7.6.3
-neo4j>=5.18.0
-rdflib==7.0.2
+neo4j>=4.2.1
+rdflib==7.0.0
