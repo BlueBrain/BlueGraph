@@ -28,7 +28,7 @@ dependencies:
   - matplotlib
   - nltk
   - gensim==3.8.3
-  - pyjwt==1.7.1
+  - pyjwt==2.4.0
   - tensorflow
   - conda-pack
   - faiss-cpu
